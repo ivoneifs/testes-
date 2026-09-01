@@ -18,7 +18,7 @@ data/catalog_diagnostic.json
 *.xlsx
 data/*.xlsx
 
-# NOTA: data/neuro_normas.db É versionado (repo privado) para o deploy funcionar.
+# NOTA: data/neuro_normas.db É versionado para o deploy (Coolify) funcionar sem passos manuais.
 
 # Sistema / editores
 .DS_Store

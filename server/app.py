@@ -15,14 +15,16 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
+# Carrega o .env ANTES de importar módulos locais que leem env no import (auth).
+ROOT=Path(__file__).resolve().parents[1]
+load_dotenv(ROOT/'.env')
+
 from .workbook_engine import WorkbookEngine
 from .openai_service import analyze_anamnesis, analyze_laudo_model, generate_integrated_report, generate_test_report
 from .docx_report import build_integrated_docx
 from . import auth, store
 from .auth import current_user
 
-ROOT=Path(__file__).resolve().parents[1]
-load_dotenv(ROOT/'.env')
 STATIC=ROOT/'static'
 DB=ROOT/'data'/'neuro_normas.db'
 

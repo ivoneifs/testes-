@@ -29,6 +29,10 @@
         <span class="status-dot" id="apiDot"></span>
         <span id="apiStatus">Verificando sistema…</span>
       </div>
+      <div class="sidebar-user" id="sidebarUser" hidden>
+        <span id="userEmail" class="user-email"></span>
+        <button type="button" class="linklike" id="logoutBtn">Sair</button>
+      </div>
     </aside>
 
     <main class="main">
@@ -39,6 +43,8 @@
           <h1 id="pageTitle">Selecione um instrumento</h1>
         </div>
         <div class="top-actions">
+          <button type="button" class="btn primary" id="saveEvalBtn" hidden>💾 Salvar avaliação</button>
+          <button type="button" class="btn ghost" id="myEvalsBtn" hidden>Minhas avaliações</button>
           <button type="button" class="btn ghost" id="exportBtn">Exportar JSON</button>
           <button type="button" class="btn ghost" id="printBtn">Imprimir / PDF</button>
         </div>
@@ -172,6 +178,18 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal" id="evalsModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Minhas avaliações</h3>
+        <button type="button" class="icon-btn" id="evalsClose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body" id="evalsList"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.6/dist/umd/supabase.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </body>
 </html>

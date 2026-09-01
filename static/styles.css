@@ -319,6 +319,31 @@ h1,h2,h3,h4{letter-spacing:-.017em;font-weight:700;margin:0}
 /* ---------------- Ações do laudo pronto ---------------- */
 .laudo-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 
+/* ---------------- Usuário logado (sidebar) ---------------- */
+.sidebar-user{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 10px 2px;color:#9aa6bf;font-size:11px;
+}
+.user-email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linklike{border:0;background:transparent;color:#8fa6e6;cursor:pointer;font:inherit;font-size:11px;font-weight:600;padding:2px 4px;flex:none}
+.linklike:hover{color:#fff;text-decoration:underline}
+
+/* ---------------- Modal (minhas avaliações) ---------------- */
+.modal{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:24px;
+  background:rgba(17,24,39,.5);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.modal-card{width:100%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-lg)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 18px;border-bottom:1px solid var(--line)}
+.modal-head h3{font-size:15px}
+.modal-body{overflow:auto;padding:10px 12px}
+.eval-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin:6px 0;background:var(--surface-2)}
+.eval-row:hover{border-color:#cdd6e6;background:#fff}
+.eval-row .who{font-weight:650;font-size:13px}
+.eval-row .meta{font-size:11px;color:var(--muted);margin-top:2px}
+.eval-row .acts{display:flex;gap:6px;flex:none}
+
 /* ---------------- Rodapé ---------------- */
 .app-foot{
   margin-top:40px;padding-top:18px;border-top:1px solid var(--line);

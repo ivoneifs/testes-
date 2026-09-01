@@ -7,6 +7,7 @@ const $ = (s) => document.querySelector(s);
 const state = {
   tests: [], meta: null, result: null, results: [], anamnesis: null,
   testReports: [], integrated: null, laudoModel: null, openaiConfigured: false,
+  authEnabled: false, token: '', user: null, evalId: null, sb: null,
 };
 
 const els = {
@@ -45,11 +46,40 @@ function updateAge(){
 ['birthDate','applicationDate'].forEach(id=>$(`#${id}`).addEventListener('change',updateAge));
 
 async function api(url, options={}){
-  const r=await fetch(url,options); let data; try{data=await r.json();}catch{data={detail:await r.text()};}
+  const opt={...options, headers:{...(options.headers||{})}};
+  if(state.token) opt.headers['Authorization']=`Bearer ${state.token}`;
+  const r=await fetch(url,opt); let data; try{data=await r.json();}catch{data={detail:await r.text()};}
+  if(r.status===401 && state.authEnabled){ location.replace('/login.html'); throw new Error('Sessão expirada.'); }
   if(!r.ok) throw new Error(data.detail || `HTTP ${r.status}`); return data;
 }
+
+// ---------- Autenticação (Supabase) ----------
+async function bootstrapAuth(){
+  let cfg={};
+  try{ cfg=await (await fetch('/api/config')).json(); }catch{}
+  state.authEnabled=!!cfg.auth_enabled;
+  if(!state.authEnabled) return true;
+  if(!window.supabase){ toast('Não foi possível carregar o login.',true); return false; }
+  state.sb=window.supabase.createClient(cfg.supabase_url,cfg.supabase_anon_key);
+  const {data:{session}}=await state.sb.auth.getSession();
+  if(!session){ location.replace('/login.html'); return false; }
+  state.token=session.access_token;
+  state.user={id:session.user.id,email:session.user.email};
+  state.sb.auth.onAuthStateChange((_e,s)=>{
+    if(!s){ location.replace('/login.html'); return; }
+    state.token=s.access_token;
+  });
+  const su=$('#sidebarUser'); if(su){ su.hidden=false; $('#userEmail').textContent=state.user.email; }
+  $('#saveEvalBtn').hidden=false; $('#myEvalsBtn').hidden=false;
+  return true;
+}
+$('#logoutBtn')?.addEventListener('click',async()=>{
+  try{ await state.sb?.auth.signOut(); }finally{ location.replace('/login.html'); }
+});
+
 async function init(){
   const now=new Date(); $('#applicationDate').value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; updateAge();
+  if(!(await bootstrapAuth())) return;
   try{
     const health=await api('/api/health'); state.openaiConfigured=health.openai_configured;
     $('#apiDot').className='status-dot ok'; $('#apiStatus').textContent=`${health.tests} instrumentos • IA ${health.openai_configured?'configurada':'sem chave'}`; $('#aiConfigNote').hidden=health.openai_configured;
@@ -240,7 +270,8 @@ async function saveIntegratedDocx(btn){
   if(!state.integrated){toast('Gere o laudo integrado primeiro.',true);return;}
   const label=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='Gerando .docx…';}
   try{
-    const r=await fetch('/api/laudo/integrated-docx',{method:'POST',headers:{'Content-Type':'application/json'},
+    const h={'Content-Type':'application/json'}; if(state.token) h['Authorization']=`Bearer ${state.token}`;
+    const r=await fetch('/api/laudo/integrated-docx',{method:'POST',headers:h,
       body:JSON.stringify({patient:patient(),report:state.integrated,tests:state.results.map(x=>x.test)})});
     if(!r.ok){let d;try{d=await r.json();}catch{d={detail:await r.text()};}throw new Error(d.detail||`HTTP ${r.status}`);}
     const blob=await r.blob();
@@ -303,5 +334,74 @@ $('#printBtn').addEventListener('click',()=>window.print());
 $('#exportBtn').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify({patient:patient(),results:state.results,anamnesis:state.anamnesis,test_reports:state.testReports,laudo_model:state.laudoModel,integrated_report:state.integrated},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`neuro_avaliacao_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
 });
+
+// ---------- Avaliações salvas (nuvem, por profissional) ----------
+function evalPayload(){
+  return {patient:patient(),results:state.results,anamnesis:state.anamnesis,
+          test_reports:state.testReports,integrated_report:state.integrated,laudo_model:state.laudoModel};
+}
+$('#saveEvalBtn')?.addEventListener('click',async()=>{
+  const btn=$('#saveEvalBtn'); btn.disabled=true; const t=btn.textContent; btn.textContent='Salvando…';
+  try{
+    const method=state.evalId?'PUT':'POST';
+    const url=state.evalId?`/api/evaluations/${state.evalId}`:'/api/evaluations';
+    const row=await api(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(evalPayload())});
+    state.evalId=row.id||state.evalId;
+    toast('Avaliação salva na sua conta.');
+  }catch(e){toast(e.message,true);}finally{btn.disabled=false;btn.textContent=t;}
+});
+$('#myEvalsBtn')?.addEventListener('click',async()=>{
+  const modal=$('#evalsModal'), list=$('#evalsList');
+  list.innerHTML='<p class="muted small">Carregando…</p>'; modal.hidden=false;
+  try{
+    const {evaluations}=await api('/api/evaluations');
+    if(!evaluations.length){ list.innerHTML='<p class="muted small">Nenhuma avaliação salva ainda.</p>'; return; }
+    list.innerHTML=evaluations.map(ev=>{
+      const nm=esc(ev.patient?.name||'(sem nome)');
+      const when=new Date(ev.updated_at||ev.created_at).toLocaleString('pt-BR');
+      const tests=(ev.tests||[]).map(t=>t.test).filter(Boolean).join(', ');
+      return `<div class="eval-row"><div><div class="who">${nm}</div>
+        <div class="meta">${esc(tests||'sem testes')} • ${when}</div></div>
+        <div class="acts"><button type="button" class="btn ghost" data-open="${ev.id}">Abrir</button>
+        <button type="button" class="btn ghost" data-del="${ev.id}">Excluir</button></div></div>`;
+    }).join('');
+  }catch(e){ list.innerHTML=`<p class="msg err" style="display:block">${esc(e.message)}</p>`; }
+});
+$('#evalsClose')?.addEventListener('click',()=>$('#evalsModal').hidden=true);
+$('#evalsModal')?.addEventListener('click',(e)=>{ if(e.target.id==='evalsModal')$('#evalsModal').hidden=true; });
+$('#evalsList')?.addEventListener('click',async(e)=>{
+  const open=e.target.dataset.open, del=e.target.dataset.del;
+  if(del){
+    if(!confirm('Excluir esta avaliação?'))return;
+    try{ await api(`/api/evaluations/${del}`,{method:'DELETE'}); $('#myEvalsBtn').click(); toast('Avaliação excluída.'); }
+    catch(err){ toast(err.message,true); }
+    return;
+  }
+  if(!open)return;
+  try{
+    const ev=await api(`/api/evaluations/${open}`);
+    loadEvaluation(ev); $('#evalsModal').hidden=true; toast('Avaliação carregada.');
+  }catch(err){ toast(err.message,true); }
+});
+function loadEvaluation(ev){
+  const p=ev.patient||{};
+  $('#patientName').value=p.name||''; $('#birthDate').value=p.birth_date||'';
+  $('#applicationDate').value=p.application_date||''; $('#sex').value=p.sex||'';
+  $('#education').value=p.education||''; updateAge();
+  state.results=ev.tests||[]; state.anamnesis=ev.anamnesis||null;
+  state.testReports=ev.test_reports||[]; state.integrated=ev.integrated_report||null;
+  state.laudoModel=ev.laudo_model||null; state.evalId=ev.id;
+  if(state.anamnesis){ els.anamnesisOutput.innerHTML=renderStructured(state.anamnesis); }
+  if(state.laudoModel){ els.modelOutput.innerHTML=renderStructured(state.laudoModel); }
+  if(state.integrated){
+    els.integratedOutput.innerHTML=renderStructured(state.integrated);
+    els.laudoActions.hidden=false; els.docxBtn.hidden=false;
+  }
+  if(state.results.length){
+    state.result=state.results[state.results.length-1];
+    renderResults(state.result); fillAutoFields(state.result);
+    els.testReportBtn.disabled=!state.openaiConfigured; els.integratedBtn.disabled=!state.openaiConfigured;
+  }
+}
 
 init();

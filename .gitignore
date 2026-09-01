@@ -10,14 +10,15 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
-# Banco gerado (recriável via: python -m server.build_db)
-data/neuro_normas.db
+# Diagnóstico do auto-teste (recriável)
 data/catalog_diagnostic.json
 
-# Dados normativos proprietários — NÃO publicar em repositório público.
-# Necessários para gerar o banco; distribua-os por canal privado.
+# Planilha de origem: fica fora; o banco versionado já é suficiente para rodar.
+# (para regerar o banco: coloque a planilha em data/ e rode python -m server.build_db)
 *.xlsx
 data/*.xlsx
+
+# NOTA: data/neuro_normas.db É versionado (repo privado) para o deploy funcionar.
 
 # Sistema / editores
 .DS_Store

@@ -208,9 +208,26 @@ function renderCharts(result){
 }
 
 // ---------- IA ----------
+function dataTableHtml(cols,rows){
+  cols=(cols||[]).map(c=>String(c||'').trim()).filter(Boolean);
+  rows=(rows||[]).filter(r=>Array.isArray(r));
+  if(!cols.length||!rows.length)return'';
+  return `<div class="table-scroll"><table class="result-table"><thead><tr>${
+    cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r=>`<tr>${cols.map((_,j)=>{const v=r[j]??'';return `<td class="${parseNum(v)!==null?'num':''}">${esc(v)}</td>`}).join('')}</tr>`).join('')
+  }</tbody></table></div>`;
+}
+function instrumentAnalysisHtml(entries){
+  return (entries||[]).map(e=>{
+    if(!e||typeof e!=='object')return'';
+    const tabs=(e.tabelas||[]).map(t=>`${t.titulo?`<p class="tbl-cap">${esc(t.titulo)}</p>`:''}${dataTableHtml(t.colunas,t.linhas)}`).join('');
+    return `<div class="ai-block"><b>${esc(e.instrumento||'')}</b>${e.objetivo?`<p>${esc(e.objetivo)}</p>`:''}${tabs}${e.comentario?`<p>${esc(e.comentario)}</p>`:''}</div>`;
+  }).join('');
+}
 function renderStructured(obj){
   if(!obj)return''; return Object.entries(obj).map(([k,v])=>{
     const title=k.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+    if(k==='analise_instrumentos') return `<div class="ai-block"><h4>${esc(title)}</h4>${instrumentAnalysisHtml(v)}</div>`;
     if(Array.isArray(v)){if(!v.length)return'';if(typeof v[0]==='object')return `<div class="ai-block"><h4>${esc(title)}</h4>${v.map(x=>`<div class="ai-block">${Object.entries(x).map(([a,b])=>`<b>${esc(a.replaceAll('_',' '))}:</b> ${Array.isArray(b)?esc(b.join('; ')):esc(b)}<br>`).join('')}</div>`).join('')}</div>`;return `<div class="ai-block"><h4>${esc(title)}</h4><ul>${v.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;}
     if(v&&typeof v==='object')return `<div class="ai-block"><h4>${esc(title)}</h4>${renderStructured(v)}</div>`;
     return `<div class="ai-block"><h4>${esc(title)}</h4><p>${esc(v??'')}</p></div>`;
@@ -297,6 +314,11 @@ h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:8px;margin:0 0 16p
 h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#333;margin:20px 0 4px}
 .meta{font-size:13px;color:#333;background:#f6f6f6;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin-bottom:22px}
 .ai-block{margin:0 0 4px}p{margin:4px 0}ul{margin:4px 0 4px 18px}
+table{border-collapse:collapse;width:100%;margin:6px 0 14px;font-size:11px}
+th,td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top}
+th{background:#eef2f9;font-weight:700}
+.tbl-cap{font-size:11px;font-weight:700;color:#333;margin:10px 0 2px}
+.table-scroll{overflow-x:auto}
 .foot{margin-top:44px;font-size:11px;color:#666;border-top:1px solid #ccc;padding-top:12px}
 .sign{margin-top:52px;font-size:13px}.sign-line{margin-top:40px;border-top:1px solid #333;width:280px;padding-top:4px}
 @media print{body{margin:0;max-width:none}}

@@ -69,6 +69,35 @@ INTEGRATED_SCHEMA = {
         'identificacao_e_demanda': {'type': 'string'},
         'historia_clinica_e_desenvolvimental': {'type': 'string'},
         'procedimentos_e_instrumentos': {'type': 'string'},
+        'analise_instrumentos': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'instrumento': {'type': 'string'},
+                    'objetivo': {'type': 'string'},
+                    'tabelas': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'titulo': {'type': 'string'},
+                                'colunas': {'type': 'array', 'items': {'type': 'string'}},
+                                'linhas': {
+                                    'type': 'array',
+                                    'items': {'type': 'array', 'items': {'type': 'string'}},
+                                },
+                            },
+                            'required': ['titulo', 'colunas', 'linhas'],
+                            'additionalProperties': False,
+                        },
+                    },
+                    'comentario': {'type': 'string'},
+                },
+                'required': ['instrumento', 'objetivo', 'tabelas', 'comentario'],
+                'additionalProperties': False,
+            },
+        },
         'resultados_por_dominio': {
             'type': 'array',
             'items': {
@@ -88,7 +117,7 @@ INTEGRATED_SCHEMA = {
         'limitacoes': {'type': 'array', 'items': {'type': 'string'}},
         'conclusao': {'type': 'string'},
     },
-    'required': ['identificacao_e_demanda','historia_clinica_e_desenvolvimental','procedimentos_e_instrumentos','resultados_por_dominio','integracao_neuropsicologica','hipoteses_e_diferenciais','recomendacoes','limitacoes','conclusao'],
+    'required': ['identificacao_e_demanda','historia_clinica_e_desenvolvimental','procedimentos_e_instrumentos','analise_instrumentos','resultados_por_dominio','integracao_neuropsicologica','hipoteses_e_diferenciais','recomendacoes','limitacoes','conclusao'],
     'additionalProperties': False,
 }
 
@@ -272,6 +301,17 @@ def generate_integrated_report(patient: dict, anamnesis: dict | None, test_repor
         'Integre história e resultados sem inventar informações. Diferencie achado objetivo, interpretação, hipótese e recomendação. '
         'Hipóteses diagnósticas devem ser condicionais e nunca baseadas em um único escore. '
         'Inclua limitações e divergências entre fontes. O texto final deve ser estruturado, técnico e legível.'
+        ' Em "analise_instrumentos", para CADA instrumento com dados quantitativos em "quantitative_results" '
+        'monte tabelas organizadas. Para escalas Wechsler (WISC/WAIS/WASI): uma tabela de subtestes com colunas '
+        '["Subteste","Funções avaliadas","Pontos ponderados","Interpretação"] e uma tabela de índices/QI com colunas '
+        '["Índice","Pontuação composta","Percentil","Intervalo de confiança 95%","Classificação"]. Para outros '
+        'instrumentos, use as colunas que melhor representem os dados calculados. Preencha TODOS os valores numéricos '
+        '(pontos, percentis, índices, classificações, intervalos) EXCLUSIVAMENTE a partir de "quantitative_results" — '
+        'nunca invente escores; se um valor não estiver nos dados, deixe a célula vazia. Arredonde números com muitas '
+        'casas decimais (ex.: z-score para 2 casas, percentil para inteiro). Não crie tabelas de escores de processo '
+        'a menos que sejam clinicamente relevantes para o caso. A coluna "Funções avaliadas" '
+        'e o texto de "comentario"/"objetivo" podem usar conhecimento psicométrico consolidado. Cada linha da tabela '
+        'é um array de strings, na mesma ordem das colunas.'
     )
     if model:
         payload['modelo_de_formatacao']=model

@@ -300,6 +300,10 @@ h1,h2,h3,h4{letter-spacing:-.017em;font-weight:700;margin:0}
 .ai-block h4{font-size:11px;margin:0 0 5px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
 .ai-block p,.ai-block li{font-size:12px;line-height:1.6;color:var(--ink-2)}
 .ai-block ul{margin:4px 0;padding-left:18px}
+.ai-block .table-scroll{margin:6px 0 12px;border:1px solid var(--line);border-radius:10px;max-height:none}
+.ai-block .result-table{min-width:0;font-size:11px}
+.ai-block .result-table th{background:#eef2f9}
+.tbl-cap{font-size:11px;font-weight:600;color:var(--muted);margin:8px 0 2px}
 
 .integrated-panel{display:flex;justify-content:space-between;align-items:center;gap:16px;border-top:1px solid var(--line);margin-top:18px;padding-top:18px}
 .integrated-panel h3{font-size:14.5px}

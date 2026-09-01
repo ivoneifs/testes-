@@ -22,6 +22,7 @@ SECTION_ORDER = [
     ("identificacao_e_demanda", "Identificação e demanda"),
     ("historia_clinica_e_desenvolvimental", "História clínica e desenvolvimental"),
     ("procedimentos_e_instrumentos", "Procedimentos e instrumentos"),
+    ("analise_instrumentos", "Análise de instrumentos e interpretações"),
     ("resultados_por_dominio", "Resultados por domínio"),
     ("integracao_neuropsicologica", "Integração neuropsicológica"),
     ("hipoteses_e_diferenciais", "Hipóteses e diagnósticos diferenciais"),
@@ -69,6 +70,51 @@ def _bullets(doc: Document, items: list) -> None:
         item = _clean(item)
         if item:
             doc.add_paragraph(item, style="List Bullet")
+
+
+def _data_table(doc: Document, columns: list, rows: list) -> None:
+    columns = [_clean(c) for c in (columns or []) if _clean(c)]
+    rows = [r for r in (rows or []) if isinstance(r, list)]
+    if not columns or not rows:
+        return
+    table = doc.add_table(rows=1 + len(rows), cols=len(columns))
+    table.style = "Table Grid"
+    for j, name in enumerate(columns):
+        run = table.rows[0].cells[j].paragraphs[0].add_run(name)
+        run.bold = True
+        run.font.size = Pt(9)
+    for i, row in enumerate(rows, start=1):
+        for j in range(len(columns)):
+            val = _clean(row[j]) if j < len(row) else ""
+            table.rows[i].cells[j].paragraphs[0].add_run(val).font.size = Pt(9)
+    doc.add_paragraph()
+
+
+def _instrument_analysis(doc: Document, entries: list) -> None:
+    for entry in entries or []:
+        if not isinstance(entry, dict):
+            _body(doc, entry)
+            continue
+        name = _clean(entry.get("instrumento"))
+        if name:
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(8)
+            r = p.add_run(name)
+            r.bold = True
+            r.font.size = Pt(10.5)
+        _body(doc, entry.get("objetivo"))
+        for tbl in entry.get("tabelas") or []:
+            if not isinstance(tbl, dict):
+                continue
+            title = _clean(tbl.get("titulo"))
+            if title:
+                tp = doc.add_paragraph()
+                tp.paragraph_format.space_before = Pt(4)
+                tr = tp.add_run(title)
+                tr.italic = True
+                tr.font.size = Pt(9.5)
+            _data_table(doc, tbl.get("colunas"), tbl.get("linhas"))
+        _body(doc, entry.get("comentario"))
 
 
 def _domain_block(doc: Document, entries: list) -> None:
@@ -134,7 +180,9 @@ def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None =
             continue
         value = report[key]
         _heading(doc, label)
-        if key == "resultados_por_dominio":
+        if key == "analise_instrumentos":
+            _instrument_analysis(doc, value)
+        elif key == "resultados_por_dominio":
             _domain_block(doc, value)
         elif isinstance(value, list):
             _bullets(doc, value)

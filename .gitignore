@@ -1,0 +1,27 @@
+# Segredos — NUNCA versionar
+.env
+.env.*
+!.env.example
+
+# Ambiente Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Banco gerado (recriável via: python -m server.build_db)
+data/neuro_normas.db
+data/catalog_diagnostic.json
+
+# Dados normativos proprietários — NÃO publicar em repositório público.
+# Necessários para gerar o banco; distribua-os por canal privado.
+*.xlsx
+data/*.xlsx
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

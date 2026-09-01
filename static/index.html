@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#131d2f" />
+  <meta name="description" content="NeuroScore — correção neuropsicológica automática a partir de pontos brutos, com normas da planilha original e apoio de IA para laudos." />
+  <title>NeuroScore — Correção Neuropsicológica</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233157d5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <!-- Aplicação responsiva: a correção é feita no servidor local usando as normas da planilha original. -->
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">NS</div>
+        <div><strong>NeuroScore</strong><span>Correção neuropsicológica</span></div>
+      </div>
+      <div class="search-wrap">
+        <input id="testSearch" type="search" placeholder="Buscar teste..." autocomplete="off" />
+      </div>
+      <div class="test-list" id="testList"></div>
+      <div class="sidebar-foot">
+        <span class="status-dot" id="apiDot"></span>
+        <span id="apiStatus">Verificando sistema…</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button type="button" class="icon-btn mobile-only" id="menuBtn" aria-label="Abrir testes">☰</button>
+        <div>
+          <p class="eyebrow">Avaliação neuropsicológica</p>
+          <h1 id="pageTitle">Selecione um instrumento</h1>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="btn ghost" id="exportBtn">Exportar JSON</button>
+          <button type="button" class="btn ghost" id="printBtn">Imprimir / PDF</button>
+        </div>
+      </header>
+
+      <section class="patient-card card">
+        <div class="section-heading">
+          <div><span class="step">1</span><h2>Paciente</h2></div>
+          <span class="muted">Preencha uma vez; a faixa etária é aplicada automaticamente.</span>
+        </div>
+        <div class="form-grid patient-grid">
+          <label class="field span-2">Nome
+            <input id="patientName" type="text" placeholder="Nome do paciente" />
+          </label>
+          <label class="field">Nascimento
+            <input id="birthDate" type="date" />
+          </label>
+          <label class="field">Aplicação
+            <input id="applicationDate" type="date" />
+          </label>
+          <label class="field">Sexo
+            <select id="sex"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select>
+          </label>
+          <label class="field span-2">Escolaridade
+            <input id="education" type="text" placeholder="Ex.: Ensino Fundamental" />
+          </label>
+          <div class="age-chip" id="ageChip">Idade: —</div>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="card input-card">
+          <div class="section-heading">
+            <div><span class="step">2</span><h2>Pontos brutos</h2></div>
+            <div class="field-meta"><span class="badge" id="inputMode">PB</span><span class="badge" id="fieldCount">0 campos</span></div>
+          </div>
+          <div id="testLoading" class="empty-state">Escolha um teste na lateral.</div>
+          <div id="rawFields" class="raw-sections"></div>
+          <details id="parametersPanel" class="parameters-panel" hidden>
+            <summary>Ajustes normativos avançados</summary>
+            <p class="muted small">Os valores originais da planilha são mantidos automaticamente. Altere apenas quando a norma exigir.</p>
+            <div id="parameterFields" class="form-grid"></div>
+          </details>
+          <div class="action-row">
+            <button type="button" class="btn primary big" id="calculateBtn" disabled>Calcular resultados</button>
+            <button type="button" class="btn ghost" id="clearBtn">Limpar pontos</button>
+          </div>
+        </div>
+
+        <div class="card quick-info">
+          <h3>O que é automatizado</h3>
+          <div class="feature"><span>✓</span><div><b>Faixa etária</b><small>Nascimento e data de aplicação alimentam a seleção normativa da planilha.</small></div></div>
+          <div class="feature"><span>✓</span><div><b>Normas originais</b><small>Conversões consultadas na base derivada do Excel — sem reescrever fórmulas.</small></div></div>
+          <div class="feature"><span>✓</span><div><b>Gráficos por teste</b><small>Perfil, curva de aprendizagem, índices ou domínios conforme o instrumento.</small></div></div>
+          <div class="feature"><span>✓</span><div><b>Processamento local</b><small>Pontos brutos e cálculo permanecem no seu computador.</small></div></div>
+        </div>
+      </section>
+
+      <section id="resultsSection" class="results-section" hidden>
+        <div class="section-heading results-head">
+          <div><span class="step">3</span><h2>Resultados</h2></div>
+          <span class="badge success">Calculado pela planilha</span>
+        </div>
+        <div id="chartGrid" class="chart-grid"></div>
+        <div id="resultTables" class="result-tables"></div>
+      </section>
+
+      <section class="card ai-card" id="aiSection">
+        <div class="section-heading">
+          <div><span class="step">4</span><h2>IA • Laudo e anamnese</h2></div>
+          <span class="badge ai">OpenAI API</span>
+        </div>
+        <p class="privacy-note">A correção dos testes permanece no servidor local. PDFs e imagens da anamnese só são enviados à OpenAI quando você clicar em analisar. Revise todo texto clínico antes de utilizá-lo.</p><p class="ai-config-note" id="aiConfigNote" hidden>IA não configurada. Copie <b>.env.example</b> para <b>.env</b>, informe <b>OPENAI_API_KEY</b> e reinicie o servidor.</p>
+        <div class="ai-grid">
+          <article class="ai-panel">
+            <h3>Laudo do teste selecionado</h3>
+            <p>Gera síntese quantitativa, interpretação, forças, fragilidades, limitações e texto estruturado para revisão.</p>
+            <button type="button" class="btn ai-btn" id="testReportBtn" disabled>Gerar laudo deste teste</button>
+            <div class="ai-output" id="testReportOutput"></div>
+          </article>
+          <article class="ai-panel">
+            <h3>Anamnese → história de vida</h3>
+            <p>Envie PDF ou imagem, inclusive fotografia de conteúdo manuscrito.</p>
+            <label class="upload-zone" id="uploadZone">
+              <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
+              <span class="upload-icon">⇧</span>
+              <strong>Selecionar anamnese</strong>
+              <small>PDF, JPG, PNG e outras imagens</small>
+            </label>
+            <div id="fileList" class="file-list"></div>
+            <div class="alert success" id="anamnesisAlert" hidden></div>
+            <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
+            <div class="ai-output" id="anamnesisOutput"></div>
+          </article>
+        </div>
+        <div class="integrated-panel">
+          <div><h3>Laudo integrado</h3><p class="muted">Integra anamnese + resultados calculados + interpretações já geradas.</p></div>
+          <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar laudo integrado</button>
+        </div>
+        <div class="ai-output integrated-output" id="integratedOutput"></div>
+        <div class="laudo-actions" id="laudoActions" hidden>
+          <button type="button" class="btn primary" id="saveLaudoBtn">💾 Salvar laudo pronto (.html)</button>
+          <button type="button" class="btn ghost" id="printLaudoBtn">Imprimir laudo</button>
+        </div>
+      </section>
+
+      <footer class="app-foot">
+        <span><strong>NeuroScore</strong> · ferramenta de apoio à correção e redação</span>
+        <span class="app-foot-sep">•</span>
+        <span>Não substitui julgamento clínico. Todo laudo exige revisão e assinatura de profissional habilitado.</span>
+      </footer>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

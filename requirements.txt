@@ -1,0 +1,9 @@
+fastapi==0.128.2
+uvicorn[standard]==0.48.0
+python-multipart==0.0.29
+formulas==1.3.3
+numpy>=2.0
+schedula>=1.5
+httpx>=0.27
+
+python-dotenv>=1.0

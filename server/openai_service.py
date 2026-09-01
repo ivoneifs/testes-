@@ -311,9 +311,14 @@ def generate_integrated_report(patient: dict, anamnesis: dict | None, test_repor
         'presentes nos dados — todos os subtestes, todos os índices, todos os escores calculados — sem omitir '
         'nenhum. Arredonde números com muitas '
         'casas decimais (ex.: z-score para 2 casas, percentil para inteiro). Não crie tabelas de escores de processo '
-        'a menos que sejam clinicamente relevantes para o caso. A coluna "Funções avaliadas" '
+        'a menos que sejam clinicamente relevantes para o caso. Em "objetivo" escreva uma frase curta do que o '
+        'instrumento avalia (ex.: "Avalia a capacidade cognitiva global."). Em "comentario", após as tabelas, '
+        'inclua a BASE CONCEITUAL TEÓRICA de cada índice/domínio (o que cada índice mede, citando a literatura '
+        'quando pertinente) e a interpretação do desempenho específico deste paciente. A coluna "Funções avaliadas" '
         'e o texto de "comentario"/"objetivo" podem usar conhecimento psicométrico consolidado. Cada linha da tabela '
-        'é um array de strings, na mesma ordem das colunas.'
+        'é um array de strings, na mesma ordem das colunas. Em "conclusao" produza um texto integrativo e completo '
+        'que retome cada índice/resultado, sua classificação e o percentil, articule forças e fragilidades e '
+        'relacione com a demanda e a história — no estilo de uma conclusão de laudo neuropsicológico.'
     )
     if model:
         payload['modelo_de_formatacao']=model

@@ -6,7 +6,7 @@
 const $ = (s) => document.querySelector(s);
 const state = {
   tests: [], meta: null, result: null, results: [], anamnesis: null,
-  testReports: [], integrated: null, openaiConfigured: false,
+  testReports: [], integrated: null, laudoModel: null, openaiConfigured: false,
 };
 
 const els = {
@@ -17,8 +17,11 @@ const els = {
   testReportBtn: $('#testReportBtn'), testReportOutput: $('#testReportOutput'),
   files: $('#anamnesisFiles'), fileList: $('#fileList'), analyzeBtn: $('#analyzeAnamnesisBtn'),
   anamnesisOutput: $('#anamnesisOutput'), anamnesisAlert: $('#anamnesisAlert'),
+  modelFiles: $('#laudoModelFiles'), modelFileList: $('#modelFileList'), analyzeModelBtn: $('#analyzeModelBtn'),
+  modelOutput: $('#modelOutput'), modelAlert: $('#modelAlert'),
   integratedBtn: $('#integratedBtn'), integratedOutput: $('#integratedOutput'),
   laudoActions: $('#laudoActions'), saveLaudoBtn: $('#saveLaudoBtn'), printLaudoBtn: $('#printLaudoBtn'),
+  docxBtn: $('#docxBtn'), docxBtn2: $('#docxBtn2'),
 };
 
 function toast(msg, error=false){
@@ -78,14 +81,41 @@ function renderInputs(){
   const hidden=(m.detail_fields||[]).length; els.inputMode.textContent=m.input_mode==='pontos_brutos'?'Somente PB':'Entrada original';
   els.inputMode.title=hidden?`${hidden} campos de itens/origem mantidos fora da entrada compacta`:'';
   const groups=groupFields(m.raw_fields);
-  els.raw.innerHTML=groups.map((g,i)=>`<section class="raw-section"><div class="raw-section-title">${groups.length>1?`Bloco ${i+1}`:'Entrada rápida'}</div><div class="raw-grid">${g.map(f=>`<div class="raw-field"><label>${esc(f.label)} <span class="cell-ref">${esc(f.cell)}</span></label><input data-raw="${esc(f.cell)}" inputmode="decimal" type="number" step="any" value="${typeof f.current==='number'?f.current:''}" placeholder="PB" /></div>`).join('')}</div></section>`).join('');
+  els.raw.innerHTML=groups.map((g,i)=>{
+    const auto=g.every(f=>f.allow_override_formula);
+    const title=auto
+      ? 'Automático — a planilha recalcula pelos pontos brutos (idade/sexo conforme a norma do teste)'
+      : (groups.length>1?`Bloco ${i+1}`:'Entrada rápida');
+    const cells=g.map(f=>{
+      const a=!!f.allow_override_formula;
+      return `<div class="raw-field${a?' raw-field--auto':''}">`
+        +`<label>${esc(f.label)} <span class="cell-ref">${esc(f.cell)}</span></label>`
+        +`<input data-raw="${esc(f.cell)}"${a?' data-auto="1" readonly':''} inputmode="decimal" type="number" step="any"`
+        +` value="${!a&&typeof f.current==='number'?f.current:''}" placeholder="${a?'auto':'PB'}"`
+        +`${a?' title="Preenchido automaticamente ao calcular, a partir do Bloco 1 e da norma do teste."':''} /></div>`;
+    }).join('');
+    return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${title}</div><div class="raw-grid">${cells}</div></section>`;
+  }).join('');
   const params=m.parameters||[]; els.paramsPanel.hidden=!params.length;
   els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${esc(p.current??'')}" /></label>`).join('');
   els.calc.disabled=!m.raw_fields.length; els.results.hidden=true; els.testReportBtn.disabled=true;
 }
-function collectRaw(){const out={};document.querySelectorAll('[data-raw]').forEach(i=>{out[i.dataset.raw]=i.value===''?'':Number(i.value);});return out;}
+// Campos [data-auto] (somas/índices com fórmula) nunca são enviados: a planilha
+// os recalcula sozinha pela idade e pelo sexo. Só vão pontos brutos digitados.
+function collectRaw(){const out={};document.querySelectorAll('[data-raw]:not([data-auto])').forEach(i=>{out[i.dataset.raw]=i.value===''?'':Number(i.value);});return out;}
 function collectParams(){const out={};document.querySelectorAll('[data-param]').forEach(i=>out[i.dataset.param]=i.value);return out;}
 els.clear.addEventListener('click',()=>document.querySelectorAll('[data-raw]').forEach(i=>i.value=''));
+
+// Mostra nos campos automáticos (somas dos ponderados / índices) o valor que a
+// planilha calculou pela idade e pelo sexo. São só exibição — nunca reenviados.
+function fillAutoFields(result){
+  (result.raw_scores||[]).forEach(f=>{
+    if(!f.allow_override_formula)return;
+    const sel=(window.CSS&&CSS.escape)?CSS.escape(f.cell):f.cell;
+    const el=document.querySelector(`[data-raw="${sel}"][data-auto]`);
+    if(el)el.value=(typeof f.value==='number'&&Number.isFinite(f.value))?f.value:'';
+  });
+}
 
 els.calc.addEventListener('click',async()=>{
   if(!state.meta)return; const p=patient(); if(!p.birth_date||!p.application_date){toast('Informe nascimento e data de aplicação.',true);return;}
@@ -93,7 +123,7 @@ els.calc.addEventListener('click',async()=>{
   try{
     const result=await api('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:state.meta.name,patient:p,raw_scores:collectRaw(),parameters:collectParams()})});
     state.result=result; const ix=state.results.findIndex(x=>x.test===result.test); if(ix>=0)state.results[ix]=result;else state.results.push(result);
-    renderResults(result); els.testReportBtn.disabled=!state.openaiConfigured; els.integratedBtn.disabled=!state.openaiConfigured; toast('Resultados recalculados.');
+    renderResults(result); fillAutoFields(result); els.testReportBtn.disabled=!state.openaiConfigured; els.integratedBtn.disabled=!state.openaiConfigured; toast('Resultados recalculados.');
     els.results.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){toast(e.message,true);}finally{els.calc.disabled=false;els.calc.textContent='Calcular resultados';}
 });
@@ -175,10 +205,54 @@ els.analyzeBtn.addEventListener('click',async()=>{
   const fs=[...els.files.files];if(!fs.length)return;els.analyzeBtn.disabled=true;els.analyzeBtn.textContent='Lendo documentos…';
   try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));fs.forEach(f=>fd.append('files',f));const rep=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;els.anamnesisOutput.innerHTML=renderStructured(rep);els.integratedBtn.disabled=false;anamnesisAlert('Anamnese carregada — história de vida organizada com sucesso.','done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
 });
+// ---------- Modelo de formatação do laudo ----------
+function modelAlert(msg,kind='info'){
+  els.modelAlert.textContent=msg; els.modelAlert.hidden=false;
+  els.modelAlert.className='alert '+(kind==='error'?'error':'success')+(kind==='done'?' done':'');
+}
+els.modelFiles.addEventListener('change',()=>{
+  const fs=[...els.modelFiles.files];
+  els.modelFileList.innerHTML=fs.map(f=>`<div>• ${esc(f.name)} (${(f.size/1024/1024).toFixed(1)} MB)</div>`).join('');
+  els.analyzeModelBtn.disabled=!fs.length||!state.openaiConfigured;
+  if(fs.length) modelAlert(`${fs.length} modelo(s) carregado(s). Clique em "Ler modelo".`);
+  else els.modelAlert.hidden=true;
+});
+els.analyzeModelBtn.addEventListener('click',async()=>{
+  const fs=[...els.modelFiles.files];if(!fs.length)return;
+  els.analyzeModelBtn.disabled=true;els.analyzeModelBtn.textContent='Lendo modelo…';
+  try{
+    const fd=new FormData();fs.forEach(f=>fd.append('files',f));
+    const rep=await api('/api/ai/laudo-model',{method:'POST',body:fd});
+    state.laudoModel=rep;els.modelOutput.innerHTML=renderStructured(rep);
+    modelAlert('Modelo carregado — o laudo integrado seguirá esta formatação.','done');
+    toast('Modelo de formatação pronto.');
+  }catch(e){modelAlert('Falha ao ler o modelo. Verifique o arquivo e tente novamente.','error');toast(e.message,true);}
+  finally{els.analyzeModelBtn.disabled=false;els.analyzeModelBtn.textContent='Ler modelo';}
+});
+
 els.integratedBtn.addEventListener('click',async()=>{
   if(!state.results.length&&!state.anamnesis){toast('Calcule testes ou analise a anamnese primeiro.',true);return;}els.integratedBtn.disabled=true;els.integratedBtn.textContent='Integrando…';
-  try{const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results})});state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);els.laudoActions.hidden=false;toast('Laudo integrado gerado.');els.laudoActions.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){toast(e.message,true);}finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent='Gerar laudo integrado';}
+  try{const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,model:state.laudoModel})});state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);els.laudoActions.hidden=false;els.docxBtn.hidden=false;toast('Laudo integrado gerado.');els.laudoActions.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){toast(e.message,true);}finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent='Gerar laudo integrado';}
 });
+
+// ---------- Salvar laudo integrado em .docx (Word) ----------
+async function saveIntegratedDocx(btn){
+  if(!state.integrated){toast('Gere o laudo integrado primeiro.',true);return;}
+  const label=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='Gerando .docx…';}
+  try{
+    const r=await fetch('/api/laudo/integrated-docx',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({patient:patient(),report:state.integrated,tests:state.results.map(x=>x.test)})});
+    if(!r.ok){let d;try{d=await r.json();}catch{d={detail:await r.text()};}throw new Error(d.detail||`HTTP ${r.status}`);}
+    const blob=await r.blob();
+    const cd=r.headers.get('Content-Disposition')||'';
+    const m=cd.match(/filename="?([^"]+)"?/);
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=m?m[1]:`laudo_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.docx`;
+    a.click();URL.revokeObjectURL(a.href);toast('Laudo salvo em .docx.');
+  }catch(e){toast(e.message,true);}finally{if(btn){btn.disabled=false;btn.textContent=label;}}
+}
+els.docxBtn.addEventListener('click',()=>saveIntegratedDocx(els.docxBtn));
+els.docxBtn2.addEventListener('click',()=>saveIntegratedDocx(els.docxBtn2));
 
 // ---------- Salvar / imprimir laudo pronto ----------
 function laudoHtml(){
@@ -227,7 +301,7 @@ els.printLaudoBtn.addEventListener('click',()=>{
 
 $('#printBtn').addEventListener('click',()=>window.print());
 $('#exportBtn').addEventListener('click',()=>{
-  const blob=new Blob([JSON.stringify({patient:patient(),results:state.results,anamnesis:state.anamnesis,test_reports:state.testReports,integrated_report:state.integrated},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`neuro_avaliacao_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
+  const blob=new Blob([JSON.stringify({patient:patient(),results:state.results,anamnesis:state.anamnesis,test_reports:state.testReports,laudo_model:state.laudoModel,integrated_report:state.integrated},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`neuro_avaliacao_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
 });
 
 init();

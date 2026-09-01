@@ -771,8 +771,18 @@ class WorkbookEngine:
         put(pmap.get('birth_date'), excel_serial(patient.get('birth_date')))
         put(pmap.get('application_date'), excel_serial(patient.get('application_date')))
 
+        # Células com fórmula na planilha (ex.: somas dos ponderados / índices do WISC).
+        # Sem um valor digitado, elas NÃO são sobrescritas: a planilha as recalcula
+        # automaticamente a partir dos pontos brutos já aplicados.
+        formula_backed={
+            f['cell']
+            for f in (meta.get('raw_fields',[]) + meta.get('detail_fields',[]))
+            if f.get('allow_override_formula')
+        }
         for addr,val in (raw_scores or {}).items():
             if val is None or val=='':
+                if addr in formula_backed:
+                    continue
                 val=sh.EMPTY
             elif isinstance(val,str):
                 txt=val.strip().replace(',','.')

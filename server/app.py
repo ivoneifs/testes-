@@ -2,18 +2,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import unicodedata
+from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from .workbook_engine import WorkbookEngine
-from .openai_service import analyze_anamnesis, generate_integrated_report, generate_test_report
+from .openai_service import analyze_anamnesis, analyze_laudo_model, generate_integrated_report, generate_test_report
+from .docx_report import build_integrated_docx
 
 ROOT=Path(__file__).resolve().parents[1]
 load_dotenv(ROOT/'.env')
@@ -39,6 +43,18 @@ class IntegratedRequest(BaseModel):
     anamnesis: dict[str,Any]|None=None
     test_reports: list[dict[str,Any]]=Field(default_factory=list)
     raw_results: list[dict[str,Any]]=Field(default_factory=list)
+    model: dict[str,Any]|None=None
+
+class IntegratedDocxRequest(BaseModel):
+    patient: dict[str,Any]=Field(default_factory=dict)
+    report: dict[str,Any]
+    tests: list[str]=Field(default_factory=list)
+
+
+def _slug(text: str) -> str:
+    text=unicodedata.normalize('NFKD',text or '').encode('ascii','ignore').decode()
+    text=re.sub(r'[^A-Za-z0-9]+','_',text).strip('_').lower()
+    return text or 'paciente'
 
 @app.get('/api/health')
 def health():
@@ -97,12 +113,50 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
     except Exception as exc:
         raise HTTPException(502,str(exc))
 
+@app.post('/api/ai/laudo-model')
+async def ai_laudo_model(files: list[UploadFile]=File(...)):
+    parsed=[]
+    total=0
+    allowed_ext=('.pdf','.doc','.docx','.txt','.md','.rtf','.odt')
+    for f in files:
+        data=await f.read()
+        total+=len(data)
+        if len(data)>15*1024*1024:
+            raise HTTPException(413,f'{f.filename}: arquivo acima de 15 MB')
+        mime=f.content_type or 'application/octet-stream'
+        name=(f.filename or 'modelo')
+        if not (mime=='application/pdf' or mime.startswith('image/') or mime.startswith('text/')
+                or name.lower().endswith(allowed_ext)):
+            raise HTTPException(415,f'{name}: envie PDF, DOCX, TXT ou imagem')
+        parsed.append((name,mime,data))
+    if total>30*1024*1024:
+        raise HTTPException(413,'Total de anexos acima de 30 MB')
+    try:
+        return analyze_laudo_model(parsed)
+    except Exception as exc:
+        raise HTTPException(502,str(exc))
+
 @app.post('/api/ai/integrated-report')
 def ai_integrated(req: IntegratedRequest):
     try:
-        return generate_integrated_report(req.patient,req.anamnesis,req.test_reports,req.raw_results)
+        return generate_integrated_report(req.patient,req.anamnesis,req.test_reports,req.raw_results,req.model)
     except Exception as exc:
         raise HTTPException(502,str(exc))
+
+@app.post('/api/laudo/integrated-docx')
+def laudo_integrated_docx(req: IntegratedDocxRequest):
+    if not req.report:
+        raise HTTPException(400,'Gere o laudo integrado antes de exportar.')
+    try:
+        data=build_integrated_docx(req.patient,req.report,req.tests)
+    except Exception as exc:
+        raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
+    name=f"laudo_{_slug(req.patient.get('name',''))}_{date.today().isoformat()}.docx"
+    return Response(
+        content=data,
+        media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        headers={'Content-Disposition': f'attachment; filename=\"{name}\"'},
+    )
 
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
 

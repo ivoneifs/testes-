@@ -133,14 +133,32 @@
             <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
             <div class="ai-output" id="anamnesisOutput"></div>
           </article>
+          <article class="ai-panel">
+            <h3>Modelo de formatação</h3>
+            <p>Envie um laudo-modelo. O <b>laudo integrado</b> vai seguir a estrutura, os títulos e o estilo dele.</p>
+            <label class="upload-zone" id="modelZone">
+              <input id="laudoModelFiles" type="file" multiple accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,image/*" />
+              <span class="upload-icon">📐</span>
+              <strong>Selecionar modelo</strong>
+              <small>PDF, DOCX, TXT ou imagem</small>
+            </label>
+            <div id="modelFileList" class="file-list"></div>
+            <div class="alert success" id="modelAlert" hidden></div>
+            <button type="button" class="btn ai-btn" id="analyzeModelBtn" disabled>Ler modelo</button>
+            <div class="ai-output" id="modelOutput"></div>
+          </article>
         </div>
         <div class="integrated-panel">
           <div><h3>Laudo integrado</h3><p class="muted">Integra anamnese + resultados calculados + interpretações já geradas.</p></div>
-          <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar laudo integrado</button>
+          <div class="integrated-btns">
+            <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar laudo integrado</button>
+            <button type="button" class="btn ghost" id="docxBtn" hidden>📝 Salvar laudo integrado (.docx)</button>
+          </div>
         </div>
         <div class="ai-output integrated-output" id="integratedOutput"></div>
         <div class="laudo-actions" id="laudoActions" hidden>
-          <button type="button" class="btn primary" id="saveLaudoBtn">💾 Salvar laudo pronto (.html)</button>
+          <button type="button" class="btn primary" id="docxBtn2">📝 Salvar em .docx (Word)</button>
+          <button type="button" class="btn ghost" id="saveLaudoBtn">💾 Salvar em .html</button>
           <button type="button" class="btn ghost" id="printLaudoBtn">Imprimir laudo</button>
         </div>
       </section>

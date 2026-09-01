@@ -205,7 +205,62 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
     return _request([{'role':'user','content':content}], 'anamnesis_history', ANAMNESIS_SCHEMA, instructions)
 
 
-def generate_integrated_report(patient: dict, anamnesis: dict | None, test_reports: list[dict], raw_results: list[dict]):
+LAUDO_MODEL_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'titulo_sugerido': {'type': 'string'},
+        'secoes': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'titulo': {'type': 'string'},
+                    'conteudo_esperado': {'type': 'string'},
+                },
+                'required': ['titulo', 'conteudo_esperado'],
+                'additionalProperties': False,
+            },
+        },
+        'estilo_de_escrita': {'type': 'string'},
+        'observacoes_de_formatacao': {'type': 'array', 'items': {'type': 'string'}},
+    },
+    'required': ['titulo_sugerido', 'secoes', 'estilo_de_escrita', 'observacoes_de_formatacao'],
+    'additionalProperties': False,
+}
+
+
+def analyze_laudo_model(files: list[tuple[str, str, bytes]]):
+    content = [{
+        'type': 'input_text',
+        'text': (
+            'Analise o(s) documento(s) de MODELO de laudo neuropsicológico anexado(s). '
+            'Extraia apenas a ESTRUTURA e a FORMATAÇÃO: títulos de seção, ordem das seções, '
+            'que tipo de conteúdo cada seção espera, o estilo de escrita (tom, pessoa, tempo verbal, '
+            'nível de formalidade) e convenções de formatação (uso de tópicos, tabelas, negrito, etc.). '
+            'NÃO extraia dados clínicos, nomes ou resultados do paciente do modelo — só o formato.'
+        )
+    }]
+    for filename, mime, data in files:
+        b64 = base64.b64encode(data).decode('ascii')
+        if mime == 'application/pdf' or filename.lower().endswith('.pdf'):
+            content.append({'type': 'input_file', 'filename': filename,
+                            'file_data': f'data:application/pdf;base64,{b64}'})
+        elif mime.startswith('image/'):
+            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'auto'})
+        elif mime.startswith('text/') or filename.lower().endswith(('.txt', '.md')):
+            content.append({'type': 'input_text', 'text': data.decode('utf-8', 'replace')[:20000]})
+        else:
+            content.append({'type': 'input_file', 'filename': filename,
+                            'file_data': f'data:{mime or "application/octet-stream"};base64,{b64}'})
+    instructions = (
+        'Você mapeia o formato de modelos de laudo. Responda somente sobre estrutura, estilo e '
+        'formatação — nunca sobre o conteúdo clínico de exemplo contido no modelo.'
+    )
+    return _request([{'role': 'user', 'content': content}], 'laudo_model', LAUDO_MODEL_SCHEMA, instructions)
+
+
+def generate_integrated_report(patient: dict, anamnesis: dict | None, test_reports: list[dict],
+                               raw_results: list[dict], model: dict | None = None):
     payload={
         'patient':patient,
         'anamnesis':anamnesis or {},
@@ -218,6 +273,14 @@ def generate_integrated_report(patient: dict, anamnesis: dict | None, test_repor
         'Hipóteses diagnósticas devem ser condicionais e nunca baseadas em um único escore. '
         'Inclua limitações e divergências entre fontes. O texto final deve ser estruturado, técnico e legível.'
     )
+    if model:
+        payload['modelo_de_formatacao']=model
+        instructions+=(
+            ' Foi fornecido um MODELO DE FORMATAÇÃO em "modelo_de_formatacao": siga a estrutura, a ordem '
+            'das seções, os títulos, o estilo de escrita e as convenções de formatação desse modelo o '
+            'máximo possível dentro do formato de saída exigido. Distribua o conteúdo pelas seções do '
+            'esquema de forma que reflita as seções do modelo. Não copie nenhum dado clínico do modelo.'
+        )
     return _request(
         [{'role':'user','content':[{'type':'input_text','text':json.dumps(payload,ensure_ascii=False,default=str)}]}],
         'integrated_neuropsychological_report', INTEGRATED_SCHEMA, instructions

@@ -176,7 +176,7 @@ def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(curre
         data=build_integrated_docx(req.patient,req.report,req.tests)
     except Exception as exc:
         raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
-    name=f"laudo_{_slug(req.patient.get('name',''))}_{date.today().isoformat()}.docx"
+    name=f"avaliacao_neuropsicologica_completa_{_slug(req.patient.get('name',''))}_{date.today().isoformat()}.docx"
     return Response(
         content=data,
         media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',

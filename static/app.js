@@ -277,14 +277,37 @@ els.analyzeModelBtn.addEventListener('click',async()=>{
   finally{els.analyzeModelBtn.disabled=false;els.analyzeModelBtn.textContent='Ler modelo';}
 });
 
+// Gera o laudo individual de um teste calculado (usado no fluxo da Avaliação Completa).
+async function ensureTestReport(result){
+  if(state.testReports.some(r=>r.teste && String(r.teste).toLowerCase().includes(String(result.test).toLowerCase())))return;
+  const rep=await api('/api/ai/test-report',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({patient:patient(),score_result:result,history:state.anamnesis})});
+  state.testReports=state.testReports.filter(x=>x.teste!==rep.teste);
+  state.testReports.push(rep);
+}
 els.integratedBtn.addEventListener('click',async()=>{
-  if(!state.results.length&&!state.anamnesis){toast('Calcule testes ou analise a anamnese primeiro.',true);return;}els.integratedBtn.disabled=true;els.integratedBtn.textContent='Integrando…';
-  try{const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,model:state.laudoModel})});state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);els.laudoActions.hidden=false;els.docxBtn.hidden=false;toast('Laudo integrado gerado.');els.laudoActions.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){toast(e.message,true);}finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent='Gerar laudo integrado';}
+  if(!state.results.length&&!state.anamnesis){toast('Calcule pelo menos um teste ou analise a anamnese.',true);return;}
+  els.integratedBtn.disabled=true; const orig='Gerar Avaliação Completa';
+  try{
+    // 1) laudo de cada teste calculado que ainda não tem
+    const pend=state.results.filter(r=>!state.testReports.some(x=>x.teste&&String(x.teste).toLowerCase().includes(String(r.test).toLowerCase())));
+    for(let i=0;i<pend.length;i++){
+      els.integratedBtn.textContent=`Laudo ${i+1}/${pend.length}: ${pend[i].test}…`;
+      await ensureTestReport(pend[i]);
+    }
+    // 2) laudo geral com todos os testes
+    els.integratedBtn.textContent='Integrando tudo…';
+    const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,model:state.laudoModel})});
+    state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);
+    els.laudoActions.hidden=false;els.docxBtn.hidden=false;
+    toast('Avaliação Neuropsicológica Completa gerada.');
+    els.laudoActions.scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(e){toast(e.message,true);}finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent=orig;}
 });
 
 // ---------- Salvar laudo integrado em .docx (Word) ----------
 async function saveIntegratedDocx(btn){
-  if(!state.integrated){toast('Gere o laudo integrado primeiro.',true);return;}
+  if(!state.integrated){toast('Gere a Avaliação Completa primeiro.',true);return;}
   const label=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='Gerando .docx…';}
   try{
     const h={'Content-Type':'application/json'}; if(state.token) h['Authorization']=`Bearer ${state.token}`;
@@ -295,8 +318,8 @@ async function saveIntegratedDocx(btn){
     const cd=r.headers.get('Content-Disposition')||'';
     const m=cd.match(/filename="?([^"]+)"?/);
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=m?m[1]:`laudo_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.docx`;
-    a.click();URL.revokeObjectURL(a.href);toast('Laudo salvo em .docx.');
+    a.download=m?m[1]:`avaliacao_neuropsicologica_completa_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.docx`;
+    a.click();URL.revokeObjectURL(a.href);toast('Avaliação Completa salva em .docx.');
   }catch(e){toast(e.message,true);}finally{if(btn){btn.disabled=false;btn.textContent=label;}}
 }
 els.docxBtn.addEventListener('click',()=>saveIntegratedDocx(els.docxBtn));
@@ -305,7 +328,7 @@ els.docxBtn2.addEventListener('click',()=>saveIntegratedDocx(els.docxBtn2));
 // ---------- Salvar / imprimir laudo pronto ----------
 function laudoHtml(){
   const p=patient(), rep=state.integrated;
-  const title=`Laudo neuropsicológico — ${p.name||'Paciente'}`;
+  const title=`Avaliação Neuropsicológica Completa — ${p.name||'Paciente'}`;
   const tests=state.results.map(r=>r.test).join(', ')||'—';
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
@@ -322,8 +345,9 @@ th{background:#eef2f9;font-weight:700}
 .foot{margin-top:44px;font-size:11px;color:#666;border-top:1px solid #ccc;padding-top:12px}
 .sign{margin-top:52px;font-size:13px}.sign-line{margin-top:40px;border-top:1px solid #333;width:280px;padding-top:4px}
 @media print{body{margin:0;max-width:none}}
+h1{text-align:center;letter-spacing:.02em}
 </style></head><body>
-<h1>${esc(title)}</h1>
+<h1>AVALIAÇÃO NEUROPSICOLÓGICA COMPLETA</h1>
 <div class="meta">
 <b>Nome:</b> ${esc(p.name||'—')}<br>
 <b>Data de nascimento:</b> ${esc(p.birth_date||'—')} &nbsp;&nbsp; <b>Data de aplicação:</b> ${esc(p.application_date||'—')}<br>
@@ -338,16 +362,16 @@ ${renderStructured(rep)}
 }
 function slugify(s){return (s||'paciente').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'paciente';}
 els.saveLaudoBtn.addEventListener('click',()=>{
-  if(!state.integrated){toast('Gere o laudo integrado primeiro.',true);return;}
+  if(!state.integrated){toast('Gere a Avaliação Completa primeiro.',true);return;}
   const blob=new Blob([laudoHtml()],{type:'text/html;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=`laudo_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.html`;
-  a.click();URL.revokeObjectURL(a.href);toast('Laudo salvo.');
+  a.download=`avaliacao_neuropsicologica_completa_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.html`;
+  a.click();URL.revokeObjectURL(a.href);toast('Avaliação Completa salva.');
 });
 els.printLaudoBtn.addEventListener('click',()=>{
-  if(!state.integrated){toast('Gere o laudo integrado primeiro.',true);return;}
+  if(!state.integrated){toast('Gere a Avaliação Completa primeiro.',true);return;}
   const w=window.open('','_blank');
-  if(!w){toast('Permita pop-ups para imprimir o laudo.',true);return;}
+  if(!w){toast('Permita pop-ups para imprimir.',true);return;}
   w.document.write(laudoHtml());w.document.close();w.focus();
   w.onload=()=>{w.print();};setTimeout(()=>{try{w.print();}catch{}},400);
 });

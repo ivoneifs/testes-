@@ -145,11 +145,12 @@ def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None =
     sec.top_margin = sec.bottom_margin = Pt(56)
 
     title = doc.add_paragraph()
-    title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    tr = title.add_run("Laudo neuropsicológico")
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    tr = title.add_run("AVALIAÇÃO NEUROPSICOLÓGICA COMPLETA")
     tr.bold = True
-    tr.font.size = Pt(18)
+    tr.font.size = Pt(17)
     tr.font.color.rgb = INK
+    title.paragraph_format.space_after = Pt(14)
 
     # Cabeçalho de identificação
     meta_rows = [

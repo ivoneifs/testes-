@@ -6,13 +6,14 @@ revisão e assinatura de profissional habilitado.
 """
 from __future__ import annotations
 
+import base64
 import io
 from datetime import date
 from typing import Any
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor
 
 INK = RGBColor(0x1B, 0x23, 0x33)
 ACCENT = RGBColor(0x2F, 0x57, 0xB8)
@@ -117,6 +118,30 @@ def _instrument_analysis(doc: Document, entries: list) -> None:
         _body(doc, entry.get("comentario"))
 
 
+def _charts_section(doc: Document, charts: list) -> None:
+    """Embute os gráficos (PNG data URL) enviados pelo frontend, um por teste."""
+    ok = False
+    for c in charts or []:
+        img = _clean(c.get("image"))
+        if not img.startswith("data:image"):
+            continue
+        try:
+            data = base64.b64decode(img.split(",", 1)[1])
+        except Exception:
+            continue
+        cap = doc.add_paragraph()
+        cap.paragraph_format.space_before = Pt(6)
+        cr = cap.add_run(" — ".join(x for x in (_clean(c.get("test")), _clean(c.get("title"))) if x))
+        cr.italic = True
+        cr.font.size = Pt(9.5)
+        try:
+            doc.add_picture(io.BytesIO(data), width=Inches(5.9))
+        except Exception:
+            continue
+        ok = True
+    return ok
+
+
 def _domain_block(doc: Document, entries: list) -> None:
     for entry in entries or []:
         if not isinstance(entry, dict):
@@ -136,7 +161,8 @@ def _domain_block(doc: Document, entries: list) -> None:
             p.add_run("; ".join(_clean(e) for e in ev))
 
 
-def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None = None) -> bytes:
+def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None = None,
+                          charts: list | None = None) -> bytes:
     doc = Document()
     _style(doc)
 
@@ -183,12 +209,19 @@ def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None =
         _heading(doc, label)
         if key == "analise_instrumentos":
             _instrument_analysis(doc, value)
+            if charts:
+                _heading(doc, "Gráficos por teste")
+                _charts_section(doc, charts)
         elif key == "resultados_por_dominio":
             _domain_block(doc, value)
         elif isinstance(value, list):
             _bullets(doc, value)
         else:
             _body(doc, value)
+
+    if charts and "analise_instrumentos" not in (report or {}):
+        _heading(doc, "Gráficos por teste")
+        _charts_section(doc, charts)
 
     # Assinatura + aviso
     doc.add_paragraph()

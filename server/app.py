@@ -53,6 +53,7 @@ class IntegratedDocxRequest(BaseModel):
     patient: dict[str,Any]=Field(default_factory=dict)
     report: dict[str,Any]
     tests: list[str]=Field(default_factory=list)
+    charts: list[dict[str,Any]]=Field(default_factory=list)
 
 class EvaluationRequest(BaseModel):
     patient: dict[str,Any]=Field(default_factory=dict)
@@ -173,7 +174,7 @@ def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(curre
     if not req.report:
         raise HTTPException(400,'Gere o laudo integrado antes de exportar.')
     try:
-        data=build_integrated_docx(req.patient,req.report,req.tests)
+        data=build_integrated_docx(req.patient,req.report,req.tests,req.charts)
     except Exception as exc:
         raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
     name=f"avaliacao_neuropsicologica_completa_{_slug(req.patient.get('name',''))}_{date.today().isoformat()}.docx"

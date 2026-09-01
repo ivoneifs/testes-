@@ -179,11 +179,22 @@ function seriesFromTable(table, preferred=/ponderad|composto|percentil|escore.?t
   const points=table.rows.map(r=>({label:String(r.values[labelIx]??''),value:parseNum(r.values[numIx])})).filter(p=>p.label&&p.value!==null).slice(0,24);
   return points.length>=2?{title:cols[numIx].label,points}:null;
 }
+// Cor da barra por faixa clínica (ponderados: média 10/dp 3; compostos: média 100/dp 15).
+function bandColor(v,vmax){
+  const comp=vmax>25, mean=comp?100:10, sd=comp?15:3, z=(v-mean)/sd;
+  if(z<=-2)return '#c0392f';       // deficitário
+  if(z<=-1)return '#e08128';       // limítrofe
+  if(z<0)  return '#d8b530';       // média inferior
+  if(z<1)  return '#2e8b57';       // média
+  return '#2f6db3';                // média superior +
+}
 function svgBar(series){
   const W=680,H=300,pad=48,bw=Math.max(12,(W-pad*2)/series.points.length*.62);const vals=series.points.map(p=>p.value);const min=Math.min(0,...vals),max=Math.max(1,...vals);const span=max-min||1;
   const y=v=>H-44-(v-min)/span*(H-85); const base=y(0); const step=(W-pad*2)/series.points.length;
-  const bars=series.points.map((p,i)=>{const x=pad+i*step+(step-bw)/2, yy=Math.min(base,y(p.value)),hh=Math.max(2,Math.abs(y(p.value)-base));return `<g><rect x="${x}" y="${yy}" width="${bw}" height="${hh}" rx="4" fill="#2f57b8" opacity=".9"/><text x="${x+bw/2}" y="${yy-5}" text-anchor="middle" font-size="10" fill="#3d4759">${Math.round(p.value*10)/10}</text><text transform="translate(${x+bw/2},${H-32}) rotate(-35)" text-anchor="end" font-size="9" fill="#727d92">${esc(p.label.slice(0,22))}</text></g>`}).join('');
-  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img"><line x1="${pad}" x2="${W-pad}" y1="${base}" y2="${base}" stroke="#dde3ef"/>${bars}</svg>`;
+  const bars=series.points.map((p,i)=>{const x=pad+i*step+(step-bw)/2, yy=Math.min(base,y(p.value)),hh=Math.max(2,Math.abs(y(p.value)-base));const col=bandColor(p.value,max);return `<g><rect x="${x}" y="${yy}" width="${bw}" height="${hh}" rx="4" fill="${col}"/><text x="${x+bw/2}" y="${yy-5}" text-anchor="middle" font-size="10" fill="#3d4759">${Math.round(p.value*10)/10}</text><text transform="translate(${x+bw/2},${H-32}) rotate(-35)" text-anchor="end" font-size="9" fill="#727d92">${esc(p.label.slice(0,22))}</text></g>`}).join('');
+  const leg=[['#c0392f','Deficitário'],['#e08128','Limítrofe'],['#d8b530','Média inf.'],['#2e8b57','Média'],['#2f6db3','Média sup.+']]
+    .map(([c,t],i)=>`<g transform="translate(${pad+i*118},14)"><rect width="10" height="10" rx="2" fill="${c}"/><text x="14" y="9" font-size="9" fill="#5a6479">${t}</text></g>`).join('');
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img">${leg}<line x1="${pad}" x2="${W-pad}" y1="${base}" y2="${base}" stroke="#dde3ef"/>${bars}</svg>`;
 }
 function svgLine(series){
   const W=680,H=300,p=48,vals=series.points.map(x=>x.value),min=Math.min(0,...vals),max=Math.max(1,...vals),span=max-min||1;const x=i=>p+i*(W-p*2)/Math.max(1,series.points.length-1),y=v=>H-50-(v-min)/span*(H-90);
@@ -196,15 +207,56 @@ function svgRadar(series){
   const poly=pts.map((p,i)=>xy(i,R*Math.max(0,p.value)/max).join(',')).join(' ');const labels=pts.map((p,i)=>{const [x,y]=xy(i,R+24);return `<text x="${x}" y="${y}" text-anchor="middle" font-size="9" fill="#5a6479">${esc(p.label.slice(0,18))}</text>`}).join('');
   return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}">${grid}<polygon points="${poly}" fill="#2f57b829" stroke="#2f57b8" stroke-width="2.5"/>${labels}</svg>`;
 }
-function renderCharts(result){
+// Retorna [{title, svg}] com os gráficos de um resultado (reaproveitado no laudo).
+function chartsFor(result){
   if(result.chart_type==='learning_curve'){
     const wanted=/^(A[1-7]|B1|T1|T2|T3|Tentativa\s*\d+)/i;
     const pts=(result.raw_scores||[]).map(x=>({label:x.label,value:parseNum(x.value)})).filter(x=>x.value!==null&&wanted.test(x.label)).slice(0,10);
-    if(pts.length>=3){const s={title:'Curva de aprendizagem • pontos brutos',points:pts};els.charts.innerHTML=`<article class="chart-card"><h3>${esc(s.title)}</h3><p>${esc(result.test)} • evolução entre tentativas</p>${svgLine(s)}</article>`;return;}
+    if(pts.length>=3) return [{title:'Curva de aprendizagem • pontos brutos',svg:svgLine({title:'',points:pts})}];
   }
-  const candidates=result.tables.map(t=>({t,s:seriesFromTable(t)})).filter(x=>x.s); if(!candidates.length){els.charts.innerHTML='';return;}
-  let chosen=candidates.slice(0,result.chart_type==='wechsler'?2:1); if(result.chart_type==='wechsler'){const comp=candidates.find(x=>/composto|qi/i.test(x.s.title));if(comp&&!chosen.includes(comp))chosen[1]=comp;}
-  els.charts.innerHTML=chosen.map((x,i)=>{let svg;if(result.chart_type==='learning_curve')svg=svgLine(x.s);else if(result.chart_type==='domains')svg=svgRadar(x.s);else svg=svgBar(x.s);return `<article class="chart-card"><h3>${esc(x.s.title)}</h3><p>${esc(result.test)} • ${esc(result.chart_type.replace('_',' '))}</p>${svg}</article>`}).join('');
+  const cand=result.tables.map(t=>seriesFromTable(t)).filter(Boolean);
+  if(!cand.length) return [];
+  let chosen=cand.slice(0,result.chart_type==='wechsler'?2:1);
+  if(result.chart_type==='wechsler'){const comp=cand.find(s=>/composto|qi/i.test(s.title));if(comp&&!chosen.includes(comp))chosen[1]=comp;}
+  return chosen.filter(Boolean).map(s=>({
+    title:s.title,
+    svg: result.chart_type==='domains'?svgRadar(s):(result.chart_type==='learning_curve'?svgLine(s):svgBar(s)),
+  }));
+}
+function renderCharts(result){
+  const cs=chartsFor(result);
+  els.charts.innerHTML=cs.map(c=>`<article class="chart-card"><h3>${esc(c.title)}</h3><p>${esc(result.test)} • ${esc(result.chart_type.replace('_',' '))}</p>${c.svg}</article>`).join('');
+}
+// SVG -> PNG (data URL) para embutir no .docx
+function chartSvgStandalone(svg){
+  const m=svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  const w=m?m[1]:'680', h=m?m[2]:'300';
+  return {w:+w,h:+h,xml:svg.replace('<svg ',`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="font-family:Inter,'Segoe UI',Arial,sans-serif" `)};
+}
+function svgToPng(svg){
+  return new Promise(res=>{
+    const {w,h,xml}=chartSvgStandalone(svg);
+    const img=new Image();
+    const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml'}));
+    img.onload=()=>{
+      const c=document.createElement('canvas'); c.width=w*2; c.height=h*2;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      try{res(c.toDataURL('image/png'));}catch{res(null);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);res(null);};
+    img.src=url;
+  });
+}
+async function collectChartImages(){
+  const out=[];
+  for(const r of state.results){
+    for(const c of chartsFor(r)){
+      const png=await svgToPng(c.svg);
+      if(png) out.push({test:r.test,title:c.title,image:png});
+    }
+  }
+  return out;
 }
 
 // ---------- IA ----------
@@ -310,9 +362,10 @@ async function saveIntegratedDocx(btn){
   if(!state.integrated){toast('Gere a Avaliação Completa primeiro.',true);return;}
   const label=btn?btn.textContent:''; if(btn){btn.disabled=true;btn.textContent='Gerando .docx…';}
   try{
+    const charts=await collectChartImages();
     const h={'Content-Type':'application/json'}; if(state.token) h['Authorization']=`Bearer ${state.token}`;
     const r=await fetch('/api/laudo/integrated-docx',{method:'POST',headers:h,
-      body:JSON.stringify({patient:patient(),report:state.integrated,tests:state.results.map(x=>x.test)})});
+      body:JSON.stringify({patient:patient(),report:state.integrated,tests:state.results.map(x=>x.test),charts})});
     if(!r.ok){let d;try{d=await r.json();}catch{d={detail:await r.text()};}throw new Error(d.detail||`HTTP ${r.status}`);}
     const blob=await r.blob();
     const cd=r.headers.get('Content-Disposition')||'';
@@ -342,6 +395,7 @@ th,td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top}
 th{background:#eef2f9;font-weight:700}
 .tbl-cap{font-size:11px;font-weight:700;color:#333;margin:10px 0 2px}
 .table-scroll{overflow-x:auto}
+.chartblock{margin:12px 0;break-inside:avoid}.chartblock svg{max-width:100%;height:auto;border:1px solid #e0e0e0;border-radius:6px;padding:6px;margin:4px 0 12px}
 .foot{margin-top:44px;font-size:11px;color:#666;border-top:1px solid #ccc;padding-top:12px}
 .sign{margin-top:52px;font-size:13px}.sign-line{margin-top:40px;border-top:1px solid #333;width:280px;padding-top:4px}
 @media print{body{margin:0;max-width:none}}
@@ -356,6 +410,7 @@ h1{text-align:center;letter-spacing:.02em}
 <b>Data de emissão:</b> ${new Date().toLocaleDateString('pt-BR')}
 </div>
 ${renderStructured(rep)}
+${(()=>{const secs=state.results.map(r=>{const cs=chartsFor(r);if(!cs.length)return'';return `<div class="chartblock"><b>${esc(r.test)}</b>${cs.map(c=>`<div class="tbl-cap">${esc(c.title)}</div>${c.svg}`).join('')}</div>`;}).filter(Boolean).join('');return secs?`<h4>Gráficos por teste</h4>${secs}`:'';})()}
 <div class="sign"><div class="sign-line">Profissional responsável — assinatura e registro</div></div>
 <div class="foot">Documento gerado pelo NeuroScore com apoio de inteligência artificial. O conteúdo exige revisão, validação clínica e assinatura de profissional habilitado antes de qualquer uso.</div>
 </body></html>`;

@@ -935,19 +935,9 @@ class WorkbookEngine:
             quadrant_table = build_table(quad_row, cols, 'Perfil por quadrante')
             if quadrant_table:
                 tables.append(quadrant_table)
-                # 5) Percentil = consulta manual do avaliador -> parâmetro de texto.
-                pcol = next((c for c, l in cols if l == 'Percentil'), None)
-                if pcol is not None:
-                    for drow in quadrant_table['rows']:
-                        r = drow['row']
-                        qe = cell(r, base)
-                        qname = clean_text(qe['value']) if qe and not qe['formula'] else (_ps_norm(qe['value']) if qe else '')
-                        pe = cell(r, pcol)
-                        params.append({
-                            'cell': a1(pcol, r),
-                            'label': f'Percentil · {qname or a1(pcol, r)} (consultar manual)',
-                            'current': scalarize(pe['value']) if pe else '',
-                        })
+            # A classificação (5 bandas) e a faixa de percentil são calculadas no
+            # score() a partir de server/perfil_sensorial_norms.py — não há mais
+            # campo manual de percentil.
 
         # 6) Itens avulsos: termos extras somados nas fórmulas da coluna "bruta" do quadrante.
         if quadrant_table is not None:
@@ -1162,6 +1152,10 @@ class WorkbookEngine:
                         'columns':table['columns'],
                         'rows':rows_out,
                     })
+
+            if meta.get('chart_type') == 'sensory_profile':
+                from . import perfil_sensorial_norms
+                perfil_sensorial_norms.annotate_tables(meta['name'], evaluated_tables)
 
             # Also recalc each raw field's current value to report exactly what was applied.
             applied=[]

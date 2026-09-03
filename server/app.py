@@ -80,6 +80,23 @@ class ProfessionalUpdate(BaseModel):
     plan: str|None=None
     credits: int|None=None
 
+class ProfessionalCreate(BaseModel):
+    email: str
+    password: str
+    full_name: str|None=None
+    professional_id: str|None=None
+    role: str|None='professional'
+    credits: int|None=0
+
+class PlanUpsert(BaseModel):
+    name: str|None=None
+    credits: int|None=None
+    amount_cents: int|None=None
+    features: list[str]|None=None
+    featured: bool|None=None
+    active: bool|None=None
+    sort: int|None=None
+
 class PatientRequest(BaseModel):
     name: str|None=None
     birth_date: str|None=None
@@ -250,10 +267,22 @@ async def profile_put(req: ProfileRequest, user: dict = Depends(current_user)):
 async def audit_get(user: dict = Depends(current_user)):
     return {'audit': await store.list_audit(user)}
 
-# ---------------- Administração: profissionais ----------------
+# ---------------- Administração: profissionais + planos ----------------
 @app.get('/api/admin/professionals')
 async def admin_professionals(user: dict = Depends(current_user)):
     return {'professionals': await store.list_professionals(user)}
+
+@app.post('/api/admin/professionals')
+async def admin_professional_create(req: ProfessionalCreate, user: dict = Depends(current_user)):
+    return await store.admin_create_professional(user, req.model_dump())
+
+@app.put('/api/admin/plans/{key}')
+async def admin_plan_upsert(key: str, req: PlanUpsert, user: dict = Depends(current_user)):
+    return await store.upsert_plan(user, key, req.model_dump())
+
+@app.get('/api/plans')
+async def plans_list(user: dict = Depends(current_user)):
+    return {'plans': await store.list_plans(user)}
 
 @app.put('/api/admin/professionals/{pid}')
 async def admin_professional_update(pid: str, req: ProfessionalUpdate, user: dict = Depends(current_user)):

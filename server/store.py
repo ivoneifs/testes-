@@ -234,16 +234,73 @@ async def list_ledger(user: dict) -> list[dict]:
     }) or []
 
 
+async def list_plans(user: dict | None = None) -> list[dict]:
+    if user:
+        return await _req('GET', '/plans', user, params={'select': '*', 'order': 'sort'}) or []
+    return await _service_req('GET', '/plans', params={'select': '*', 'order': 'sort'}) or []
+
+
+async def get_plan(key: str) -> dict | None:
+    rows = await _service_req('GET', '/plans', params={
+        'key': f'eq.{key}', 'active': 'eq.true', 'limit': '1'}) or []
+    return rows[0] if rows else None
+
+
+async def upsert_plan(user: dict, key: str, data: dict) -> dict:
+    await _require_admin(user)
+    body = {'key': key}
+    for k in ('name', 'credits', 'amount_cents', 'features', 'featured', 'active', 'sort'):
+        if data.get(k) is not None:
+            body[k] = data[k]
+    rows = await _req('POST', '/plans', user, json=body, write=True)  # upsert (merge-duplicates)
+    await log(user, 'admin_update', 'plan', key)
+    return (rows or [{}])[0]
+
+
+async def admin_create_professional(user: dict, data: dict) -> dict:
+    await _require_admin(user)
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(500, 'Service role não configurado no servidor.')
+    email = (data.get('email') or '').strip().lower()
+    pw = data.get('password') or ''
+    if '@' not in email or len(pw) < 6:
+        raise HTTPException(400, 'E-mail válido e senha de no mínimo 6 caracteres são obrigatórios.')
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.post(f'{SUPABASE_URL}/auth/v1/admin/users',
+            headers={'apikey': SUPABASE_SERVICE_ROLE_KEY,
+                     'Authorization': f'Bearer {SUPABASE_SERVICE_ROLE_KEY}',
+                     'Content-Type': 'application/json'},
+            json={'email': email, 'password': pw, 'email_confirm': True,
+                  'user_metadata': {'full_name': data.get('full_name') or ''}})
+    if r.status_code >= 400:
+        raise HTTPException(r.status_code, f'Supabase: {r.text[:300]}')
+    uid = r.json().get('id')
+    patch = {}
+    for k in ('professional_id', 'role', 'status', 'plan'):
+        if data.get(k):
+            patch[k] = data[k]
+    if data.get('credits') is not None:
+        patch['credits'] = int(data['credits'])
+    if data.get('full_name'):
+        patch['full_name'] = data['full_name']
+    if patch:
+        await _service_req('PATCH', '/profiles', params={'id': f'eq.{uid}'}, json=patch)
+    await log(user, 'admin_create', 'profile', uid, {'email': email})
+    return {'id': uid, 'email': email}
+
+
 async def create_order(user: dict, pack_key: str) -> dict:
     from . import payments
-    pack = payments.PACKS.get(pack_key)
-    if not pack:
-        raise HTTPException(400, 'Pacote inválido.')
+    plan = await get_plan(pack_key)
+    if not plan:
+        raise HTTPException(400, 'Pacote inválido ou inativo.')
     rows = await _req('POST', '/orders', user, json={
-        'pack': pack_key, 'credits': pack['credits'], 'amount_cents': pack['amount_cents'],
+        'pack': pack_key, 'credits': plan['credits'], 'amount_cents': plan['amount_cents'],
     }, write=True)
     order = (rows or [{}])[0]
-    pref = await payments.create_preference(order['id'], pack, user.get('email', ''))
+    pref = await payments.create_preference(order['id'], {
+        'nome': plan['name'], 'credits': plan['credits'], 'amount_cents': plan['amount_cents'],
+    }, user.get('email', ''))
     await _req('PATCH', '/orders', user, params={'id': f'eq.{order["id"]}'},
                json={'provider_ref': pref['preference_id']}, write=True)
     await log(user, 'checkout', 'order', order['id'], {'pack': pack_key})

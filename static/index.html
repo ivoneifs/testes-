@@ -257,12 +257,26 @@
         <div class="card">
           <div class="section-heading">
             <div><h2>Controle de Profissionais</h2><span class="muted">Acesso total do administrador mestre.</span></div>
-            <input id="proSearch" type="search" placeholder="Buscar…" class="instrument-search" style="max-width:220px" />
+            <div class="row-acts">
+              <input id="proSearch" type="search" placeholder="Buscar…" class="instrument-search" style="max-width:200px" />
+              <button type="button" class="btn primary" id="proNewBtn">+ Novo profissional</button>
+            </div>
           </div>
           <div class="table-scroll">
             <table class="result-table" id="prosTable">
               <thead><tr><th>Nome</th><th>E-mail</th><th>CRP</th><th>Papel</th><th>Status</th><th>Plano</th><th>Créditos</th><th></th></tr></thead>
               <tbody id="prosBody"><tr><td colspan="8" class="muted small">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-heading"><div><h2>Planos &amp; Preços</h2>
+            <span class="muted">Valores e créditos vendidos na tela de Planos.</span></div></div>
+          <div class="table-scroll">
+            <table class="result-table" id="plansTable">
+              <thead><tr><th>Pacote</th><th>Créditos</th><th>Preço (R$)</th><th>Destaque</th><th>Ativo</th><th></th></tr></thead>
+              <tbody id="plansBody"><tr><td colspan="6" class="muted small">Carregando…</td></tr></tbody>
             </table>
           </div>
         </div>

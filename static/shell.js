@@ -199,22 +199,22 @@
   }
 
   // ---------------- Planos ----------------
-  const PACKS = [
-    { key: 'inicial', nome: 'Pack Inicial', preco: 'R$ 49', unid: '/ pacote', laudos: '5 Laudos', desc: 'Ideal para quem está começando.', tag: '', itens: ['Suporte via e-mail', 'Exportação em PDF', 'IA para laudos'] },
-    { key: 'profissional', nome: 'Pack Profissional', preco: 'R$ 149', unid: '/ pacote', laudos: '20 Laudos', desc: 'O melhor custo-benefício para sua clínica.', tag: 'Mais vendido', itens: ['Prioridade na fila', 'Suporte WhatsApp', 'História de Vida ilimitada', '20 créditos de laudo'] },
-    { key: 'premium', nome: 'Pack Clínica Premium', preco: 'R$ 299', unid: '/ pacote', laudos: '50 Laudos', desc: 'Para alta demanda e grandes fluxos.', tag: '', itens: ['Consultoria VIP', 'Treinamento de equipe', 'Cota alta de créditos', 'Personalização de layout'] },
-  ];
-  function loadPlanos() {
-    $('#planosGrid').innerHTML = PACKS.map(p => `
-      <div class="plano${p.tag ? ' plano--feat' : ''}">
-        ${p.tag ? `<span class="plano-tag">${p.tag}</span>` : ''}
-        <h3>${p.nome}</h3>
-        <div class="plano-price">${p.preco}<span>${p.unid}</span></div>
-        <div class="plano-laudos">${p.laudos}</div>
-        <p class="muted small">${p.desc}</p>
-        <ul>${p.itens.map(i => `<li>${i}</li>`).join('')}</ul>
-        <button class="btn primary" data-buy="${p.key}">Comprar agora</button>
-      </div>`).join('');
+  const brl = (cents) => (Number(cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  async function loadPlanos() {
+    try {
+      const { plans = [] } = await NS.api('/api/plans');
+      state.plans = plans;
+      const active = plans.filter(p => p.active);
+      $('#planosGrid').innerHTML = active.map(p => `
+        <div class="plano${p.featured ? ' plano--feat' : ''}">
+          ${p.featured ? '<span class="plano-tag">Mais vendido</span>' : ''}
+          <h3>${NS.esc(p.name)}</h3>
+          <div class="plano-price">R$ ${brl(p.amount_cents)}<span>/ pacote</span></div>
+          <div class="plano-laudos">${p.credits} Laudos</div>
+          <ul>${(p.features || []).map(i => `<li>${NS.esc(i)}</li>`).join('')}</ul>
+          <button class="btn primary" data-buy="${NS.esc(p.key)}">Comprar agora</button>
+        </div>`).join('') || '<p class="muted">Nenhum pacote disponível.</p>';
+    } catch (e) { $('#planosGrid').innerHTML = `<p class="inline-msg err">${NS.esc(e.message)}</p>`; }
   }
   $('#planosGrid')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-buy]'); if (!b) return;
@@ -242,13 +242,68 @@
 
   // ---------------- Administração ----------------
   async function loadAdmin() {
-    const body = $('#prosBody');
     try {
       const { professionals = [] } = await NS.api('/api/admin/professionals');
       state.pros = professionals;
       renderPros();
-    } catch (e) { body.innerHTML = `<tr><td colspan="8" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
+    } catch (e) { $('#prosBody').innerHTML = `<tr><td colspan="8" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
+    try {
+      const { plans = [] } = await NS.api('/api/plans');
+      state.plans = plans;
+      $('#plansBody').innerHTML = plans.map(p => `<tr>
+        <td>${NS.esc(p.name)} <span class="muted small">(${NS.esc(p.key)})</span></td>
+        <td>${p.credits}</td><td>${brl(p.amount_cents)}</td>
+        <td>${p.featured ? '★' : '—'}</td>
+        <td><span class="pill${p.active ? ' pill--ok' : ' pill--off'}">${p.active ? 'Sim' : 'Não'}</span></td>
+        <td class="row-acts"><button class="btn ghost xs" data-edit-plan="${NS.esc(p.key)}">Editar</button></td>
+      </tr>`).join('');
+    } catch (e) { $('#plansBody').innerHTML = `<tr><td colspan="6" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
   }
+  $('#proNewBtn')?.addEventListener('click', () => {
+    openEdit('Novo profissional', `
+      <label class="field span-2">E-mail<input id="f_email" type="email"></label>
+      <label class="field">Senha inicial<input id="f_pw" type="text" placeholder="mín. 6 caracteres"></label>
+      <label class="field">Nome<input id="f_fn"></label>
+      <label class="field">CRP<input id="f_crp"></label>
+      <label class="field">Papel<select id="f_role">
+        <option value="professional">Profissional</option><option value="admin">Administrador</option></select></label>
+      <label class="field">Créditos iniciais<input id="f_credits" type="number" value="0"></label>`,
+      async () => {
+        await NS.api('/api/admin/professionals', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: $('#f_email').value.trim(), password: $('#f_pw').value,
+            full_name: $('#f_fn').value.trim(), professional_id: $('#f_crp').value.trim(),
+            role: $('#f_role').value, credits: Number($('#f_credits').value) || 0,
+          }),
+        });
+        loadAdmin();
+      });
+  });
+  $('#plansBody')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-edit-plan]'); if (!b) return;
+    const p = (state.plans || []).find(x => x.key === b.dataset.editPlan); if (!p) return;
+    openEdit('Editar ' + p.name, `
+      <label class="field span-2">Nome<input id="f_name" value="${NS.esc(p.name)}"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" value="${p.credits}"></label>
+      <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="${(p.amount_cents / 100).toFixed(2)}"></label>
+      <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4">${NS.esc((p.features || []).join('\n'))}</textarea></label>
+      <label class="switch-row"><div><b>Destaque</b><small>"Mais vendido"</small></div><input type="checkbox" class="switch" id="f_featured" ${p.featured ? 'checked' : ''}></label>
+      <label class="switch-row"><div><b>Ativo</b><small>Aparece na tela de Planos</small></div><input type="checkbox" class="switch" id="f_active" ${p.active ? 'checked' : ''}></label>`,
+      async () => {
+        await NS.api('/api/admin/plans/' + p.key, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: $('#f_name').value.trim(),
+            credits: Number($('#f_credits').value) || 0,
+            amount_cents: Math.round(parseFloat($('#f_price').value) * 100) || 0,
+            features: $('#f_feat').value.split('\n').map(s => s.trim()).filter(Boolean),
+            featured: $('#f_featured').checked, active: $('#f_active').checked,
+          }),
+        });
+        loadAdmin();
+      });
+  });
   function renderPros() {
     const q = ($('#proSearch').value || '').toLowerCase();
     const rows = (state.pros || []).filter(p =>

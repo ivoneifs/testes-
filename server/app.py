@@ -293,6 +293,13 @@ async def admin_professional_delete(pid: str, user: dict = Depends(current_user)
     await store.admin_delete_professional(user, pid)
     return {'ok': True}
 
+class GrantRequest(BaseModel):
+    delta: int
+
+@app.post('/api/admin/professionals/{pid}/credits')
+async def admin_grant(pid: str, req: GrantRequest, user: dict = Depends(current_user)):
+    return {'balance': await store.admin_grant_credits(user, pid, req.delta)}
+
 # ---------------- Pacientes ----------------
 @app.get('/api/patients')
 async def patients_list(user: dict = Depends(current_user)):

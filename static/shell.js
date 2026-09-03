@@ -315,6 +315,7 @@
       <td><span class="pill${p.status === 'suspended' ? ' pill--off' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : 'Ativo'}</span></td>
       <td>${NS.esc(p.plan || '—')}</td><td>${p.credits ?? 0}</td>
       <td class="row-acts">
+        <button class="btn ghost xs" data-grant-pro="${p.id}">+ créditos</button>
         <button class="btn ghost xs" data-edit-pro="${p.id}">Editar</button>
         <button class="btn ghost xs danger" data-del-pro="${p.id}">Excluir</button>
       </td></tr>`).join('') || '<tr><td colspan="8" class="muted small">Nenhum profissional.</td></tr>';
@@ -322,6 +323,22 @@
   $('#proSearch')?.addEventListener('input', renderPros);
   $('#prosBody')?.addEventListener('click', async (e) => {
     const t = e.target;
+    if (t.dataset.grantPro) {
+      const p = state.pros.find(x => x.id === t.dataset.grantPro); if (!p) return;
+      const v = prompt(`Créditos para ${p.full_name || p.email} (use número negativo para debitar):`, '20');
+      if (v === null) return;
+      const n = parseInt(v, 10);
+      if (!Number.isInteger(n) || n === 0) { NS.toast('Valor inválido.', true); return; }
+      try {
+        const { balance } = await NS.api('/api/admin/professionals/' + p.id + '/credits', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta: n }),
+        });
+        NS.toast(`Saldo de ${p.full_name || p.email}: ${balance} créditos.`);
+        loadAdmin();
+        if (p.id === state.profile?.id) refreshCredits();
+      } catch (err) { NS.toast(err.message, true); }
+      return;
+    }
     if (t.dataset.editPro) {
       const p = state.pros.find(x => x.id === t.dataset.editPro); if (!p) return;
       openEdit('Editar profissional', `

@@ -58,6 +58,7 @@ class IntegratedDocxRequest(BaseModel):
 
 class EvaluationRequest(BaseModel):
     patient: dict[str,Any]=Field(default_factory=dict)
+    patient_id: str|None=None
     results: list[dict[str,Any]]=Field(default_factory=list)
     anamnesis: dict[str,Any]|None=None
     test_reports: list[dict[str,Any]]=Field(default_factory=list)
@@ -235,8 +236,8 @@ def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(curre
 
 # ---------------- Avaliações salvas (Supabase) ----------------
 @app.get('/api/evaluations')
-async def evaluations_list(user: dict = Depends(current_user)):
-    return {'evaluations': await store.list_evaluations(user)}
+async def evaluations_list(patient: str | None = None, user: dict = Depends(current_user)):
+    return {'evaluations': await store.list_evaluations(user, patient)}
 
 @app.get('/api/evaluations/{eval_id}')
 async def evaluations_get(eval_id: str, user: dict = Depends(current_user)):
@@ -266,6 +267,10 @@ async def profile_put(req: ProfileRequest, user: dict = Depends(current_user)):
 @app.get('/api/audit')
 async def audit_get(user: dict = Depends(current_user)):
     return {'audit': await store.list_audit(user)}
+
+@app.get('/api/dashboard')
+async def dashboard_get(user: dict = Depends(current_user)):
+    return await store.dashboard_summary(user)
 
 # ---------------- Administração: profissionais + planos ----------------
 @app.get('/api/admin/professionals')

@@ -122,42 +122,85 @@
   }
 
   // ---------------- Dashboard ----------------
+  function miniBars(items, label, val, unit) {
+    if (!items.length) return '<p class="muted small">Sem dados ainda.</p>';
+    const max = Math.max(...items.map(val), 1);
+    return `<div class="minichart">${items.map(it => `
+      <div class="minibar-row" title="${NS.esc(String(val(it)))} ${unit}">
+        <span class="minibar-lbl">${NS.esc(String(label(it)))}</span>
+        <span class="minibar-track"><span class="minibar-fill" style="width:${(val(it) / max * 100).toFixed(1)}%"></span></span>
+        <span class="minibar-val">${val(it)}</span>
+      </div>`).join('')}</div>`;
+  }
   async function loadDashboard() {
     try {
-      const [{ evaluations = [] }, { patients = [] }] = await Promise.all([
+      const [sum, { evaluations = [] }] = await Promise.all([
+        NS.api('/api/dashboard').catch(() => ({})),
         NS.api('/api/evaluations').catch(() => ({ evaluations: [] })),
-        NS.api('/api/patients').catch(() => ({ patients: [] })),
       ]);
-      $('#kpiEvals').textContent = evaluations.length;
-      $('#kpiPatients').textContent = patients.length;
+      $('#kpiEvals').textContent = sum.evaluations ?? evaluations.length;
+      $('#kpiPatients').textContent = sum.patients ?? (state.patients || []).length;
       $('#kpiCredits').textContent = state.profile?.credits ?? 0;
       $('#kpiTests').textContent = state.tests?.length ?? 62;
+      const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const fmtM = (m) => { const [y, mo] = m.split('-'); return `${MES[+mo - 1]}/${y.slice(2)}`; };
+      $('#dashByMonth').innerHTML = miniBars(sum.by_month || [], d => fmtM(d.m), d => d.n, 'avaliações');
+      $('#dashTopTests').innerHTML = miniBars(sum.top_tests || [], d => d.t, d => d.n, 'usos');
       $('#dashRecent').innerHTML = evaluations.slice(0, 8).map(ev => {
         const nm = NS.esc(ev.patient?.name || '(sem nome)');
         const when = new Date(ev.updated_at || ev.created_at).toLocaleString('pt-BR');
         const tests = (ev.tests || []).map(t => t.test).filter(Boolean).join(', ');
-        return `<div class="list-row"><div><b>${nm}</b><small>${NS.esc(tests || 'sem testes')}</small></div><span class="muted small">${when}</span></div>`;
+        return `<div class="list-row" data-open-eval="${ev.id}"><div><b>${nm}</b><small>${NS.esc(tests || 'sem testes')}</small></div><span class="muted small">${when}</span></div>`;
       }).join('') || '<p class="muted small">Nenhuma avaliação ainda.</p>';
     } catch (e) { NS.toast(e.message, true); }
   }
+  document.addEventListener('click', async (e) => {
+    const r = e.target.closest('[data-open-eval]'); if (!r) return;
+    try {
+      const ev = await NS.api('/api/evaluations/' + r.dataset.openEval);
+      window.loadEvaluation && window.loadEvaluation(ev);
+      showView('laudos'); NS.toast('Avaliação carregada.');
+    } catch (err) { NS.toast(err.message, true); }
+  });
 
   // ---------------- Pacientes ----------------
   async function loadPatients() {
     const body = $('#patientsBody');
     try {
-      const { patients = [] } = await NS.api('/api/patients');
+      const [{ patients = [] }, { evaluations = [] }] = await Promise.all([
+        NS.api('/api/patients'),
+        NS.api('/api/evaluations').catch(() => ({ evaluations: [] })),
+      ]);
       state.patients = patients;
+      state.allEvals = evaluations;
+      const cnt = {};
+      evaluations.forEach(e => { if (e.patient_id) cnt[e.patient_id] = (cnt[e.patient_id] || 0) + 1; });
       $('#patientOptions').innerHTML = patients.map(p => `<option value="${NS.esc(p.name)}">`).join('');
       body.innerHTML = patients.map(p => `<tr>
         <td>${NS.esc(p.name)}</td><td>${NS.esc(p.birth_date || '—')}</td>
         <td>${NS.esc(p.sex || '—')}</td><td>${NS.esc(p.education || '—')}</td>
+        <td>${cnt[p.id] ? `<button class="btn ghost xs" data-evals-pat="${p.id}">${cnt[p.id]} laudo(s)</button>` : '<span class="muted">—</span>'}</td>
         <td class="row-acts">
           <button class="btn ghost xs" data-use="${p.id}">Usar</button>
           <button class="btn ghost xs" data-edit-pat="${p.id}">Editar</button>
           <button class="btn ghost xs danger" data-del-pat="${p.id}">Excluir</button>
-        </td></tr>`).join('') || '<tr><td colspan="5" class="muted small">Nenhum paciente cadastrado.</td></tr>';
-    } catch (e) { body.innerHTML = `<tr><td colspan="5" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
+        </td></tr>`).join('') || '<tr><td colspan="6" class="muted small">Nenhum paciente cadastrado.</td></tr>';
+    } catch (e) { body.innerHTML = `<tr><td colspan="6" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
   }
+  $('#patientsBody')?.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-evals-pat]'); if (!b) return;
+    const p = state.patients.find(x => x.id === b.dataset.evalsPat);
+    try {
+      const { evaluations = [] } = await NS.api('/api/evaluations?patient=' + b.dataset.evalsPat);
+      openEdit(`Avaliações — ${p ? p.name : ''}`,
+        `<div class="list-plain" style="grid-column:1/-1">${evaluations.map(ev => {
+          const when = new Date(ev.updated_at || ev.created_at).toLocaleDateString('pt-BR');
+          const tests = (ev.tests || []).map(t => t.test).filter(Boolean).join(', ') || 'sem testes';
+          return `<div class="list-row" data-open-eval="${ev.id}" style="cursor:pointer"><div><b>${when}</b><small>${NS.esc(tests)}</small></div><span class="muted small">abrir ›</span></div>`;
+        }).join('') || '<p class="muted small">Nenhuma.</p>'}</div>`, null);
+      $('#editSave').style.display = 'none';
+    } catch (err) { NS.toast(err.message, true); }
+  });
   $('#patientNewBtn')?.addEventListener('click', () => patientForm());
   $('#patientsBody')?.addEventListener('click', async (e) => {
     const t = e.target;
@@ -377,6 +420,7 @@
     $('#editTitle').textContent = title;
     $('#editBody').innerHTML = `<div class="form-grid">${formHtml}</div><span id="editMsg" class="inline-msg"></span>`;
     editSaver = onSave;
+    $('#editSave').style.display = onSave ? '' : 'none';
     $('#editModal').hidden = false;
   }
   $('#editClose')?.addEventListener('click', () => { $('#editModal').hidden = true; });
@@ -409,6 +453,7 @@
         $('#prefTasks').checked = !!prefs.notify_tasks;
         refreshIdentity();
       } catch (e) { console.error(e); }
+      NS.api('/api/patients').then(({ patients = [] }) => { state.patients = patients; }).catch(() => {});
     }
     // retorno do Mercado Pago
     const m = location.hash.match(/pago=([^&]+)/);

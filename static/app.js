@@ -89,6 +89,7 @@ async function init(){
 }
 // helpers reaproveitados pelo shell
 window.NS = { api, toast, state, esc, get sb(){return state.sb;} };
+window.loadEvaluation = (ev)=>loadEvaluation(ev);
 function renderTestList(){
   const q=els.search.value.trim().toLowerCase();
   els.list.innerHTML=state.tests.filter(t=>t.name.toLowerCase().includes(q)).map(t=>`<button class="test-item ${state.meta?.name===t.name?'active':''}" data-test="${esc(t.name)}"><span>${esc(t.name)}</span><small>${esc(t.chart_type||'')}</small></button>`).join('');
@@ -598,8 +599,13 @@ $('#exportBtn').addEventListener('click',()=>{
 });
 
 // ---------- Avaliações salvas (nuvem, por profissional) ----------
+function currentPatientId(){
+  const nm=$('#patientName').value.trim().toLowerCase();
+  const p=(state.patients||[]).find(x=>(x.name||'').trim().toLowerCase()===nm);
+  return p?p.id:null;
+}
 function evalPayload(){
-  return {patient:patient(),results:state.results,anamnesis:state.anamnesis,
+  return {patient:patient(),patient_id:currentPatientId(),results:state.results,anamnesis:state.anamnesis,
           test_reports:state.testReports,integrated_report:state.integrated,laudo_model:state.laudoModel};
 }
 $('#saveEvalBtn')?.addEventListener('click',async()=>{

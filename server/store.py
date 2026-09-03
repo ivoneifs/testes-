@@ -44,12 +44,14 @@ async def _req(method: str, path: str, user: dict, *, params=None, json=None, wr
 
 
 # ---------- avaliações ----------
-async def list_evaluations(user: dict) -> list[dict]:
-    return await _req('GET', '/evaluations', user, params={
-        'select': 'id,patient,tests,integrated_report,created_at,updated_at',
-        'order': 'updated_at.desc',
-        'limit': '200',
-    }) or []
+async def list_evaluations(user: dict, patient_id: str | None = None) -> list[dict]:
+    params = {
+        'select': 'id,patient,patient_id,tests,integrated_report,created_at,updated_at',
+        'order': 'updated_at.desc', 'limit': '200',
+    }
+    if patient_id:
+        params['patient_id'] = f'eq.{patient_id}'
+    return await _req('GET', '/evaluations', user, params=params) or []
 
 
 async def get_evaluation(user: dict, eval_id: str) -> dict:
@@ -68,6 +70,8 @@ async def save_evaluation(user: dict, payload: dict, eval_id: str | None = None)
         'integrated_report': payload.get('integrated_report'),
         'laudo_model': payload.get('laudo_model'),
     }
+    if payload.get('patient_id'):
+        body['patient_id'] = payload['patient_id']
     if eval_id:
         rows = await _req('PATCH', '/evaluations', user, params={'id': f'eq.{eval_id}'},
                           json=body, write=True)
@@ -232,6 +236,11 @@ async def list_ledger(user: dict) -> list[dict]:
     return await _req('GET', '/credit_ledger', user, params={
         'select': 'delta,reason,ref,balance_after,created_at', 'order': 'created_at.desc', 'limit': '100',
     }) or []
+
+
+async def dashboard_summary(user: dict) -> dict:
+    data = _scalar(await _req('POST', '/rpc/dashboard_summary', user, json={}, write=True))
+    return data or {'evaluations': 0, 'patients': 0, 'by_month': [], 'top_tests': []}
 
 
 async def list_plans(user: dict | None = None) -> list[dict]:

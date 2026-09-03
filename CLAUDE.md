@@ -48,8 +48,17 @@ Assets têm cache-busting automático (`?v=<hash>` injetado em `_index_html()`),
 
 ```
 server/
-  app.py             rotas FastAPI (ver "Rotas" abaixo)
-  workbook_engine.py motor de correção (lê data/neuro_normas.db via lib `formulas`)
+  app.py             rotas FastAPI (ver "Rotas" abaixo); /api/tests e /api/score
+                     despacham p/ scales.py quando o nome é uma escala
+  workbook_engine.py motor de correção (lê data/neuro_normas.db via lib `formulas`).
+                     `_perfil_sensorial_meta()` = descoberta dedicada do Perfil
+                     Sensorial 2 (grades seção×quadrante); score() anota
+                     classificação+percentil via perfil_sensorial_norms
+  perfil_sensorial_norms.py  normas do Perfil Sensorial 2 (manual do usuário):
+                     faixas de corte (bruto→banda) + faixas de percentil (Anexo A).
+                     `python -m server.perfil_sensorial_norms` lista o que falta digitar
+  scales.py          escalas por questionário (não-planilha): ATA e HADS.
+                     Mesmo formato de meta()/score() do WorkbookEngine
   xl_compat.py       patches na lib `formulas`: coerção Excel texto→número nos
                      operadores (+,-,*,/,^) e implementa QUOTIENT
   auth.py            valida JWT Supabase; AUTH_ENABLED se SUPABASE_URL+ANON_KEY
@@ -58,7 +67,8 @@ server/
   openai_service.py  laudos / anamnese / modelo (Responses API)
   docx_report.py     laudo integrado .docx (Times New Roman 12 justificado)
 scripts/
-  repair_wasi_refs.py   conserta os #REF! da aba WASI no .db (rodar após regerar o .db)
+  repair_wasi_refs.py   conserta os #REF! da aba WASI no .db (rodar SEMPRE após
+                        `python -m server.build_db`)
   deploy_coolify.sh     provisão inicial do app no Coolify (já feito)
 static/
   index.html    shell com todas as views (Dashboard/Pacientes/História/Laudos/Planos/Config/Admin/Conta)
@@ -66,17 +76,26 @@ static/
   shell.js      nav + router (hash), Dashboard, Pacientes, Planos, Config (tema), Admin, Conta
   styles.css    + tema escuro em :root[data-theme="dark"]
 supabase/migrations/  0001..0006 (todas RODADAS na cloud)
-data/neuro_normas.db  base normativa (68 MB, VERSIONADA no repo p/ o Docker) — já patcheada p/ WASI
+data/neuro_normas.db  base normativa (~68 MB, VERSIONADA no repo p/ o Docker) — já
+                      patcheada p/ WASI; inclui as 6 abas do Perfil Sensorial 2
+data/Perfil Sensorial 2-0 correcao excel.xlsx  workbook extra (git-ignored por *.xlsx);
+                      ingerido por build_db.py via EXTRA_WORKBOOKS
 ```
 
 Rodar local: `run.bat` (Windows) ou `python -m uvicorn server.app:app`.
 Sem login local: `SUPABASE_URL="" SUPABASE_ANON_KEY="" python -m uvicorn server.app:app`.
-Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems": []}`.
+Auto-teste: `python -m server.self_test` → deve dar `{"tests": 68, "problems": []}`
+(68 = instrumentos de planilha, contando as 6 abas do Perfil Sensorial 2; +2 escalas
+ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
+
+**Regerar o banco:** os 2 `.xlsx` em `data/` → `python -m server.build_db` →
+`python scripts/repair_wasi_refs.py` (obrigatório: build_db não sabe consertar WASI).
 
 ## Rotas API (todas exigem JWT Supabase quando AUTH_ENABLED)
 
-- `GET /api/health` `/api/config` — públicas
-- `GET /api/tests` `/api/tests/{nome}` · `POST /api/score`
+- `GET /api/health` `/api/config` — públicas (`health.tests` = 68+2 escalas = 70)
+- `GET /api/tests` (catálogo = planilhas + escalas ATA/HADS) · `GET /api/tests/{nome}`
+  · `POST /api/score` — `test_meta`/`score` roteiam p/ `scales.py` se `scales.is_scale(nome)`
 - `POST /api/ai/test-report` `/api/ai/anamnesis` `/api/ai/laudo-model` `/api/ai/integrated-report`
   (o integrado **consome 1 crédito**; 402 se zerado e não-admin)
 - `POST /api/laudo/integrated-docx`
@@ -127,37 +146,50 @@ Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems":
 - **Mercado Pago PRODUÇÃO**: token `APP_USR-` no Coolify; `/api/checkout` gera preference
   real; `/api/webhooks/mercadopago` credita ao aprovar (idempotente, via service role).
   Pix/boleto/cartão habilitados.
-- **Perfil Sensorial 2** (Sensory Profile 2) agora é **instrumento nativo pontuável**
-  (não mais só "instrumento externo"). `build_db.py` ganhou `EXTRA_WORKBOOKS`: ingere
-  `data/Perfil Sensorial 2-0 correcao excel.xlsx` (git-ignored) como 6 abas renomeadas
-  (`Perfil Sensorial 2 - Bebê/Criança Pequena/Criança/Professor/Abreviado/Consolidado`),
-  reescrevendo as refs cruzadas. **68 instrumentos** no total (era 62). Rodar de novo:
-  `python -m server.build_db` (precisa dos 2 .xlsx em `data/`) **depois** `python scripts/repair_wasi_refs.py`.
-  Motor: `WorkbookEngine._perfil_sensorial_meta()` — layout dedicado (grades seção×quadrante):
-  entrada = escore 0–5 por item agrupado por seção; tabelas = "perfil por seção" + "perfil
-  por quadrante"; percentil = parâmetro de texto (consulta manual do avaliador);
-  `chart_type='sensory_profile'`. Front: 1 entrada na lista com seletor de forma
-  (`#psFormSelect`), inputs por seção, 4 gráficos (barra+radar de seção, barra+radar de
-  quadrante), `input_mode='itens'` dispensa nascimento/data. **Validado ponta a ponta na
-  forma Criança** (bate com os prints: seções 50/46/64/60/38/54/40/56/76%, quadrantes
-  57/52/53/55%). Outras 4 formas funcionam mas não foram conferidas visualmente; Consolidado
-  cai no genérico (sem entrada — whitelisted no `self_test`).
+- **Perfil Sensorial 2** (Sensory Profile 2) — **instrumento nativo pontuável** (6 abas).
+  `build_db.py` ganhou `EXTRA_WORKBOOKS`: ingere `data/Perfil Sensorial 2-0 correcao
+  excel.xlsx` como 6 abas renomeadas (Bebê/Criança Pequena/Criança/Professor/Abreviado/
+  Consolidado), reescrevendo as refs cruzadas. `_perfil_sensorial_meta()` = layout dedicado
+  (grades seção×quadrante): entrada = escore 0–5 por item agrupado por seção; tabelas
+  "perfil por seção" + "perfil por quadrante"; `chart_type='sensory_profile'`.
+  Front: 1 entrada na lista com seletor de forma (`#psFormSelect`), inputs por seção/grupo,
+  4 gráficos (barra+radar de seção, barra+radar de quadrante), `input_mode='itens'` dispensa
+  nascimento/data, `#testNote` mostra a nota do instrumento.
+  **Classificação em 5 bandas + faixa de percentil** = `perfil_sensorial_norms.py` (do
+  manual do usuário). As fórmulas STATUS da planilha estavam com cortes ERRADOS (Criança/
+  Exploração planilha=23–33, manual=20–47) → ignoradas. score() troca as colunas
+  Percentil/Status por Classificação + Percentil(norma).
+  **Preenchido do manual:** faixas de percentil (Anexo A) das 5 formas; faixas de corte de
+  Criança/quadrantes, Criança Pequena/seções, Bebê/total. **FALTA digitar** (`CUTOFFS` no
+  arquivo): Criança/9 seções, Criança Pequena/4 quadrantes, Professor (quad+seções+fatores),
+  Abreviado (quad+2 seções) — não estão no manual, só nas fichas de resumo em papel.
+  Escala sem corte → classificação em branco (não quebra). Consolidado cai no genérico.
+- **Escalas por questionário** (`server/scales.py`) — **ATA** (23 áreas 0–2 → total 0–46,
+  corte ≥15) e **HADS** (HADS-A/HADS-D 0–21 → 0–7 normal / 8–10 leve / ≥11 significativo).
+  Entram no catálogo, no laudo com IA. Pontuação publicada e simples (o profissional já
+  faz à mão) — NÃO é norma proprietária. Total exibido no app = **70**.
 - **IA por teste**: o botão de laudo individual + Avaliação Completa dependem só de
-  `openai_configured` (chave no ambiente), **não** do instrumento — já vale p/ os 68.
-  TAVIS/SON-R seguem no fluxo "instrumento externo" (não estão na planilha, não têm como
-  pontuar no motor).
+  `openai_configured` (chave no ambiente), **não** do instrumento — vale p/ todos.
+  TAVIS/SON-R/EFA seguem no fluxo "instrumento externo" (não têm planilha nem normas).
 
 ### ⏳ Pendente
 
-1. **Confirmar 1 pagamento MP real** — o usuário faz 1 compra (Pix, R$49, Pack Inicial) e
+1. **Perfil Sensorial 2 — digitar os cortes que faltam** em `server/perfil_sensorial_norms.py`
+   (`CUTOFFS`): das fichas de resumo em papel. Rodar `python -m server.perfil_sensorial_norms`
+   pra ver a lista. Depois é só redeployar (o motor usa na hora, não precisa regerar o .db).
+2. **Confirmar 1 pagamento MP real** — o usuário faz 1 compra (Pix, R$49, Pack Inicial) e
    a gente verifica: `orders.status='paid'`, `credit_ledger` +5, saldo. Rastrear pelo
    `order_id` (fica na URL de retorno `#planos?pago=1`). O sandbox foi impossível de testar
    (bloqueios do MP: real-account email, test-buyer login, headless, direct-API). Fallback:
    admin concede créditos manualmente.
-2. **`#REF!` interno restante** (NÃO afeta nenhum laudo — são células helper): `Funcoes` (38),
+3. **EFA / SON-R nativos** — pediram, mas só mandaram apostila/slide de curso. Precisam da
+   **planilha de correção** (como a do Perfil Sensorial 2) OU das **tabelas normativas**
+   (EFA: manual Vetor pág. 35–46 + valor de cada resposta; SON-R: manual pág. 191–208).
+   Sem isso não dá pra pontuar — segue como instrumento externo. Doc teórico/slide não serve.
+4. **`#REF!` interno restante** (NÃO afeta nenhum laudo — são células helper): `Funcoes` (38),
    `WAIS-III` (1), `ETDAH-CriAd` (1), `THCP` (1), `Vin_3_Ext_Ent/Prof` (1-10).
    Mesmo tratamento do `repair_wasi_refs.py` se algum surgir visível.
-3. **Divergências de motor não-visíveis** (auditoria completa: 442 células, **0 em tabela
+5. **Divergências de motor não-visíveis** (auditoria completa: 442 células, **0 em tabela
    renderizada**): `COUNTIF(intervalo_vazio;"*")` conta tudo (RAVLT C40/C41);
    `SUM(A;B;C;D)` com texto → `#VALUE!` (CBCL K50); `LOOKUP` de coluna distante → `#VALUE!`
    (WISC-IV subtestes suplementares, linhas 116+). Baixo valor + risco alto de patchar a

@@ -16,6 +16,9 @@ import numpy as np
 import schedula as sh
 import formulas
 
+from . import xl_compat
+xl_compat.patch()  # coerção Excel de texto->número nos operadores (antes de compilar)
+
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / 'data' / 'neuro_normas.db'
 

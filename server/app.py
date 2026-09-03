@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -22,7 +23,7 @@ load_dotenv(ROOT/'.env')
 from .workbook_engine import WorkbookEngine
 from .openai_service import analyze_anamnesis, analyze_laudo_model, generate_integrated_report, generate_test_report
 from .docx_report import build_integrated_docx
-from . import auth, store
+from . import auth, payments, store
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -182,11 +183,23 @@ async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends
         raise HTTPException(502,str(exc))
 
 @app.post('/api/ai/integrated-report')
-def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_user)):
+async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_user)):
+    if auth.AUTH_ENABLED and not await store.can_laudo(user):
+        raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
     try:
-        return generate_integrated_report(req.patient,req.anamnesis,req.test_reports,req.raw_results,req.model)
+        report = await run_in_threadpool(
+            generate_integrated_report, req.patient, req.anamnesis,
+            req.test_reports, req.raw_results, req.model)
     except Exception as exc:
-        raise HTTPException(502,str(exc))
+        raise HTTPException(502, str(exc))
+    if auth.AUTH_ENABLED:
+        try:
+            await store.spend_laudo(user, (req.patient or {}).get('name'))
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    return report
 
 @app.post('/api/laudo/integrated-docx')
 def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(current_user)):
@@ -268,6 +281,40 @@ async def patients_update(pid: str, req: PatientRequest, user: dict = Depends(cu
 async def patients_delete(pid: str, user: dict = Depends(current_user)):
     await store.delete_patient(user, pid)
     return {'ok': True}
+
+# ---------------- Créditos e pagamento (Mercado Pago) ----------------
+class CheckoutRequest(BaseModel):
+    pack: str
+
+@app.get('/api/credits')
+async def credits_get(user: dict = Depends(current_user)):
+    return {'balance': await store.credit_balance(user),
+            'ledger': await store.list_ledger(user),
+            'payments_enabled': payments.enabled()}
+
+@app.post('/api/checkout')
+async def checkout(req: CheckoutRequest, user: dict = Depends(current_user)):
+    return await store.create_order(user, req.pack)
+
+@app.post('/api/webhooks/mercadopago')
+async def mp_webhook(request: Request):
+    # MP envia ?type=payment&data.id=... e/ou corpo JSON {type, data:{id}}
+    qp = request.query_params
+    pid = qp.get('data.id') or qp.get('id')
+    kind = qp.get('type') or qp.get('topic')
+    if not pid:
+        try:
+            body = await request.json()
+            kind = kind or body.get('type') or body.get('action')
+            pid = (body.get('data') or {}).get('id') or body.get('id')
+        except Exception:
+            pass
+    if not pid or (kind and 'payment' not in str(kind)):
+        return {'ok': True, 'skip': True}
+    try:
+        return await store.fulfill_payment(str(pid))
+    except HTTPException:
+        return {'ok': False}  # 200 p/ o MP não reenfileirar em loop
 
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
 

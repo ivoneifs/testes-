@@ -189,3 +189,93 @@ async def list_audit(user: dict) -> list[dict]:
     return await _req('GET', '/audit_log', user, params={
         'select': 'action,entity,entity_id,meta,at', 'order': 'at.desc', 'limit': '200',
     }) or []
+
+
+# ---------- créditos e pagamentos ----------
+async def _service_req(method: str, path: str, *, params=None, json=None):
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(500, 'Service role não configurado no servidor.')
+    h = {'apikey': SUPABASE_SERVICE_ROLE_KEY,
+         'Authorization': f'Bearer {SUPABASE_SERVICE_ROLE_KEY}',
+         'Content-Type': 'application/json', 'Prefer': 'return=representation'}
+    async with httpx.AsyncClient(timeout=15.0) as c:
+        r = await c.request(method, f'{REST}{path}', headers=h, params=params, json=json)
+    if r.status_code >= 400:
+        raise HTTPException(r.status_code, f'Supabase: {r.text[:300]}')
+    return r.json() if r.content else None
+
+
+def _scalar(v):
+    return v[0] if isinstance(v, list) and v else v
+
+
+async def credit_balance(user: dict) -> int:
+    return int((await get_profile(user)).get('credits') or 0)
+
+
+async def spend_laudo(user: dict, ref: str | None = None) -> int:
+    """Consome 1 crédito (admin é ilimitado). 402 se não houver saldo."""
+    try:
+        return int(_scalar(await _req('POST', '/rpc/spend_laudo', user, json={'p_ref': ref}, write=True)) or 0)
+    except HTTPException as e:
+        if 'insufficient_credits' in str(e.detail):
+            raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+        raise
+
+
+async def can_laudo(user: dict) -> bool:
+    p = await get_profile(user)
+    return p.get('role') == 'admin' or int(p.get('credits') or 0) > 0
+
+
+async def list_ledger(user: dict) -> list[dict]:
+    return await _req('GET', '/credit_ledger', user, params={
+        'select': 'delta,reason,ref,balance_after,created_at', 'order': 'created_at.desc', 'limit': '100',
+    }) or []
+
+
+async def create_order(user: dict, pack_key: str) -> dict:
+    from . import payments
+    pack = payments.PACKS.get(pack_key)
+    if not pack:
+        raise HTTPException(400, 'Pacote inválido.')
+    rows = await _req('POST', '/orders', user, json={
+        'pack': pack_key, 'credits': pack['credits'], 'amount_cents': pack['amount_cents'],
+    }, write=True)
+    order = (rows or [{}])[0]
+    pref = await payments.create_preference(order['id'], pack, user.get('email', ''))
+    await _req('PATCH', '/orders', user, params={'id': f'eq.{order["id"]}'},
+               json={'provider_ref': pref['preference_id']}, write=True)
+    await log(user, 'checkout', 'order', order['id'], {'pack': pack_key})
+    return {'order_id': order['id'], 'init_point': pref['init_point']}
+
+
+async def fulfill_payment(payment_id: str) -> dict:
+    """Webhook do Mercado Pago. Idempotente."""
+    from . import payments
+    pay = await payments.get_payment(str(payment_id))
+    if pay.get('status') != 'approved':
+        return {'ignored': pay.get('status')}
+    order_id = pay.get('external_reference')
+    if not order_id:
+        return {'ignored': 'sem external_reference'}
+    rows = await _service_req('GET', '/orders', params={'id': f'eq.{order_id}', 'limit': '1'}) or []
+    if not rows:
+        return {'ignored': 'pedido não encontrado'}
+    order = rows[0]
+    if order['status'] == 'paid':
+        return {'ok': True, 'already': True}
+    await _service_req('PATCH', '/orders', params={'id': f'eq.{order_id}'},
+                       json={'status': 'paid', 'provider_ref': str(payment_id)})
+    await _service_req('POST', '/rpc/apply_credits', json={
+        'p_owner': order['owner'], 'p_delta': order['credits'],
+        'p_reason': 'purchase', 'p_ref': str(payment_id),
+    })
+    return {'ok': True, 'credits': order['credits']}
+
+
+async def admin_grant_credits(user: dict, pid: str, delta: int) -> int:
+    await _require_admin(user)
+    return int(_scalar(await _service_req('POST', '/rpc/apply_credits', json={
+        'p_owner': pid, 'p_delta': int(delta), 'p_reason': 'admin_grant',
+    })) or 0)

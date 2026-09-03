@@ -509,8 +509,12 @@ els.integratedBtn.addEventListener('click',async()=>{
     state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);
     els.laudoActions.hidden=false;els.docxBtn.hidden=false;
     toast('Avaliação Neuropsicológica Completa gerada.');
+    try{ window.afterLaudo && window.afterLaudo(); }catch{}
     els.laudoActions.scrollIntoView({behavior:'smooth',block:'center'});
-  }catch(e){toast(e.message,true);}finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent=orig;}
+  }catch(e){
+    toast(e.message,true);
+    if(/cr[eé]dito/i.test(e.message||'') && window.showView) window.showView('planos');
+  }finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent=orig;}
 });
 
 // ---------- Salvar laudo integrado em .docx (Word) ----------

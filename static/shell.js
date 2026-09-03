@@ -25,6 +25,7 @@
   let currentView = null;
 
   function showView(name) {
+    name = String(name || '').split('?')[0];
     if (!VIEWS.includes(name)) name = 'dashboard';
     if (name === 'admin' && state.profile?.role !== 'admin') name = 'dashboard';
     currentView = name;
@@ -199,9 +200,9 @@
 
   // ---------------- Planos ----------------
   const PACKS = [
-    { nome: 'Pack Inicial', preco: 'R$ 49', unid: '/ pacote', laudos: '5 Laudos', desc: 'Ideal para quem está começando.', tag: '', itens: ['Suporte via e-mail', 'Exportação em PDF', 'IA para laudos'] },
-    { nome: 'Pack Profissional', preco: 'R$ 149', unid: '/ pacote', laudos: '20 Laudos', desc: 'O melhor custo-benefício para sua clínica.', tag: 'Mais vendido', itens: ['Prioridade na fila', 'Suporte WhatsApp', 'História de Vida ilimitada', '20 créditos de laudo'] },
-    { nome: 'Pack Clínica Premium', preco: 'R$ 299', unid: '/ pacote', laudos: '50 Laudos', desc: 'Para alta demanda e grandes fluxos.', tag: '', itens: ['Consultoria VIP', 'Treinamento de equipe', 'Cota alta de créditos', 'Personalização de layout'] },
+    { key: 'inicial', nome: 'Pack Inicial', preco: 'R$ 49', unid: '/ pacote', laudos: '5 Laudos', desc: 'Ideal para quem está começando.', tag: '', itens: ['Suporte via e-mail', 'Exportação em PDF', 'IA para laudos'] },
+    { key: 'profissional', nome: 'Pack Profissional', preco: 'R$ 149', unid: '/ pacote', laudos: '20 Laudos', desc: 'O melhor custo-benefício para sua clínica.', tag: 'Mais vendido', itens: ['Prioridade na fila', 'Suporte WhatsApp', 'História de Vida ilimitada', '20 créditos de laudo'] },
+    { key: 'premium', nome: 'Pack Clínica Premium', preco: 'R$ 299', unid: '/ pacote', laudos: '50 Laudos', desc: 'Para alta demanda e grandes fluxos.', tag: '', itens: ['Consultoria VIP', 'Treinamento de equipe', 'Cota alta de créditos', 'Personalização de layout'] },
   ];
   function loadPlanos() {
     $('#planosGrid').innerHTML = PACKS.map(p => `
@@ -212,13 +213,32 @@
         <div class="plano-laudos">${p.laudos}</div>
         <p class="muted small">${p.desc}</p>
         <ul>${p.itens.map(i => `<li>${i}</li>`).join('')}</ul>
-        <button class="btn primary" data-buy="${NS.esc(p.nome)}">Comprar agora</button>
+        <button class="btn primary" data-buy="${p.key}">Comprar agora</button>
       </div>`).join('');
   }
-  $('#planosGrid')?.addEventListener('click', (e) => {
+  $('#planosGrid')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-buy]'); if (!b) return;
-    NS.toast('Pagamento ainda não integrado — em breve. (' + b.dataset.buy + ')');
+    b.disabled = true; const t = b.textContent; b.textContent = 'Redirecionando…';
+    try {
+      const { init_point } = await NS.api('/api/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pack: b.dataset.buy }),
+      });
+      if (init_point) location.href = init_point;
+      else throw new Error('Checkout indisponível.');
+    } catch (err) { NS.toast(err.message, true); b.disabled = false; b.textContent = t; }
   });
+
+  async function refreshCredits() {
+    try {
+      const p = await NS.api('/api/profile');
+      state.profile = { ...(state.profile || {}), ...p };
+      refreshIdentity();
+      if (!$('#view-dashboard').hidden) loadDashboard();
+    } catch {}
+  }
+  window.afterLaudo = refreshCredits;
+  window.NS && (window.NS.goPlanos = () => showView('planos'));
 
   // ---------------- Administração ----------------
   async function loadAdmin() {
@@ -318,7 +338,15 @@
         refreshIdentity();
       } catch (e) { console.error(e); }
     }
-    showView(location.hash.slice(1) || 'dashboard');
+    // retorno do Mercado Pago
+    const m = location.hash.match(/pago=([^&]+)/);
+    if (m) {
+      if (m[1] === '1') { NS.toast('Pagamento aprovado! Créditos serão liberados em instantes.'); setTimeout(refreshCredits, 4000); }
+      else if (m[1] === 'pend') NS.toast('Pagamento pendente — os créditos entram após a confirmação.');
+      else NS.toast('Pagamento não concluído.', true);
+      history.replaceState(null, '', '#planos');
+    }
+    showView(location.hash.slice(1).split('?')[0] || 'dashboard');
   };
   window.NS = window.NS || {};
 })();

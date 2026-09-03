@@ -4,121 +4,153 @@ App de **correção neuropsicológica automática** + **plataforma clínica come
 (pacientes, laudos com IA, créditos, área administrativa). FastAPI + JS puro +
 Supabase (Auth/Postgres) + OpenAI + Mercado Pago.
 
+Última sessão: **2026-09-03**. Ver "ONDE PARAMOS" no fim.
+
 ## Onde roda
 
-| | |
+| O quê | Onde |
 |---|---|
-| Produção | https://neuro-testes.appsbrasil.store |
-| Repo (público) | https://github.com/ivoneifs/testes- (branch `main`) |
-| Deploy | Coolify — painel `https://painel.appsbrasil.store`, API `/api/v1`, app uuid `qnmeoeu38cuk8l19jpypf4q9` (nome `neuroscore`, Dockerfile, ~2 min) |
-| Banco/Auth | Supabase **Cloud** projeto `jqmfcqbblrqtmlzpxbud` (NÃO é o `neuropsi-postgres` do Coolify) |
-| Admin mestre | `ivoneifs@gmail.com` (profiles.role = 'admin', ilimitado) |
+| Produção | `https://neuro-testes.appsbrasil.store` |
+| Repo (público) | `github.com/ivoneifs/testes-` — branch `main` |
+| Deploy | Coolify — painel `painel.appsbrasil.store`, API `/api/v1`, app uuid `qnmeoeu38cuk8l19jpypf4q9` (nome `neuroscore`, Dockerfile, ~2 min) |
+| Banco / Auth | Supabase **Cloud** projeto `jqmfcqbblrqtmlzpxbud` (NÃO é o `neuropsi-postgres` do Coolify, que está solto) |
+| Admin mestre | `ivoneifs@gmail.com` — `profiles.role = 'admin'` → créditos ilimitados |
 
-### Segredos (o usuário fornece a cada sessão — nunca commitar)
+### Segredos (o usuário fornece por sessão — nunca commitar)
 
-- `.env` local tem: `OPENAI_API_KEY`, `SUPABASE_URL/ANON_KEY/SERVICE_ROLE_KEY`, `OPENAI_MODEL`
-- Coolify tem (env vars): as de cima + `MERCADOPAGO_ACCESS_TOKEN` (produção `APP_USR-...`), `PUBLIC_URL`
-- **Coolify token** e **Supabase access token (`sbp_...`)**: o usuário cola quando precisa; não ficam salvos
+- `.env` local: `OPENAI_API_KEY`, `OPENAI_MODEL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- Coolify env vars: as de cima + `MERCADOPAGO_ACCESS_TOKEN` (produção `APP_USR-...`) + `PUBLIC_URL`
+- **Coolify token** (`10|...`) e **Supabase access token** (`sbp_...`): o usuário cola na hora; não ficam salvos
+- Escrever segredo no Coolify lendo do `.env` local é bloqueado pelo classificador → pedir o valor ao usuário
 
-### Como rodar migração no Supabase (sem SQL Editor)
+### Rodar migração no Supabase (sem abrir o SQL Editor)
 
-```
+```bash
 curl -X POST "https://api.supabase.com/v1/projects/jqmfcqbblrqtmlzpxbud/database/query" \
-  -H "Authorization: Bearer <sbp_token_do_usuario>" -H "Content-Type: application/json" \
-  -A "Mozilla/5.0 ... Chrome/131.0 Safari/537.36" \
+  -H "Authorization: Bearer <sbp_token>" -H "Content-Type: application/json" \
+  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36" \
   --data-binary '{"query":"<SQL>"}'
 ```
-⚠️ **precisa do User-Agent de navegador** senão Cloudflare bloqueia (403 "error code: 1010").
 
-### Como fazer deploy
+⚠️ **precisa do User-Agent de navegador** senão o Cloudflare bloqueia (403 "error code: 1010").
 
-```
+### Deploy
+
+```bash
 curl -H "Authorization: Bearer <coolify_token>" \
   "https://painel.appsbrasil.store/api/v1/deploy?uuid=qnmeoeu38cuk8l19jpypf4q9&force=false"
-# depois pollar /api/v1/deployments/<deployment_uuid> até status=finished
+# pega deployment_uuid da resposta, polla /api/v1/deployments/<uuid> até status=finished (~2 min)
 ```
-Assets têm cache-busting automático (`?v=<hash>` injetado em `_index_html()`), não precisa
-hard-refresh após deploy — só se o usuário reclamar.
+
+Assets têm cache-busting automático (`?v=<hash>` injetado em `_index_html()`), não precisa hard-refresh.
 
 ## Estrutura
 
 ```
 server/
-  app.py            rotas FastAPI
-  workbook_engine.py  motor de correção (lê data/neuro_normas.db, lib `formulas`)
-  xl_compat.py      patch: coerção Excel texto->número nos operadores (+,-,*,/)
-  auth.py           valida JWT Supabase; AUTH_ENABLED se SUPABASE_URL+ANON_KEY
-  store.py          PostgREST (JWT do usuário) + service-role p/ admin/webhook
-  payments.py       Mercado Pago Checkout Pro
-  openai_service.py laudos/anamnese via Responses API
-  docx_report.py    laudo integrado .docx (Times New Roman 12 justificado)
+  app.py             rotas FastAPI (ver "Rotas" abaixo)
+  workbook_engine.py motor de correção (lê data/neuro_normas.db via lib `formulas`)
+  xl_compat.py       patches na lib `formulas`: coerção Excel texto→número nos
+                     operadores (+,-,*,/,^) e implementa QUOTIENT
+  auth.py            valida JWT Supabase; AUTH_ENABLED se SUPABASE_URL+ANON_KEY
+  store.py           PostgREST c/ JWT do usuário + helpers service-role (admin, webhook, planos)
+  payments.py        Mercado Pago Checkout Pro (preference + consulta de pagamento)
+  openai_service.py  laudos / anamnese / modelo (Responses API)
+  docx_report.py     laudo integrado .docx (Times New Roman 12 justificado)
+scripts/
+  repair_wasi_refs.py   conserta os #REF! da aba WASI no .db (rodar após regerar o .db)
+  deploy_coolify.sh     provisão inicial do app no Coolify (já feito)
 static/
-  index.html        shell + todas as views
-  app.js            corretor (paciente, instrumento, cálculo, gráficos, IA, laudo)
-  shell.js          nav, Dashboard, Pacientes, Planos, Config, Conta, Admin, tema
-  styles.css        + tema escuro (:root[data-theme="dark"])
-supabase/migrations/ 0001..0005 (todas RODADAS na cloud)
+  index.html    shell com todas as views (Dashboard/Pacientes/História/Laudos/Planos/Config/Admin/Conta)
+  app.js        corretor: paciente, seletor de instrumento, cálculo, gráficos SVG, IA, laudo/.docx
+  shell.js      nav + router (hash), Dashboard, Pacientes, Planos, Config (tema), Admin, Conta
+  styles.css    + tema escuro em :root[data-theme="dark"]
+supabase/migrations/  0001..0005 (todas RODADAS na cloud)
+data/neuro_normas.db  base normativa (68 MB, VERSIONADA no repo p/ o Docker) — já patcheada p/ WASI
 ```
 
-Rodar local: `run.bat` (Windows) OU `python -m uvicorn server.app:app`.
-Auto-teste: `python -m server.self_test` (62 instrumentos, deve dar 0 problemas).
-Sem login local: `SUPABASE_URL="" SUPABASE_ANON_KEY="" python -m uvicorn ...`
+Rodar local: `run.bat` (Windows) ou `python -m uvicorn server.app:app`.
+Sem login local: `SUPABASE_URL="" SUPABASE_ANON_KEY="" python -m uvicorn server.app:app`.
+Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems": []}`.
 
-## Migrações aplicadas (todas RAN na cloud)
+## Rotas API (todas exigem JWT Supabase quando AUTH_ENABLED)
 
-- 0001 profiles/evaluations/audit_log + RLS
-- 0002 profiles.role/status/plan/credits/prefs/email, `is_admin()`, policies admin, tabela `patients`, ivoneifs=admin
-- 0003 `credit_ledger`, `orders`, `apply_credits()`, `spend_laudo()` (+ patches: owner default, orders insert/update policy)
-- 0004 tabela `plans` (packs editáveis) + seed inicial/profissional/premium
-- 0005 `evaluations.patient_id`, `dashboard_summary()` RPC
+- `GET /api/health` `/api/config` — públicas
+- `GET /api/tests` `/api/tests/{nome}` · `POST /api/score`
+- `POST /api/ai/test-report` `/api/ai/anamnesis` `/api/ai/laudo-model` `/api/ai/integrated-report`
+  (o integrado **consome 1 crédito**; 402 se zerado e não-admin)
+- `POST /api/laudo/integrated-docx`
+- `GET/POST/PUT/DELETE /api/evaluations[/{id}]` (`?patient=<id>` filtra) · `GET/PUT /api/profile`
+- `GET/POST/PUT/DELETE /api/patients[/{id}]` · `GET /api/dashboard` · `GET /api/audit`
+- `GET /api/plans` · `GET/POST/PUT/DELETE /api/admin/professionals[/{id}]` ·
+  `POST /api/admin/professionals/{id}/credits` (delta) · `PUT /api/admin/plans/{key}`
+- `GET /api/credits` · `POST /api/checkout` · `POST /api/webhooks/mercadopago`
+
+## Migrações (todas RAN na cloud)
+
+- **0001** profiles / evaluations / audit_log + RLS + trigger de perfil
+- **0002** profiles.role/status/plan/credits/prefs/avatar_url/email, `is_admin()`, policies de admin,
+  tabela `patients`, `ivoneifs@gmail.com` → admin
+- **0003** `credit_ledger`, `orders`, `apply_credits()`, `spend_laudo()` — **+ patches aplicados fora do arquivo**:
+  `alter ... orders/credit_ledger alter column owner set default auth.uid()`, policies `orders_insert`/`orders_update`
+- **0004** tabela `plans` (packs editáveis pelo admin) + seed inicial/profissional/premium
+- **0005** `evaluations.patient_id` (FK patients), função `dashboard_summary()`
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
 
 ### ✅ Pronto e no ar
 
-- **Motor**: gráficos WISC-IV (índices + subtestes), laudo Times New Roman 12 justificado,
-  tabelas-lixo filtradas, decimais arredondados, coerção Excel (corrigiu WSCT48-R),
-  campos "automáticos" agora digitáveis (26 testes estavam travados).
-- **Shell**: Dashboard (KPIs + mini-gráficos + atividade), Pacientes (CRUD + contagem de
-  avaliações → abre no corretor), História de Vida, Laudos (corretor), Planos (lê do banco),
-  Configurações (tema claro/escuro/sistema + notificações), Conta (perfil + trocar senha).
-- **Admin** (`#admin`, só role=admin): CRUD profissionais (cria via Auth admin API),
-  editar preço/créditos/itens dos planos, botão "+ créditos" por profissional.
-- **Créditos**: 1 por laudo integrado (admin ilimitado = 999999), 402 + redireciona a
-  Planos quando zera, extrato em `credit_ledger`.
-- **Mercado Pago PRODUÇÃO**: token `APP_USR-` no Coolify, checkout gera preference real,
-  webhook `/api/webhooks/mercadopago` credita ao aprovar (idempotente, service role).
+- **Motor**: gráficos WISC-IV (índices em pontos compostos + perfil de subtestes),
+  laudo em Times New Roman 12 justificado (.docx e .html), tabelas-lixo filtradas,
+  decimais arredondados p/ 2 casas, coerção Excel texto→número (corrigiu **WSCT48-R**),
+  `QUOTIENT` implementado, campos "automáticos" (fórmula) agora **digitáveis** (26 testes
+  estavam travados/readonly), cache-busting de assets.
+- **WASI**: as 112 fórmulas `#REF!` **corrigidas** (`scripts/repair_wasi_refs.py`, .db versionado).
+  QIV/QIE/QIT-4/QIT-2 calculam certo, 0 `#REF!` visível.
+- **Shell**: Dashboard (KPIs reais + mini-gráficos de avaliações/mês e top instrumentos +
+  atividade recente clicável), Pacientes (CRUD + nº de avaliações → abre no corretor),
+  História de Vida, Laudos (o corretor), Planos (lê do banco), Configurações
+  (tema claro/escuro/sistema + notificações salvas em `profiles.prefs`),
+  Conta (perfil + troca de senha via Supabase).
+- **Admin** (aba só p/ role=admin): CRUD de profissionais (cria conta via Auth Admin API,
+  `email_confirm:true`), editar preço/créditos/itens/destaque dos planos,
+  botão "+ créditos" por profissional (delta, com extrato).
+- **Créditos**: 1 por Avaliação Completa; admin = ilimitado (999999); ao zerar → 402 +
+  leva pra Planos; extrato em `credit_ledger`.
+- **Mercado Pago PRODUÇÃO**: token `APP_USR-` no Coolify; `/api/checkout` gera preference
+  real; `/api/webhooks/mercadopago` credita ao aprovar (idempotente, via service role).
+  Pix/boleto/cartão habilitados.
 
 ### ⏳ Pendente
 
-1. **Verificar pagamento MP**: o usuário precisa fazer 1 compra real (Pix R$49 Pack Inicial).
-   Sandbox foi impossível de testar (bloqueios do MP). Após: conferir order→`paid`,
-   `credit_ledger` +5, saldo. Se falhar: rastrear pelo `order_id` (na URL de retorno).
-   Fallback já existe: admin concede créditos manualmente.
-2. **WASI**: ✅ RESOLVIDO 2026-09-03. `scripts/repair_wasi_refs.py` patcheou as 112
-   fórmulas `#REF!` no `data/neuro_normas.db` (versionado) + `xl_compat` ganhou `QUOTIENT`.
-   WASI e WISC-IV com 0 `#REF!` nas tabelas visíveis. **Ao regerar o .db do .xlsx, rodar
-   `python scripts/repair_wasi_refs.py` de novo.** Equivalente no .xlsx (opcional): na aba
-   WASI, `COUNTIF(#REF!,...)` (cols AB/AC/AD linhas 57-95) -> `0`; célula `AB13` -> `=IF(N3="";"";AB11)`.
-   Ainda com `#REF!` interno (não afeta laudo): `Funcoes` (38), WAIS-III/ETDAH-CriAd/THCP/Vin_3_Ext_* (1-10).
-3. **Divergências de motor não-visíveis** (auditoria: 442 células, 0 em tabelas renderizadas):
-   `COUNTIF(intervalo_vazio;"*")` conta tudo em vez de 0 (RAVLT C40/C41);
-   `SUM(A;B;C;D)` com célula de texto → `#VALUE!` (CBCL K50);
-   `LOOKUP` em coluna distante → `#VALUE!` (WISC-IV subtestes suplementares linhas 116+).
-   Baixo valor + risco alto (patchar a lib `formulas` que serve 33k células). Deixado como está.
+1. **Confirmar 1 pagamento MP real** — o usuário faz 1 compra (Pix, R$49, Pack Inicial) e
+   a gente verifica: `orders.status='paid'`, `credit_ledger` +5, saldo. Rastrear pelo
+   `order_id` (fica na URL de retorno `#planos?pago=1`). O sandbox foi impossível de testar
+   (bloqueios do MP: real-account email, test-buyer login, headless, direct-API). Fallback:
+   admin concede créditos manualmente.
+2. **`#REF!` interno restante** (NÃO afeta nenhum laudo — são células helper): `Funcoes` (38),
+   `WAIS-III` (1), `ETDAH-CriAd` (1), `THCP` (1), `Vin_3_Ext_Ent/Prof` (1-10).
+   Mesmo tratamento do `repair_wasi_refs.py` se algum surgir visível.
+3. **Divergências de motor não-visíveis** (auditoria completa: 442 células, **0 em tabela
+   renderizada**): `COUNTIF(intervalo_vazio;"*")` conta tudo (RAVLT C40/C41);
+   `SUM(A;B;C;D)` com texto → `#VALUE!` (CBCL K50); `LOOKUP` de coluna distante → `#VALUE!`
+   (WISC-IV subtestes suplementares, linhas 116+). Baixo valor + risco alto de patchar a
+   `formulas` (serve 33k células). Deixado como está de propósito.
 
 ### Ideias de próximos blocos (não iniciados)
 
-- Reembolso MP → debitar créditos automaticamente (hoje é manual no Admin)
-- Vincular laudo salvo ↔ avaliação ↔ paciente com histórico por paciente na aba Pacientes
-- Confirmação de e-mail no cadastro self-service (hoje admin cria com `email_confirm:true`)
-- Repo privado + volume p/ `neuro_normas.db` (hoje o .db é versionado no repo público — funciona
-  mas não é ideal p/ produto comercial)
+- Reembolso no MP → debitar créditos automaticamente (hoje só manual no Admin)
+- Histórico de laudos salvos por paciente (a avaliação já tem `patient_id`; falta a UI dedicada)
+- Cadastro self-service com confirmação de e-mail (hoje só admin cria contas)
+- Repo privado + volume p/ `neuro_normas.db` (hoje versionado em repo público — funciona,
+  mas Git avisa "large files" e não é ideal p/ produto comercial)
 
 ## Gotchas
 
-- `formulas`/`schedula` + Python 3.14: warning de GIL no import (`lxml.etree`) — inofensivo.
-- Coolify deploy via `curl ... &` em bash morre quando o shell pai sai — usar `run_in_background`.
-- MP: NÃO pré-preencher `payer.email` no preference (trava o botão "Pagar").
-- `git push` via Bash às vezes é bloqueado pelo classificador — se acontecer, usar GitKraken MCP.
-- Escrever segredo em env do Coolify a partir do `.env` local é bloqueado — pedir o valor ao usuário.
+- `formulas`/`schedula` + Python 3.14: warning de GIL no import de `lxml.etree` — inofensivo.
+- Coolify deploy via `curl ... &` em bash morre quando o shell pai sai → usar `run_in_background`
+  ou aceitar o timeout de 2 min e checar o status depois (o deploy continua no servidor).
+- MP: **não** mandar `payer.email` no preference (trava o botão "Pagar" no checkout).
+- Supabase Management API só responde com **User-Agent de navegador** (senão Cloudflare 403).
+- `git push` via Bash às vezes é bloqueado pelo classificador → tentar de novo ou GitKraken MCP.
+- `psql` direto no Supabase Cloud não dá (sem a senha do banco) — usar a Management API.

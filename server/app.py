@@ -116,7 +116,7 @@ def _slug(text: str) -> str:
 
 @app.get('/api/health')
 def health():
-    return {'ok':True,'tests':len(engine.list_tests()),
+    return {'ok':True,'tests':len(engine.list_tests())+len(scales.catalog_entries()),
             'openai_configured':bool(os.getenv('OPENAI_API_KEY')),
             'auth_enabled':auth.AUTH_ENABLED}
 

@@ -21,7 +21,8 @@ ROOT=Path(__file__).resolve().parents[1]
 load_dotenv(ROOT/'.env')
 
 from .workbook_engine import WorkbookEngine
-from .openai_service import analyze_anamnesis, analyze_laudo_model, generate_integrated_report, generate_test_report
+from .openai_service import (analyze_anamnesis, analyze_laudo_model, extract_external_instrument,
+                             generate_integrated_report, generate_test_report)
 from .docx_report import build_integrated_docx
 from . import auth, payments, store
 from .auth import current_user
@@ -199,6 +200,29 @@ async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends
         raise HTTPException(413,'Total de anexos acima de 30 MB')
     try:
         return analyze_laudo_model(parsed)
+    except Exception as exc:
+        raise HTTPException(502,str(exc))
+
+@app.post('/api/ai/external-instrument')
+async def ai_external_instrument(nome: str=Form(''), files: list[UploadFile]=File(...),
+                                 user: dict = Depends(current_user)):
+    parsed=[]
+    total=0
+    for f in files:
+        data=await f.read()
+        total+=len(data)
+        if len(data)>20*1024*1024:
+            raise HTTPException(413,f'{f.filename}: arquivo acima de 20 MB')
+        mime=f.content_type or 'application/octet-stream'
+        name=(f.filename or 'arquivo')
+        if not (mime=='application/pdf' or mime.startswith('image/') or mime.startswith('text/')
+                or name.lower().endswith(('.pdf','.txt','.md','.csv'))):
+            raise HTTPException(415,f'{name}: envie PDF, imagem ou texto')
+        parsed.append((name,mime,data))
+    if total>40*1024*1024:
+        raise HTTPException(413,'Total de anexos acima de 40 MB')
+    try:
+        return extract_external_instrument(parsed, nome)
     except Exception as exc:
         raise HTTPException(502,str(exc))
 

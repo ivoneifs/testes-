@@ -33,12 +33,37 @@ function renderExternal(){
     <div class="external-item" data-ext="${i}">
       <div class="external-head">
         <input class="ext-name" data-k="nome" value="${esc(t.nome||'')}" placeholder="Nome do instrumento" />
+        <label class="btn ghost xs ext-up">📎 Anexar correção
+          <input type="file" data-ext-file="${i}" accept="application/pdf,image/*,.txt,.csv" multiple hidden />
+        </label>
         <button type="button" class="btn ghost xs danger" data-ext-del="${i}">Remover</button>
       </div>
-      <textarea class="ext-res" data-k="resultados" rows="3" placeholder="Resultados corrigidos (escores, percentis, classificações…)">${esc(t.resultados||'')}</textarea>
+      <div class="ext-status ${/^(⚠|Falha)/.test(t._status||'')?'inline-msg err':'muted small'}" data-ext-status="${i}">${esc(t._status||'')}</div>
+      <textarea class="ext-res" data-k="resultados" rows="3" placeholder="Resultados corrigidos (escores, percentis, classificações…). Ou anexe o relatório já corrigido do SON-R / TAVIS / Perfil Sensorial 2.">${esc(t.resultados||'')}</textarea>
       <textarea class="ext-obs" data-k="observacoes" rows="2" placeholder="Observações / interpretação (opcional)">${esc(t.observacoes||'')}</textarea>
     </div>`).join('');
 }
+els.externalList?.addEventListener('change',async e=>{
+  const inp=e.target.closest('[data-ext-file]'); if(!inp||!inp.files.length) return;
+  const i=+inp.dataset.extFile, t=state.externalTests[i]; if(!t) return;
+  const st=els.externalList.querySelector(`[data-ext-status="${i}"]`);
+  if(st){ st.textContent='Lendo o documento…'; }
+  try{
+    const fd=new FormData(); fd.append('nome',t.nome||'');
+    [...inp.files].forEach(f=>fd.append('files',f));
+    const r=await api('/api/ai/external-instrument',{method:'POST',body:fd});
+    if(r.instrumento && !t.nome) t.nome=r.instrumento;
+    if(r.tipo_documento==='protocolo_sem_correcao'){
+      t._status='⚠ Parece um protocolo SEM correção. A IA não pontua testes — corrija no software/manual oficial e anexe o relatório pronto.';
+    }else{
+      t.resultados=[t.resultados,r.resultados].filter(Boolean).join('\n').trim();
+      t.observacoes=[t.observacoes,r.observacoes].filter(Boolean).join('\n').trim();
+      const al=(r.alertas||[]).join(' · ');
+      t._status='✓ Transcrito do documento.'+(al?' Alertas: '+al:'');
+    }
+  }catch(err){ t._status='Falha: '+err.message; }
+  finally{ inp.value=''; renderExternal(); }
+});
 els.externalList?.addEventListener('input',e=>{
   const item=e.target.closest('[data-ext]'); if(!item) return;
   const i=+item.dataset.ext, k=e.target.dataset.k;

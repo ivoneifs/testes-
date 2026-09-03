@@ -288,6 +288,65 @@ def analyze_laudo_model(files: list[tuple[str, str, bytes]]):
     return _request([{'role': 'user', 'content': content}], 'laudo_model', LAUDO_MODEL_SCHEMA, instructions)
 
 
+EXTERNAL_INSTRUMENT_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'instrumento': {'type': 'string'},
+        'tipo_documento': {
+            'type': 'string',
+            'enum': ['relatorio_corrigido', 'protocolo_sem_correcao', 'indefinido'],
+        },
+        'resultados': {'type': 'string'},
+        'observacoes': {'type': 'string'},
+        'alertas': {'type': 'array', 'items': {'type': 'string'}},
+    },
+    'required': ['instrumento', 'tipo_documento', 'resultados', 'observacoes', 'alertas'],
+    'additionalProperties': False,
+}
+
+
+def extract_external_instrument(files: list[tuple[str, str, bytes]], nome: str = ''):
+    """Lê o relatório/protocolo JÁ CORRIGIDO de um teste feito fora do sistema
+    (TAVIS, SON-R, Perfil Sensorial 2, etc.) e transcreve os resultados que a
+    pessoa produziu. NÃO calcula escore nem norma."""
+    content = [{
+        'type': 'input_text',
+        'text': (
+            'Anexo o documento de um teste psicológico corrigido FORA deste sistema'
+            + (f' (instrumento: {nome})' if nome else '')
+            + '. Sua tarefa é APENAS TRANSCREVER, de forma organizada, os resultados que '
+            'JÁ ESTÃO no documento: escores brutos, escores padrão/ponderados, percentis, '
+            'classificações, faixas, e as observações do avaliador. '
+            'REGRAS RÍGIDAS: (1) NÃO calcule nada. (2) NÃO consulte nem gere tabelas '
+            'normativas. (3) Não infira um percentil/classificação que não esteja escrito '
+            'no documento. (4) Se o documento for um protocolo em branco ou sem correção '
+            '(só respostas do paciente, sem escores), marque tipo_documento como '
+            '"protocolo_sem_correcao", deixe "resultados" vazio e explique em "alertas". '
+            '(5) Em "resultados" use texto claro, uma medida por linha. (6) Em "alertas" '
+            'liste qualquer coisa ilegível, ambígua ou faltante.'
+        ),
+    }]
+    for filename, mime, data in files:
+        b64 = base64.b64encode(data).decode('ascii')
+        if mime == 'application/pdf' or filename.lower().endswith('.pdf'):
+            content.append({'type': 'input_file', 'filename': filename,
+                            'file_data': f'data:application/pdf;base64,{b64}'})
+        elif mime.startswith('image/'):
+            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'auto'})
+        elif mime.startswith('text/') or filename.lower().endswith(('.txt', '.md', '.csv')):
+            content.append({'type': 'input_text', 'text': data.decode('utf-8', 'replace')[:20000]})
+        else:
+            content.append({'type': 'input_file', 'filename': filename,
+                            'file_data': f'data:{mime or "application/octet-stream"};base64,{b64}'})
+    instructions = (
+        'Você transcreve resultados de testes já corrigidos por um profissional. Nunca '
+        'pontua, nunca calcula percentil/classificação, nunca usa normas. Só organiza o '
+        'que está no documento. Se não houver correção no documento, diz isso.'
+    )
+    return _request([{'role': 'user', 'content': content}],
+                    'external_instrument', EXTERNAL_INSTRUMENT_SCHEMA, instructions)
+
+
 def generate_integrated_report(patient: dict, anamnesis: dict | None, test_reports: list[dict],
                                raw_results: list[dict], model: dict | None = None,
                                external_results: list[dict] | None = None):

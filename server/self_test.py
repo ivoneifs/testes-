@@ -25,7 +25,7 @@ def main() -> int:
                 'chart_type': meta.get('chart_type'),
                 'profile_cells': meta.get('profile_cells', {}),
             })
-            if not meta.get('raw_fields') and name != 'WISC-Compar':
+            if not meta.get('raw_fields') and name not in ('WISC-Compar', 'Perfil Sensorial 2 - Consolidado'):
                 problems.append(f'{name}: nenhum campo de entrada detectado')
         except Exception as exc:
             problems.append(f'{name}: {type(exc).__name__}: {exc}')

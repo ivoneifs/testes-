@@ -150,49 +150,94 @@ async function init(){
 // helpers reaproveitados pelo shell
 window.NS = { api, toast, state, esc, get sb(){return state.sb;} };
 window.loadEvaluation = (ev)=>loadEvaluation(ev);
+// Instrumentos com "formas" (uma entrada na lista, seletor de forma dentro do teste).
+const TEST_GROUPS=[{label:'Perfil Sensorial 2',prefix:'Perfil Sensorial 2 - ',chart:'sensory_profile'}];
+function testGroupOf(name){return TEST_GROUPS.find(g=>name===g.label||name.startsWith(g.prefix));}
 function renderTestList(){
   const q=els.search.value.trim().toLowerCase();
-  els.list.innerHTML=state.tests.filter(t=>t.name.toLowerCase().includes(q)).map(t=>`<button class="test-item ${state.meta?.name===t.name?'active':''}" data-test="${esc(t.name)}"><span>${esc(t.name)}</span><small>${esc(t.chart_type||'')}</small></button>`).join('');
+  const seen=new Set(); const items=[];
+  for(const t of state.tests){
+    const g=testGroupOf(t.name);
+    const disp=g?g.label:t.name, chart=g?g.chart:(t.chart_type||'');
+    if(g){ if(seen.has(g.label))continue; seen.add(g.label); }
+    if(!disp.toLowerCase().includes(q)) continue;
+    const active=g?(state.meta?.name||'').startsWith(g.prefix):state.meta?.name===t.name;
+    items.push(`<button class="test-item ${active?'active':''}" data-test="${esc(disp)}"><span>${esc(disp)}</span><small>${esc(chart)}</small></button>`);
+  }
+  els.list.innerHTML=items.join('');
   els.list.querySelectorAll('.test-item').forEach(b=>b.addEventListener('click',()=>selectTest(b.dataset.test)));
+}
+const PS_FORMS=['Criança','Criança Pequena','Bebê','Professor','Abreviado','Consolidado'];
+function renderPsFormRow(currentFull){
+  const row=$('#psFormRow'), sel=$('#psFormSelect');
+  const forms=PS_FORMS.filter(f=>state.tests.some(t=>t.name==='Perfil Sensorial 2 - '+f));
+  sel.innerHTML=forms.map(f=>`<option value="Perfil Sensorial 2 - ${esc(f)}"${('Perfil Sensorial 2 - '+f)===currentFull?' selected':''}>${esc(f)}</option>`).join('');
+  row.hidden=false;
 }
 els.search.addEventListener('input',renderTestList);
 $('#menuBtn').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
 
 async function selectTest(name){
-  els.title.textContent=name; els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
+  const g=testGroupOf(name);
+  let full=name;
+  if(g){
+    // "Perfil Sensorial 2" (grupo) -> abre a forma atual ou a primeira disponível.
+    if(name===g.label){
+      const cur=(state.meta?.name||'').startsWith(g.prefix)?state.meta.name:null;
+      full=cur||(PS_FORMS.map(f=>g.prefix+f).find(n=>state.tests.some(t=>t.name===n)));
+      if(!full){toast('Nenhuma forma disponível.',true);return;}
+    }
+    renderPsFormRow(full);
+  }else{
+    $('#psFormRow').hidden=true;
+  }
+  els.title.textContent=g?g.label:full; els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
   try{
-    state.meta=await api(`/api/tests/${encodeURIComponent(name)}`); state.result=null; renderTestList(); renderInputs();
+    state.meta=await api(`/api/tests/${encodeURIComponent(full)}`); state.result=null; renderTestList(); renderInputs();
     $('#sidebar').classList.remove('open');
   }catch(e){$('#testLoading').textContent='Não foi possível preparar este teste.';toast(e.message,true);}
 }
+$('#psFormSelect')?.addEventListener('change',e=>{ if(e.target.value) selectTest(e.target.value); });
 function groupFields(fields){
   const groups=[]; let current=[]; let prev=null;
   for(const f of fields){const m=f.cell.match(/\d+$/);const row=m?Number(m[0]):0;if(prev!==null && row-prev>8 && current.length){groups.push(current);current=[];}current.push(f);prev=row;}
   if(current.length)groups.push(current);return groups;
 }
+const INPUT_MODE_LABEL={pontos_brutos:'Somente PB',itens:'Item a item',campos_origem:'Entrada original'};
 function renderInputs(){
   const m=state.meta; $('#testLoading').hidden=true; els.count.textContent=`${m.raw_fields.length} campos`;
-  const hidden=(m.detail_fields||[]).length; els.inputMode.textContent=m.input_mode==='pontos_brutos'?'Somente PB':'Entrada original';
+  const hidden=(m.detail_fields||[]).length; els.inputMode.textContent=INPUT_MODE_LABEL[m.input_mode]||'Entrada original';
   els.inputMode.title=hidden?`${hidden} campos de itens/origem mantidos fora da entrada compacta`:'';
-  const groups=groupFields(m.raw_fields);
+  const bySection=m.input_mode==='itens' && m.raw_fields.some(f=>f.ps_section||f.source==='ps-item-extra');
+  let groups, titles;
+  if(bySection){
+    const map=new Map();
+    for(const f of m.raw_fields){const k=f.ps_section||'Itens avulsos';if(!map.has(k))map.set(k,[]);map.get(k).push(f);}
+    groups=[...map.values()]; titles=[...map.keys()];
+  }else{
+    groups=groupFields(m.raw_fields); titles=null;
+  }
   els.raw.innerHTML=groups.map((g,i)=>{
-    const auto=g.every(f=>f.allow_override_formula);
-    const title=auto
+    const auto=!bySection && g.every(f=>f.allow_override_formula);
+    const title=titles?titles[i]:(auto
       ? 'Calculado pela planilha — digite um valor apenas se quiser sobrepor'
-      : (groups.length>1?`Bloco ${i+1}`:'Entrada rápida');
+      : (groups.length>1?`Bloco ${i+1}`:'Entrada rápida'));
     const cells=g.map(f=>{
       const calc=!!f.allow_override_formula;
-      const prefill=(!calc && typeof f.current==='number')?f.current:'';
+      const item=f.source==='ps-item'||f.source==='ps-item-extra';
+      const prefill=(!calc && !item && typeof f.current==='number')?f.current:'';
+      const lab=item?esc(f.label.replace(/^[^·]*·\s*/,'')):esc(f.label);
       return `<div class="raw-field${calc?' raw-field--auto':''}">`
-        +`<label>${esc(f.label)} <span class="cell-ref">${esc(f.cell)}</span></label>`
+        +`<label>${lab} <span class="cell-ref">${esc(f.cell)}</span></label>`
         +`<input data-raw="${esc(f.cell)}"${calc?' data-calc="1"':''} inputmode="decimal" type="number" step="any"`
-        +` value="${prefill}" placeholder="${calc?'auto':'PB'}"`
+        +`${item?' min="0" max="5"':''} value="${prefill}" placeholder="${calc?'auto':(item?'0–5':'PB')}"`
         +`${calc?' title="A planilha calcula este campo sozinha. Digite um valor para sobrepor."':''} /></div>`;
     }).join('');
-    return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${title}</div><div class="raw-grid">${cells}</div></section>`;
+    return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}</div><div class="raw-grid">${cells}</div></section>`;
   }).join('');
   const params=m.parameters||[]; els.paramsPanel.hidden=!params.length;
-  els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${esc(p.current??'')}" /></label>`).join('');
+  const keepParam=m.input_mode!=='itens';
+  els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${keepParam?esc(p.current??''):''}" /></label>`).join('');
   els.calc.disabled=!m.raw_fields.length; els.results.hidden=true; els.testReportBtn.disabled=true;
 }
 // Campos [data-calc] (somas/índices/totais com fórmula) são calculados pela
@@ -226,7 +271,9 @@ function fillAutoFields(result){
 }
 
 els.calc.addEventListener('click',async()=>{
-  if(!state.meta)return; const p=patient(); if(!p.birth_date||!p.application_date){toast('Informe nascimento e data de aplicação.',true);return;}
+  if(!state.meta)return; const p=patient();
+  const needsDates=state.meta.input_mode!=='itens';
+  if(needsDates && (!p.birth_date||!p.application_date)){toast('Informe nascimento e data de aplicação.',true);return;}
   els.calc.disabled=true;els.calc.textContent='Calculando…';
   try{
     const result=await api('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:state.meta.name,patient:p,raw_scores:collectRaw(),parameters:collectParams()})});
@@ -412,12 +459,81 @@ function svgWechslerSubtests(series){
     +grid+rows+`</svg>`;
 }
 
+// ---------- Perfil Sensorial 2 — gráficos de seção e de quadrante ----------
+function _psSeries(table){
+  if(!table) return null;
+  const cols=table.columns.map(c=>String(c.label||'').toLowerCase());
+  const li=0, ri=cols.findIndex(c=>/raz|ratio/.test(c));
+  const bi=cols.findIndex(c=>/bruta|bruto/.test(c)), mi=cols.findIndex(c=>/m[áa]xim/.test(c));
+  const pts=[];
+  for(const r of table.rows||[]){
+    const label=String(r.values[li]??'').trim(); if(!label) continue;
+    let pct=ri>=0?parseNum(r.values[ri]):null;
+    if(pct!==null && pct<=1.5) pct*=100;                       // razão 0–1 -> %
+    if(pct===null && bi>=0 && mi>=0){
+      const b=parseNum(r.values[bi]), mx=parseNum(r.values[mi]);
+      if(b!==null && mx) pct=b/mx*100;
+    }
+    if(pct===null) continue;
+    pts.push({label,value:Math.round(pct)});
+  }
+  return pts.length>=2?{points:pts}:null;
+}
+function svgPercentBars(series,{horizontal=false}={}){
+  const pts=series.points, n=pts.length, C='#e0a52b';
+  if(horizontal){
+    const W=680,rowH=30,T=20,B=16,L=150,Rp=52,H=T+B+n*rowH,plotW=W-L-Rp;
+    const x=v=>L+Math.max(0,Math.min(100,v))/100*plotW;
+    let grid='';
+    for(let v=0;v<=100;v+=25) grid+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${T+n*rowH}" stroke="#eceff4"/>`
+      +`<text x="${x(v)}" y="${T+n*rowH+12}" text-anchor="middle" font-size="8.5" fill="#8a94a6">${v}%</text>`;
+    const rows=pts.map((p,i)=>{const cy=T+i*rowH+rowH/2;return `<g>`
+      +`<rect x="${L}" y="${cy-8}" width="${Math.max(1,x(p.value)-L)}" height="16" rx="3" fill="${C}"/>`
+      +`<text x="${L-8}" y="${cy+4}" text-anchor="end" font-size="10" fill="#3d4759">${esc(p.label.slice(0,24))}</text>`
+      +`<text x="${x(p.value)+5}" y="${cy+4}" font-size="10" font-weight="700" fill="#1b2333">${p.value}%</text></g>`;}).join('');
+    return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img">${grid}${rows}</svg>`;
+  }
+  const W=680,H=300,L=44,Rp=16,T=24,B=54,plotH=H-T-B,step=(W-L-Rp)/n;
+  const bw=Math.min(64,step*0.6), y=v=>T+(100-Math.max(0,Math.min(100,v)))/100*plotH;
+  let grid='';
+  for(let v=0;v<=100;v+=25) grid+=`<line x1="${L}" x2="${W-Rp}" y1="${y(v)}" y2="${y(v)}" stroke="#eceff4"/>`
+    +`<text x="${L-6}" y="${y(v)+3}" text-anchor="end" font-size="8.5" fill="#8a94a6">${v}%</text>`;
+  const bars=pts.map((p,i)=>{const c=L+(i+0.5)*step;return `<g>`
+    +`<rect x="${c-bw/2}" y="${y(p.value)}" width="${bw}" height="${y(0)-y(p.value)}" rx="3" fill="${C}"/>`
+    +`<text x="${c}" y="${y(p.value)-5}" text-anchor="middle" font-size="10" font-weight="700" fill="#1b2333">${p.value}%</text>`
+    +`<text transform="translate(${c},${H-B+14}) rotate(-20)" text-anchor="end" font-size="9" fill="#727d92">${esc(p.label.slice(0,20))}</text></g>`;}).join('');
+  return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img">${grid}<line x1="${L}" x2="${W-Rp}" y1="${y(0)}" y2="${y(0)}" stroke="#c9cfdb"/>${bars}</svg>`;
+}
+function sensoryProfileCharts(result){
+  const findT=re=>(result.tables||[]).find(t=>re.test(t.title||''));
+  const out=[];
+  const secS=_psSeries(findT(/se[çc][ãa]o|se[çc][õo]es/i));
+  if(secS){
+    out.push({title:'Perfil por seção sensorial',svg:svgPercentBars(secS,{horizontal:true})});
+    out.push({title:'Perfil por seção — radar',svg:svgRadar({points:secS.points})});
+  }
+  const quadT=findT(/quadrante/i);
+  let quadS=_psSeries(quadT);
+  if(quadS){
+    quadS={points:quadS.points.filter(p=>!/nenhum/i.test(p.label))};
+    if(quadS.points.length>=2){
+      out.push({title:'Perfil por quadrante',svg:svgPercentBars(quadS,{})});
+      out.push({title:'Perfil por quadrante — radar',svg:svgRadar({points:quadS.points})});
+    }
+  }
+  return out;
+}
+
 // Retorna [{title, svg}] com os gráficos de um resultado (reaproveitado no laudo).
 function chartsFor(result){
   if(result.chart_type==='learning_curve'){
     const wanted=/^(A[1-7]|B1|T1|T2|T3|Tentativa\s*\d+)/i;
     const pts=(result.raw_scores||[]).map(x=>({label:x.label,value:parseNum(x.value)})).filter(x=>x.value!==null&&wanted.test(x.label)).slice(0,10);
     if(pts.length>=3) return [{title:'Curva de aprendizagem • pontos brutos',svg:svgLine({title:'',points:pts})}];
+  }
+  if(result.chart_type==='sensory_profile'){
+    const s=sensoryProfileCharts(result);
+    if(s.length) return s;
   }
   const cand=result.tables.map(t=>seriesFromTable(t)).filter(Boolean);
   if(result.chart_type==='wechsler'){

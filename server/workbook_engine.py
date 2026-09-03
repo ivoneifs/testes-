@@ -52,6 +52,7 @@ TEST_EXCLUDE_RE = re.compile(
 )
 
 CHART_GROUPS = [
+    (re.compile(r'(?i)perfil sensorial|sensory profile'), 'sensory_profile'),
     (re.compile(r'(?i)WISC|WAIS|WASI'), 'wechsler'),
     (re.compile(r'(?i)RAVLT|HVLT|BVMT'), 'learning_curve'),
     (re.compile(r'(?i)FDT|STROOP|HAYLING|GO-NO|TRILHAS|TOL|WISCONSIN|WSCT'), 'executive'),
@@ -59,6 +60,17 @@ CHART_GROUPS = [
     (re.compile(r'(?i)TDE|PROLEC|PED|THCP|NOMEA|ARITM|NEUPSILIN|NEPSY'), 'academic'),
     (re.compile(r'(?i)CORSI|FIGREY|7FIG|TOKEN|TFV|BPA|D2|AC|BFP|PFISTER'), 'profile'),
 ]
+
+# ---- Perfil Sensorial 2 (Sensory Profile 2) ----
+# As abas desse instrumento têm um layout próprio (grades de itens por seção x
+# quadrante) que a descoberta genérica não entende. Tratamento dedicado abaixo.
+PERFIL_SENSORIAL_RE = re.compile(r'(?i)^perfil sensorial 2\b')
+PS_QUADRANTS = ['EXPLORAÇÃO', 'ESQUIVA', 'SENSIBILIDADE', 'OBSERVAÇÃO', 'NENHUM QUADRANTE']
+PS_A1_RE = re.compile(r'\$?([A-Z]{1,3})\$?(\d+)')
+
+
+def _ps_norm(value: Any) -> str:
+    return re.sub(r'\s+', ' ', clean_text(value)).strip().upper()
 
 
 def col_to_num(col: str) -> int:
@@ -749,6 +761,238 @@ class WorkbookEngine:
             } for name in self.list_tests()]
         return self._catalog_cache
 
+    # ---------- Perfil Sensorial 2 (layout dedicado) ----------
+    def _perfil_sensorial_meta(self, sheet: str, rows: dict):
+        """Descoberta sob medida para as formas do Perfil Sensorial 2.
+
+        Cada forma tem grades ``seção × quadrante``: o avaliador digita o escore
+        (0–5) de cada item; a planilha soma seções, quadrantes, razões e o status.
+        A descoberta genérica não entende esse layout, então mapeamos aqui:
+        - campos de entrada = as células de escore de cada item, agrupadas por seção;
+        - tabelas de resultado = 'perfil por seção' e 'perfil por quadrante';
+        - parâmetros = os percentis (consulta manual do avaliador).
+        Retorna ``None`` se a aba não tiver a grade (ex.: a aba Consolidado)."""
+        def cell(r, c):
+            return rows.get(r, {}).get(c)
+
+        max_row = max(rows.keys(), default=0)
+
+        # 1) Linha-cabeçalho das grades: >=3 nomes de quadrante como texto literal.
+        grid_row = None
+        quad_col = {}
+        for rnum in sorted(rows):
+            hits = {}
+            for c, e in rows[rnum].items():
+                if e['formula'] or e['kind'] != 'text':
+                    continue
+                t = _ps_norm(e['value'])
+                if t in PS_QUADRANTS:
+                    hits[t] = c
+            if len(hits) >= 3:
+                grid_row, quad_col = rnum, hits
+                break
+        if grid_row is None:
+            return None
+
+        # Fim da região de itens: linha "PONTUAÇÃO BRUTA TOTAL" na coluna B/C.
+        end_row = max_row + 1
+        for rnum in range(grid_row + 1, max_row + 1):
+            for c in (2, 3):
+                e = cell(rnum, c)
+                if e and 'PONTUA' in _ps_norm(e['value']) and 'BRUTA TOTAL' in _ps_norm(e['value']):
+                    end_row = rnum
+                    break
+            if end_row <= max_row:
+                break
+
+        # 2) Âncoras de seção: textos na coluna C (3) dentro da região das grades.
+        section_anchors = []
+        for rnum in range(grid_row, end_row):
+            e = cell(rnum, 3)
+            if e and e['kind'] == 'text' and not e['formula']:
+                name = clean_text(e['value'])
+                if name and _ps_norm(name) not in ('TOTAL',):
+                    section_anchors.append((rnum, name))
+        if not section_anchors:
+            return None
+
+        # 3) Células de escore por item (uma por item preenchido na grade).
+        raw_fields = []
+        seen = set()
+        for si, (arow, sname) in enumerate(section_anchors):
+            next_row = section_anchors[si + 1][0] if si + 1 < len(section_anchors) else end_row
+            for rr in range(arow, next_row):
+                for q, icol in quad_col.items():
+                    ie = cell(rr, icol)
+                    if not ie or ie['kind'] != 'number' or ie['value'] in (None, ''):
+                        continue
+                    item_no = int(round(float(ie['value'])))
+                    scol = icol + 1
+                    addr = a1(scol, rr)
+                    if addr in seen:
+                        continue
+                    seen.add(addr)
+                    se = cell(rr, scol)
+                    raw_fields.append({
+                        'cell': addr,
+                        'label': f'{sname} · item {item_no} · {q.title()}',
+                        'current': scalarize(se['value']) if se else '',
+                        'source': 'ps-item',
+                        'allow_override_formula': False,
+                        'ps_section': sname,
+                        'ps_quadrant': q,
+                        'ps_item': item_no,
+                    })
+
+        # 4) Tabela "perfil por seção": cluster P/Q/R/S cujo cabeçalho tem SEÇÕES + RAZÃO.
+        def find_header(*needles):
+            for rnum in sorted(rows):
+                cols = {c: _ps_norm(e['value']) for c, e in rows[rnum].items()
+                        if e['kind'] == 'text' and not e['formula']}
+                found = {}
+                for need in needles:
+                    hit = next((c for c, t in sorted(cols.items()) if t == need), None)
+                    if hit is None:
+                        hit = next((c for c, t in sorted(cols.items()) if t.startswith(need)), None)
+                    if hit is None:
+                        break
+                    found[need] = hit
+                if len(found) == len(needles):
+                    return rnum, found
+            return None, {}
+
+        def build_table(hrow, col_labels, title):
+            """col_labels: list of (col_num, label). Data até a coluna-nome esvaziar."""
+            name_col = col_labels[0][0]
+            data = []
+            for rr in range(hrow + 1, max_row + 1):
+                e = cell(rr, name_col)
+                if not e or (not e['formula'] and not clean_text(e['value'])):
+                    break
+                cells = []
+                for c, _lbl in col_labels:
+                    ce = cell(rr, c)
+                    cells.append({
+                        'cell': a1(c, rr),
+                        'cached': scalarize(ce['value']) if ce else '',
+                        'formula': bool(ce and ce['formula']),
+                    })
+                data.append({'row': rr, 'cells': cells})
+            if len(data) < 2:
+                return None
+            return {
+                'header_row': hrow,
+                'title': title,
+                'columns': [{'col': c, 'label': lbl} for c, lbl in col_labels],
+                'rows': data,
+            }
+
+        tables = []
+        sec_row, sec_cols = find_header('SEÇÕES', 'RAZÃO')
+        section_table = None
+        if sec_row is not None:
+            base = sec_cols['SEÇÕES']
+            section_table = build_table(sec_row, [
+                (base, 'Seção'),
+                (base + 1, 'Pontuação bruta'),
+                (base + 2, 'Pontuação máxima'),
+                (base + 3, 'Razão'),
+            ], 'Perfil por seção sensorial')
+            if section_table:
+                tables.append(section_table)
+
+        quad_row, quad_cols = find_header('QUADRANTE', 'STATUS')
+        quadrant_table = None
+        params = []
+        if quad_row is not None:
+            base = quad_cols['QUADRANTE']
+            quadrant_table = build_table(quad_row, [
+                (base, 'Quadrante'),
+                (base + 1, 'Pontuação bruta'),
+                (base + 2, 'Pontuação máxima'),
+                (base + 3, 'Razão'),
+                (base + 4, 'Percentil'),
+                (base + 5, 'Status'),
+            ], 'Perfil por quadrante')
+            if quadrant_table:
+                tables.append(quadrant_table)
+                # 5) Percentis = consulta manual do avaliador -> parâmetros de texto.
+                pcol = base + 4
+                for drow in quadrant_table['rows']:
+                    r = drow['row']
+                    qe = cell(r, base)
+                    qname = clean_text(qe['value']) if qe and not qe['formula'] else ''
+                    if not qname:
+                        # nome vem de fórmula (=D27); tenta o valor em cache
+                        qname = _ps_norm(qe['value']) if qe else ''
+                    pe = cell(r, pcol)
+                    if pe is None and not (qe and qe['formula']):
+                        continue
+                    params.append({
+                        'cell': a1(pcol, r),
+                        'label': f'Percentil · {qname or a1(pcol, r)} (consultar manual)',
+                        'current': scalarize(pe['value']) if pe else '',
+                    })
+
+        # 6) Itens avulsos: termos extras somados nas fórmulas da coluna "bruta" do quadrante.
+        if quadrant_table is not None:
+            raw_col = quad_cols['QUADRANTE'] + 1
+            known = {f['cell'] for f in raw_fields}
+            for drow in quadrant_table['rows']:
+                r = drow['row']
+                fe = cell(r, raw_col)
+                if not fe or not fe['formula']:
+                    continue
+                refs = PS_A1_RE.findall(fe['formula'])
+                for col_s, row_s in refs[1:]:
+                    ac = col_to_num(col_s)
+                    ar = int(row_s)
+                    addr = a1(ac, ar)
+                    if addr in known:
+                        continue
+                    known.add(addr)
+                    left = cell(ar, ac - 1) or cell(ar + 1, ac - 1)
+                    item_no = ''
+                    if left and left['kind'] == 'number':
+                        item_no = int(round(float(left['value'])))
+                    qe = cell(r, quad_cols['QUADRANTE'])
+                    qname = clean_text(qe['value']) if qe and not qe['formula'] else _ps_norm(qe['value']) if qe else ''
+                    se = cell(ar, ac)
+                    raw_fields.append({
+                        'cell': addr,
+                        'label': f'Item avulso {item_no} · {qname}'.strip(' ·'),
+                        'current': scalarize(se['value']) if se else '',
+                        'source': 'ps-item-extra',
+                        'allow_override_formula': False,
+                    })
+
+        if not raw_fields or not tables:
+            return None
+
+        # 7) Cabeçalho do paciente: rótulo na coluna B, valor à direita.
+        profile = {}
+        for rnum in range(1, min(grid_row, 20)):
+            for c, e in rows.get(rnum, {}).items():
+                t = _ps_norm(e['value'])
+                if t.startswith('NOME') or t.startswith('CRIANÇA') or t.startswith('BEBÊ') or t.startswith('ALUNO'):
+                    for cc in range(c + 1, c + 5):
+                        ne = cell(rnum, cc)
+                        if ne and (ne['unlocked'] or clean_text(ne['value']) or ne['formula']):
+                            profile['name'] = a1(cc, rnum)
+                            break
+
+        raw_fields.sort(key=lambda f: (parse_cell(f['cell'])[1], parse_cell(f['cell'])[0]))
+        return {
+            'name': sheet,
+            'raw_fields': raw_fields,
+            'detail_fields': [],
+            'input_mode': 'itens',
+            'profile_cells': profile,
+            'parameters': params,
+            'tables': tables,
+            'chart_type': 'sensory_profile',
+        }
+
     def test_meta(self, test_name: str):
         with self._lock:
             canonical=self.sheet_name(test_name)
@@ -757,6 +1001,11 @@ class WorkbookEngine:
             if canonical not in self.list_tests():
                 raise KeyError(test_name)
             rows=self._sheet_rows(canonical)
+            if PERFIL_SENSORIAL_RE.match(canonical):
+                ps=self._perfil_sensorial_meta(canonical,rows)
+                if ps is not None:
+                    self._meta_cache[canonical]=ps
+                    return ps
             profile=self.discover_profile_cells(canonical,rows)
             raw_detail=self.discover_raw_fields(canonical,rows)
             tables=self.discover_tables(canonical,rows)

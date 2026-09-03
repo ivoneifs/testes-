@@ -127,6 +127,25 @@ Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems":
 - **Mercado Pago PRODUÇÃO**: token `APP_USR-` no Coolify; `/api/checkout` gera preference
   real; `/api/webhooks/mercadopago` credita ao aprovar (idempotente, via service role).
   Pix/boleto/cartão habilitados.
+- **Perfil Sensorial 2** (Sensory Profile 2) agora é **instrumento nativo pontuável**
+  (não mais só "instrumento externo"). `build_db.py` ganhou `EXTRA_WORKBOOKS`: ingere
+  `data/Perfil Sensorial 2-0 correcao excel.xlsx` (git-ignored) como 6 abas renomeadas
+  (`Perfil Sensorial 2 - Bebê/Criança Pequena/Criança/Professor/Abreviado/Consolidado`),
+  reescrevendo as refs cruzadas. **68 instrumentos** no total (era 62). Rodar de novo:
+  `python -m server.build_db` (precisa dos 2 .xlsx em `data/`) **depois** `python scripts/repair_wasi_refs.py`.
+  Motor: `WorkbookEngine._perfil_sensorial_meta()` — layout dedicado (grades seção×quadrante):
+  entrada = escore 0–5 por item agrupado por seção; tabelas = "perfil por seção" + "perfil
+  por quadrante"; percentil = parâmetro de texto (consulta manual do avaliador);
+  `chart_type='sensory_profile'`. Front: 1 entrada na lista com seletor de forma
+  (`#psFormSelect`), inputs por seção, 4 gráficos (barra+radar de seção, barra+radar de
+  quadrante), `input_mode='itens'` dispensa nascimento/data. **Validado ponta a ponta na
+  forma Criança** (bate com os prints: seções 50/46/64/60/38/54/40/56/76%, quadrantes
+  57/52/53/55%). Outras 4 formas funcionam mas não foram conferidas visualmente; Consolidado
+  cai no genérico (sem entrada — whitelisted no `self_test`).
+- **IA por teste**: o botão de laudo individual + Avaliação Completa dependem só de
+  `openai_configured` (chave no ambiente), **não** do instrumento — já vale p/ os 68.
+  TAVIS/SON-R seguem no fluxo "instrumento externo" (não estão na planilha, não têm como
+  pontuar no motor).
 
 ### ⏳ Pendente
 

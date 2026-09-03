@@ -95,10 +95,12 @@ Sem login local: `SUPABASE_URL="" SUPABASE_ANON_KEY="" python -m uvicorn ...`
    Sandbox foi impossível de testar (bloqueios do MP). Após: conferir order→`paid`,
    `credit_ledger` +5, saldo. Se falhar: rastrear pelo `order_id` (na URL de retorno).
    Fallback já existe: admin concede créditos manualmente.
-2. **WASI**: 112 fórmulas com `#REF!` literal na planilha de origem (`Planilha_correcao.xlsx`,
-   git-ignored, 20 MB, fica só na máquina do usuário). Bloco de conversão de brutos quebrado.
-   Não dá pra consertar no código — precisa editar o `.xlsx` e rodar `python -m server.build_db`.
-   Também: `Funcoes` (aba helper) tem 38 `#REF!`; WAIS-III/ETDAH-CriAd/THCP/Vin_3_Ext_* têm 1-10.
+2. **WASI**: ✅ RESOLVIDO 2026-09-03. `scripts/repair_wasi_refs.py` patcheou as 112
+   fórmulas `#REF!` no `data/neuro_normas.db` (versionado) + `xl_compat` ganhou `QUOTIENT`.
+   WASI e WISC-IV com 0 `#REF!` nas tabelas visíveis. **Ao regerar o .db do .xlsx, rodar
+   `python scripts/repair_wasi_refs.py` de novo.** Equivalente no .xlsx (opcional): na aba
+   WASI, `COUNTIF(#REF!,...)` (cols AB/AC/AD linhas 57-95) -> `0`; célula `AB13` -> `=IF(N3="";"";AB11)`.
+   Ainda com `#REF!` interno (não afeta laudo): `Funcoes` (38), WAIS-III/ETDAH-CriAd/THCP/Vin_3_Ext_* (1-10).
 3. **Divergências de motor não-visíveis** (auditoria: 442 células, 0 em tabelas renderizadas):
    `COUNTIF(intervalo_vazio;"*")` conta tudo em vez de 0 (RAVLT C40/C41);
    `SUM(A;B;C;D)` com célula de texto → `#VALUE!` (CBCL K50);

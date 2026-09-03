@@ -222,9 +222,37 @@ async def audit_get(user: dict = Depends(current_user)):
 
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
 
+
+def _asset_hash(name: str) -> str:
+    """Hash curto do conteúdo do asset — muda só quando o arquivo muda."""
+    try:
+        import hashlib
+        return hashlib.md5((STATIC/name).read_bytes()).hexdigest()[:10]
+    except OSError:
+        return ''
+
+
+def _index_html() -> Response:
+    """index.html com cache-busting nos assets locais (?v=<hash do arquivo>).
+
+    A página em si vai com no-cache (é minúscula e sempre revalida), então cada
+    deploy que altere app.js/styles.css entra sozinho — sem refresh manual.
+    """
+    try:
+        html = (STATIC/'index.html').read_text(encoding='utf-8')
+    except OSError:
+        raise HTTPException(500, 'index.html ausente')
+    for asset in ('app.js', 'styles.css'):
+        h = _asset_hash(asset)
+        if h:
+            html = html.replace(f'/assets/{asset}"', f'/assets/{asset}?v={h}"')
+    return Response(html, media_type='text/html; charset=utf-8',
+                    headers={'Cache-Control': 'no-cache'})
+
+
 @app.get('/')
 def index():
-    return FileResponse(STATIC/'index.html')
+    return _index_html()
 
 @app.get('/{path:path}')
 def spa(path: str):
@@ -240,7 +268,7 @@ def spa(path: str):
         target = (static_root / path).resolve()
         target.relative_to(static_root)
     except (OSError, ValueError):
-        return FileResponse(static_root / 'index.html')
+        return _index_html()
     if target.is_file():
         return FileResponse(target)
-    return FileResponse(static_root / 'index.html')
+    return _index_html()

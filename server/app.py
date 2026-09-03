@@ -24,7 +24,7 @@ from .workbook_engine import WorkbookEngine
 from .openai_service import (analyze_anamnesis, analyze_laudo_model, extract_external_instrument,
                              generate_integrated_report, generate_test_report)
 from .docx_report import build_integrated_docx
-from . import auth, payments, store
+from . import auth, payments, store, scales
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -126,12 +126,15 @@ def config():
 
 @app.get('/api/tests')
 def tests(user: dict = Depends(current_user)):
-    return {'tests':engine.catalog()}
+    return {'tests':engine.catalog() + scales.catalog_entries()}
 
 @app.get('/api/tests/{test_name}')
 def test_meta(test_name: str, user: dict = Depends(current_user)):
+    name=unquote(test_name)
+    if scales.is_scale(name):
+        return scales.meta(name)
     try:
-        return engine.test_meta(unquote(test_name))
+        return engine.test_meta(name)
     except KeyError:
         raise HTTPException(404,'Teste não encontrado')
     except Exception as exc:
@@ -139,6 +142,8 @@ def test_meta(test_name: str, user: dict = Depends(current_user)):
 
 @app.post('/api/score')
 def score(req: ScoreRequest, user: dict = Depends(current_user)):
+    if scales.is_scale(req.test):
+        return scales.score(req.test,req.patient,req.raw_scores,req.parameters)
     try:
         return engine.score(req.test,req.patient,req.raw_scores,req.parameters)
     except KeyError as exc:

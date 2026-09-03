@@ -208,11 +208,12 @@ function renderInputs(){
   const m=state.meta; $('#testLoading').hidden=true; els.count.textContent=`${m.raw_fields.length} campos`;
   const hidden=(m.detail_fields||[]).length; els.inputMode.textContent=INPUT_MODE_LABEL[m.input_mode]||'Entrada original';
   els.inputMode.title=hidden?`${hidden} campos de itens/origem mantidos fora da entrada compacta`:'';
-  const bySection=m.input_mode==='itens' && m.raw_fields.some(f=>f.ps_section||f.source==='ps-item-extra');
+  const noteEl=$('#testNote'); if(noteEl){ noteEl.textContent=m.note||''; noteEl.hidden=!m.note; }
+  const bySection=m.input_mode==='itens' && m.raw_fields.some(f=>f.ps_section||f.group||f.source==='ps-item-extra');
   let groups, titles;
   if(bySection){
     const map=new Map();
-    for(const f of m.raw_fields){const k=f.ps_section||'Itens avulsos';if(!map.has(k))map.set(k,[]);map.get(k).push(f);}
+    for(const f of m.raw_fields){const k=f.ps_section||f.group||'Itens avulsos';if(!map.has(k))map.set(k,[]);map.get(k).push(f);}
     groups=[...map.values()]; titles=[...map.keys()];
   }else{
     groups=groupFields(m.raw_fields); titles=null;
@@ -224,13 +225,15 @@ function renderInputs(){
       : (groups.length>1?`Bloco ${i+1}`:'Entrada rápida'));
     const cells=g.map(f=>{
       const calc=!!f.allow_override_formula;
-      const item=f.source==='ps-item'||f.source==='ps-item-extra';
+      const item=f.source==='ps-item'||f.source==='ps-item-extra'||f.source==='scale-item';
       const prefill=(!calc && !item && typeof f.current==='number')?f.current:'';
-      const lab=item?esc(f.label.replace(/^[^·]*·\s*/,'')):esc(f.label);
+      const lab=(item && /·/.test(f.label))?esc(f.label.replace(/^[^·]*·\s*/,'')):esc(f.label);
+      const rg=Array.isArray(f.range)?f.range:(item?[0,5]:null);
+      const ph=calc?'auto':(rg?`${rg[0]}–${rg[1]}`:'PB');
       return `<div class="raw-field${calc?' raw-field--auto':''}">`
         +`<label>${lab} <span class="cell-ref">${esc(f.cell)}</span></label>`
         +`<input data-raw="${esc(f.cell)}"${calc?' data-calc="1"':''} inputmode="decimal" type="number" step="any"`
-        +`${item?' min="0" max="5"':''} value="${prefill}" placeholder="${calc?'auto':(item?'0–5':'PB')}"`
+        +`${rg?` min="${rg[0]}" max="${rg[1]}"`:''} value="${prefill}" placeholder="${ph}"`
         +`${calc?' title="A planilha calcula este campo sozinha. Digite um valor para sobrepor."':''} /></div>`;
     }).join('');
     return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}</div><div class="raw-grid">${cells}</div></section>`;
@@ -526,6 +529,7 @@ function sensoryProfileCharts(result){
 
 // Retorna [{title, svg}] com os gráficos de um resultado (reaproveitado no laudo).
 function chartsFor(result){
+  if(result.chart_type==='escala') return [];
   if(result.chart_type==='learning_curve'){
     const wanted=/^(A[1-7]|B1|T1|T2|T3|Tentativa\s*\d+)/i;
     const pts=(result.raw_scores||[]).map(x=>({label:x.label,value:parseNum(x.value)})).filter(x=>x.value!==null&&wanted.test(x.label)).slice(0,10);

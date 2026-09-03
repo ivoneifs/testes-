@@ -799,7 +799,8 @@ class WorkbookEngine:
         for rnum in range(grid_row + 1, max_row + 1):
             for c in (2, 3):
                 e = cell(rnum, c)
-                if e and 'PONTUA' in _ps_norm(e['value']) and 'BRUTA TOTAL' in _ps_norm(e['value']):
+                t = _ps_norm(e['value']) if e else ''
+                if ('BRUTA TOTAL' in t and 'PONTUA' in t) or t.startswith('DESEMPENHO GLOBAL'):
                     end_row = rnum
                     break
             if end_row <= max_row:
@@ -861,14 +862,43 @@ class WorkbookEngine:
                     return rnum, found
             return None, {}
 
+        PS_SUMMARY_ROW = re.compile(r'(?i)^\s*(total|m[ée]dia|desempenho\s*global)\s*$')
+        # Layout posicional (consistente entre as formas): nome, bruta, máxima, razão,
+        # depois percentil/status conforme o rótulo real.
+        PS_FIXED_LABELS = ['{name}', 'Pontuação bruta', 'Pontuação máxima', 'Razão']
+
+        def header_columns(hrow, base, name_label):
+            cols = []
+            for c in range(base, base + 12):
+                e = cell(hrow, c)
+                lbl = clean_text(e['value']) if e and e['kind'] == 'text' and not e['formula'] else ''
+                if not lbl:
+                    if cols:
+                        break
+                    continue
+                i = len(cols)
+                if i < len(PS_FIXED_LABELS):
+                    pretty = name_label if i == 0 else PS_FIXED_LABELS[i]
+                elif re.search(r'(?i)percentil', lbl):
+                    pretty = 'Percentil'
+                elif re.search(r'(?i)status', lbl):
+                    pretty = 'Status'
+                else:
+                    pretty = lbl.title()
+                cols.append((c, pretty))
+            return cols
+
         def build_table(hrow, col_labels, title):
-            """col_labels: list of (col_num, label). Data até a coluna-nome esvaziar."""
+            if not col_labels:
+                return None
             name_col = col_labels[0][0]
             data = []
             for rr in range(hrow + 1, max_row + 1):
                 e = cell(rr, name_col)
                 if not e or (not e['formula'] and not clean_text(e['value'])):
                     break
+                if e['kind'] == 'text' and not e['formula'] and PS_SUMMARY_ROW.match(clean_text(e['value'])):
+                    continue
                 cells = []
                 for c, _lbl in col_labels:
                     ce = cell(rr, c)
@@ -891,13 +921,8 @@ class WorkbookEngine:
         sec_row, sec_cols = find_header('SEÇÕES', 'RAZÃO')
         section_table = None
         if sec_row is not None:
-            base = sec_cols['SEÇÕES']
-            section_table = build_table(sec_row, [
-                (base, 'Seção'),
-                (base + 1, 'Pontuação bruta'),
-                (base + 2, 'Pontuação máxima'),
-                (base + 3, 'Razão'),
-            ], 'Perfil por seção sensorial')
+            cols = header_columns(sec_row, sec_cols['SEÇÕES'], 'Seção')
+            section_table = build_table(sec_row, cols, 'Perfil por seção sensorial')
             if section_table:
                 tables.append(section_table)
 
@@ -906,33 +931,23 @@ class WorkbookEngine:
         params = []
         if quad_row is not None:
             base = quad_cols['QUADRANTE']
-            quadrant_table = build_table(quad_row, [
-                (base, 'Quadrante'),
-                (base + 1, 'Pontuação bruta'),
-                (base + 2, 'Pontuação máxima'),
-                (base + 3, 'Razão'),
-                (base + 4, 'Percentil'),
-                (base + 5, 'Status'),
-            ], 'Perfil por quadrante')
+            cols = header_columns(quad_row, base, 'Quadrante')
+            quadrant_table = build_table(quad_row, cols, 'Perfil por quadrante')
             if quadrant_table:
                 tables.append(quadrant_table)
-                # 5) Percentis = consulta manual do avaliador -> parâmetros de texto.
-                pcol = base + 4
-                for drow in quadrant_table['rows']:
-                    r = drow['row']
-                    qe = cell(r, base)
-                    qname = clean_text(qe['value']) if qe and not qe['formula'] else ''
-                    if not qname:
-                        # nome vem de fórmula (=D27); tenta o valor em cache
-                        qname = _ps_norm(qe['value']) if qe else ''
-                    pe = cell(r, pcol)
-                    if pe is None and not (qe and qe['formula']):
-                        continue
-                    params.append({
-                        'cell': a1(pcol, r),
-                        'label': f'Percentil · {qname or a1(pcol, r)} (consultar manual)',
-                        'current': scalarize(pe['value']) if pe else '',
-                    })
+                # 5) Percentil = consulta manual do avaliador -> parâmetro de texto.
+                pcol = next((c for c, l in cols if l == 'Percentil'), None)
+                if pcol is not None:
+                    for drow in quadrant_table['rows']:
+                        r = drow['row']
+                        qe = cell(r, base)
+                        qname = clean_text(qe['value']) if qe and not qe['formula'] else (_ps_norm(qe['value']) if qe else '')
+                        pe = cell(r, pcol)
+                        params.append({
+                            'cell': a1(pcol, r),
+                            'label': f'Percentil · {qname or a1(pcol, r)} (consultar manual)',
+                            'current': scalarize(pe['value']) if pe else '',
+                        })
 
         # 6) Itens avulsos: termos extras somados nas fórmulas da coluna "bruta" do quadrante.
         if quadrant_table is not None:

@@ -235,24 +235,33 @@ async def list_ledger(user: dict) -> list[dict]:
 
 
 async def list_plans(user: dict | None = None) -> list[dict]:
+    # plans_read = using(true): qualquer sessão lê; anon key também serve.
     if user:
         return await _req('GET', '/plans', user, params={'select': '*', 'order': 'sort'}) or []
-    return await _service_req('GET', '/plans', params={'select': '*', 'order': 'sort'}) or []
+    async with httpx.AsyncClient(timeout=10.0) as c:
+        r = await c.get(f'{REST}/plans', params={'select': '*', 'order': 'sort'},
+                        headers={'apikey': SUPABASE_ANON_KEY, 'Authorization': f'Bearer {SUPABASE_ANON_KEY}'})
+    return r.json() if r.status_code < 400 and r.content else []
 
 
-async def get_plan(key: str) -> dict | None:
-    rows = await _service_req('GET', '/plans', params={
-        'key': f'eq.{key}', 'active': 'eq.true', 'limit': '1'}) or []
-    return rows[0] if rows else None
+async def get_plan(user: dict | None, key: str) -> dict | None:
+    for p in await list_plans(user):
+        if p.get('key') == key and p.get('active'):
+            return p
+    return None
 
 
 async def upsert_plan(user: dict, key: str, data: dict) -> dict:
     await _require_admin(user)
-    body = {'key': key}
+    body = {}
     for k in ('name', 'credits', 'amount_cents', 'features', 'featured', 'active', 'sort'):
         if data.get(k) is not None:
             body[k] = data[k]
-    rows = await _req('POST', '/plans', user, json=body, write=True)  # upsert (merge-duplicates)
+    existing = await _req('GET', '/plans', user, params={'key': f'eq.{key}', 'limit': '1'}) or []
+    if existing:
+        rows = await _req('PATCH', '/plans', user, params={'key': f'eq.{key}'}, json=body, write=True)
+    else:
+        rows = await _req('POST', '/plans', user, json={'key': key, **body}, write=True)
     await log(user, 'admin_update', 'plan', key)
     return (rows or [{}])[0]
 
@@ -291,7 +300,7 @@ async def admin_create_professional(user: dict, data: dict) -> dict:
 
 async def create_order(user: dict, pack_key: str) -> dict:
     from . import payments
-    plan = await get_plan(pack_key)
+    plan = await get_plan(user, pack_key)
     if not plan:
         raise HTTPException(400, 'Pacote inválido ou inativo.')
     rows = await _req('POST', '/orders', user, json={

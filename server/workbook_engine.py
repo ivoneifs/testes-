@@ -6,6 +6,7 @@ import json
 import math
 import re
 import sqlite3
+from threading import RLock
 from collections import Counter, defaultdict
 from functools import lru_cache
 from pathlib import Path
@@ -160,6 +161,10 @@ class WorkbookEngine:
         self.db_path = str(db_path)
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        # FastAPI runs synchronous handlers in a thread pool.  The connection
+        # and evaluation memo are shared by the app singleton, so protect all
+        # public operations that touch them from concurrent requests.
+        self._lock = RLock()
         self.parser = formulas.Parser()
         self.sheet_name_to_idx = {}
         self.sheet_idx_to_name = {}
@@ -188,19 +193,20 @@ class WorkbookEngine:
         return self.sheet_name_to_idx[key]
 
     def list_tests(self):
-        out = []
-        for idx in sorted(self.sheet_idx_to_name):
-            name = self.sheet_idx_to_name[idx]
-            if TEST_EXCLUDE_RE.search(name):
-                continue
-            # Require at least some content/formula activity.
-            count = self.conn.execute(
-                'SELECT count(*) FROM cells WHERE sheet_idx=? AND (formula IS NOT NULL OR value_kind<>\'blank\')', (idx,)
-            ).fetchone()[0]
-            if count < 3:
-                continue
-            out.append(name)
-        return out
+        with self._lock:
+            out = []
+            for idx in sorted(self.sheet_idx_to_name):
+                name = self.sheet_idx_to_name[idx]
+                if TEST_EXCLUDE_RE.search(name):
+                    continue
+                # Require at least some content/formula activity.
+                count = self.conn.execute(
+                    'SELECT count(*) FROM cells WHERE sheet_idx=? AND (formula IS NOT NULL OR value_kind<>\'blank\')', (idx,)
+                ).fetchone()[0]
+                if count < 3:
+                    continue
+                out.append(name)
+            return out
 
     @lru_cache(maxsize=200000)
     def _get_cell_row(self, sheet_idx: int, row: int, col: int):
@@ -718,58 +724,81 @@ class WorkbookEngine:
         return self._catalog_cache
 
     def test_meta(self, test_name: str):
-        canonical=self.sheet_name(test_name)
-        if canonical in self._meta_cache:
-            return self._meta_cache[canonical]
-        if canonical not in self.list_tests():
-            raise KeyError(test_name)
-        rows=self._sheet_rows(canonical)
-        profile=self.discover_profile_cells(canonical,rows)
-        raw_detail=self.discover_raw_fields(canonical,rows)
-        tables=self.discover_tables(canonical,rows)
-        summary_raw=self.discover_summary_raw_fields(canonical,rows,tables)
-        # The requested workflow is PB-only. Explicit PB headers are highest priority;
-        # result-table PB cells supplement them. Item-level formula inputs are used only
-        # when the workbook exposes no compact bruto/subscale entry at all.
-        compact = {}
-        for f in raw_detail:
-            if f.get('source') in ('header-column','header-row'):
-                compact[f['cell']] = f
-        for f in summary_raw:
-            compact.setdefault(f['cell'], f)
-        raw = sorted(compact.values(), key=lambda f:(parse_cell(f['cell'])[1],parse_cell(f['cell'])[0])) if compact else raw_detail
-        params=self.discover_parameter_fields(canonical,rows,[x['cell'] for x in raw],profile.values())
-        meta={
-            'name':canonical,
-            'raw_fields':raw,
-            'detail_fields':raw_detail if summary_raw else [],
-            'input_mode':'pontos_brutos' if compact else 'campos_origem',
-            'profile_cells':profile,
-            'parameters':params,
-            'tables':tables,
-            'chart_type':self.chart_type(canonical),
-        }
-        self._meta_cache[canonical]=meta
-        return meta
+        with self._lock:
+            canonical=self.sheet_name(test_name)
+            if canonical in self._meta_cache:
+                return self._meta_cache[canonical]
+            if canonical not in self.list_tests():
+                raise KeyError(test_name)
+            rows=self._sheet_rows(canonical)
+            profile=self.discover_profile_cells(canonical,rows)
+            raw_detail=self.discover_raw_fields(canonical,rows)
+            tables=self.discover_tables(canonical,rows)
+            summary_raw=self.discover_summary_raw_fields(canonical,rows,tables)
+            # The requested workflow is PB-only. Explicit PB headers are highest priority;
+            # result-table PB cells supplement them. Item-level formula inputs are used only
+            # when the workbook exposes no compact bruto/subscale entry at all.
+            compact = {}
+            for f in raw_detail:
+                if f.get('source') in ('header-column','header-row'):
+                    compact[f['cell']] = f
+            for f in summary_raw:
+                compact.setdefault(f['cell'], f)
+            raw = sorted(compact.values(), key=lambda f:(parse_cell(f['cell'])[1],parse_cell(f['cell'])[0])) if compact else raw_detail
+            params=self.discover_parameter_fields(canonical,rows,[x['cell'] for x in raw],profile.values())
+            meta={
+                'name':canonical,
+                'raw_fields':raw,
+                'detail_fields':raw_detail if summary_raw else [],
+                'input_mode':'pontos_brutos' if compact else 'campos_origem',
+                'profile_cells':profile,
+                'parameters':params,
+                'tables':tables,
+                'chart_type':self.chart_type(canonical),
+            }
+            self._meta_cache[canonical]=meta
+            return meta
 
     def build_overrides(self, meta: dict, patient: dict, raw_scores: dict, parameters: dict | None = None):
         sheet=meta['name']
         version=hash(json.dumps([patient,raw_scores,parameters or {}],sort_keys=True,default=str)) & 0x7FFFFFFF
         overrides={'__version__':version}
-        def put(addr,val):
+        def put_sheet(target_sheet, addr, val):
             if not addr: return
             c,r=parse_cell(addr)
-            overrides[(sheet.upper(),r,c)] = val
+            overrides[(target_sheet.upper(),r,c)] = val
+
+        def put(addr,val):
+            put_sheet(sheet, addr, val)
 
         pmap=meta.get('profile_cells',{})
-        put(pmap.get('name'), patient.get('name',''))
-        put(pmap.get('education'), patient.get('education',''))
+        name=patient.get('name','')
+        education=patient.get('education','')
         sex=patient.get('sex','')
         if sex in ('M','m','male','Masculino'): sex='Masculino'
         elif sex in ('F','f','female','Feminino'): sex='Feminino'
+        birth_date=excel_serial(patient.get('birth_date'))
+        application_date=excel_serial(patient.get('application_date'))
+        put(pmap.get('name'), name)
+        put(pmap.get('education'), education)
         put(pmap.get('sex'), sex)
-        put(pmap.get('birth_date'), excel_serial(patient.get('birth_date')))
-        put(pmap.get('application_date'), excel_serial(patient.get('application_date')))
+        put(pmap.get('birth_date'), birth_date)
+        put(pmap.get('application_date'), application_date)
+
+        # Several workbook sheets display patient data through formulas such as
+        # CADASTRO!D3/D4/D5/D6. Overriding only the visible cell on the test sheet
+        # leaves the old shared CADASTRO record in place, which can change norms,
+        # age calculations, and even the patient's name in interpretation text.
+        # Mirror the per-evaluation values into the source cells without writing to
+        # SQLite; this keeps simultaneous evaluations isolated from one another.
+        cadastro_values={
+            'name': ('D3', name),
+            'birth_date': ('D4', birth_date),
+            'sex': ('D5', sex),
+            'education': ('D6', education),
+        }
+        for value_key, (addr, value) in cadastro_values.items():
+            put_sheet('CADASTRO', addr, value)
 
         # Células com fórmula na planilha (ex.: somas dos ponderados / índices do WISC).
         # Sem um valor digitado, elas NÃO são sobrescritas: a planilha as recalcula
@@ -779,6 +808,10 @@ class WorkbookEngine:
             for f in (meta.get('raw_fields',[]) + meta.get('detail_fields',[]))
             if f.get('allow_override_formula')
         }
+        allowed_raw={f['cell'] for f in meta.get('raw_fields',[])} | formula_backed
+        invalid_raw=sorted(set(raw_scores or {}) - allowed_raw)
+        if invalid_raw:
+            raise ValueError(f'Campos de pontos brutos inválidos: {", ".join(invalid_raw[:8])}')
         for addr,val in (raw_scores or {}).items():
             if val is None or val=='':
                 if addr in formula_backed:
@@ -790,51 +823,56 @@ class WorkbookEngine:
                 except ValueError: pass
             c,r=parse_cell(addr)
             overrides[(sheet.upper(),r,c)]=val
+        allowed_params={p['cell'] for p in meta.get('parameters',[])}
+        invalid_params=sorted(set(parameters or {}) - allowed_params)
+        if invalid_params:
+            raise ValueError(f'Parâmetros inválidos: {", ".join(invalid_params[:8])}')
         for addr,val in (parameters or {}).items():
             c,r=parse_cell(addr)
             overrides[(sheet.upper(),r,c)]=val if val not in (None,'') else sh.EMPTY
         return overrides
 
     def score(self, test_name: str, patient: dict, raw_scores: dict, parameters: dict | None = None):
-        meta=self.test_meta(test_name)
-        overrides=self.build_overrides(meta,patient,raw_scores,parameters)
-        # Clear per-evaluation memo to prevent unbounded growth and ensure override-sensitive values.
-        self._cell_cache.clear()
-        evaluated_tables=[]
-        for table in meta['tables']:
-            rows_out=[]
-            for row in table['rows']:
-                vals=[]
-                for cell in row['cells']:
-                    try:
-                        val=self.evaluate_address(test_name,cell['cell'],overrides)
-                    except Exception as exc:
-                        val=f'#ERRO: {type(exc).__name__}'
-                    vals.append(val)
-                # Suppress rows that are wholly blank after recalculation.
-                if any(v not in ('',None) for v in vals):
-                    rows_out.append({'row':row['row'],'values':vals,'cells':[x['cell'] for x in row['cells']]})
-            if rows_out:
-                evaluated_tables.append({
-                    'title':table['title'],
-                    'header_row':table['header_row'],
-                    'columns':table['columns'],
-                    'rows':rows_out,
-                })
+        with self._lock:
+            meta=self.test_meta(test_name)
+            overrides=self.build_overrides(meta,patient,raw_scores,parameters)
+            # Clear per-evaluation memo to prevent unbounded growth and ensure override-sensitive values.
+            self._cell_cache.clear()
+            evaluated_tables=[]
+            for table in meta['tables']:
+                rows_out=[]
+                for row in table['rows']:
+                    vals=[]
+                    for cell in row['cells']:
+                        try:
+                            val=self.evaluate_address(test_name,cell['cell'],overrides)
+                        except Exception as exc:
+                            val=f'#ERRO: {type(exc).__name__}'
+                        vals.append(val)
+                    # Suppress rows that are wholly blank after recalculation.
+                    if any(v not in ('',None) for v in vals):
+                        rows_out.append({'row':row['row'],'values':vals,'cells':[x['cell'] for x in row['cells']]})
+                if rows_out:
+                    evaluated_tables.append({
+                        'title':table['title'],
+                        'header_row':table['header_row'],
+                        'columns':table['columns'],
+                        'rows':rows_out,
+                    })
 
-        # Also recalc each raw field's current value to report exactly what was applied.
-        applied=[]
-        for f in meta['raw_fields']:
-            applied.append({**f,'value':self.evaluate_address(test_name,f['cell'],overrides)})
+            # Also recalc each raw field's current value to report exactly what was applied.
+            applied=[]
+            for f in meta['raw_fields']:
+                applied.append({**f,'value':self.evaluate_address(test_name,f['cell'],overrides)})
 
-        return {
-            'test':test_name,
-            'chart_type':meta['chart_type'],
-            'raw_scores':applied,
-            'tables':evaluated_tables,
-            'profile_cells':meta['profile_cells'],
-            'parameters':meta['parameters'],
-        }
+            return {
+                'test':test_name,
+                'chart_type':meta['chart_type'],
+                'raw_scores':applied,
+                'tables':evaluated_tables,
+                'profile_cells':meta['profile_cells'],
+                'parameters':meta['parameters'],
+            }
 
 
 if __name__ == '__main__':

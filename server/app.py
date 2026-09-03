@@ -104,6 +104,8 @@ def score(req: ScoreRequest, user: dict = Depends(current_user)):
         return engine.score(req.test,req.patient,req.raw_scores,req.parameters)
     except KeyError as exc:
         raise HTTPException(404,str(exc))
+    except ValueError as exc:
+        raise HTTPException(400,str(exc))
     except Exception as exc:
         raise HTTPException(500,f'Erro de correção: {type(exc).__name__}: {exc}')
 
@@ -226,7 +228,19 @@ def index():
 
 @app.get('/{path:path}')
 def spa(path: str):
-    target=STATIC/path
-    if target.exists() and target.is_file():
+    # Unknown API routes must 404 as JSON, not silently fall back to index.html
+    # (which would make the frontend fetch helper choke on an HTML body).
+    if path == 'api' or path.startswith('api/'):
+        raise HTTPException(404, 'Recurso não encontrado')
+    # Never allow the catch-all SPA route to escape the static directory.
+    # Path.resolve() normalizes '..' segments; relative_to() then rejects any
+    # resolved path outside STATIC (including files such as .env and the DB).
+    static_root = STATIC.resolve()
+    try:
+        target = (static_root / path).resolve()
+        target.relative_to(static_root)
+    except (OSError, ValueError):
+        return FileResponse(static_root / 'index.html')
+    if target.is_file():
         return FileResponse(target)
-    return FileResponse(STATIC/'index.html')
+    return FileResponse(static_root / 'index.html')

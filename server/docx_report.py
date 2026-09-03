@@ -39,20 +39,28 @@ def _clean(v: Any) -> str:
 
 def _style(doc: Document) -> None:
     normal = doc.styles["Normal"]
-    normal.font.name = "Calibri"
-    normal.font.size = Pt(11)
+    normal.font.name = "Times New Roman"
+    normal.font.size = Pt(12)
     normal.font.color.rgb = INK
     normal.paragraph_format.space_after = Pt(6)
     normal.paragraph_format.line_spacing = 1.15
+    normal.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    # Corpo de texto justificado (List Bullet herda de Normal, mas fixa explicitamente).
+    for style_name in ("List Bullet",):
+        try:
+            doc.styles[style_name].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        except KeyError:
+            pass
 
 
 def _heading(doc: Document, text: str) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(14)
     p.paragraph_format.space_after = Pt(4)
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     run = p.add_run(text.upper())
     run.bold = True
-    run.font.size = Pt(11)
+    run.font.size = Pt(12)
     run.font.color.rgb = ACCENT
 
 

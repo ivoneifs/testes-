@@ -6,9 +6,9 @@
 
 :root{
   /* Superfícies */
-  --bg:#f4f6fa;
+  --bg:#e6eefb;               /* fundo da tela principal — azul claro */
   --surface:#ffffff;
-  --surface-2:#fafbfd;
+  --surface-2:#f3f7fd;
   --ink:#1b2333;
   --ink-2:#3d4759;
   --muted:#727d92;
@@ -259,6 +259,8 @@ h1,h2,h3,h4{letter-spacing:-.017em;font-weight:700;margin:0}
 .chart-card p{margin:0 0 14px;font-size:11px;color:var(--muted)}
 .chart-svg{width:100%;height:auto;display:block;overflow:visible}
 .chart-svg text{font-family:var(--font)}
+.chart-svg--wisc text{font-family:"Times New Roman",Times,serif}
+.chart-card--wide{grid-column:1/-1}
 
 .result-table-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-md);margin-bottom:16px;overflow:hidden}
 .result-table-title{padding:13px 16px;font-weight:700;font-size:12.5px;background:var(--surface-2);border-bottom:1px solid var(--line)}

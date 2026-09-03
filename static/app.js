@@ -207,6 +207,133 @@ function svgRadar(series){
   const poly=pts.map((p,i)=>xy(i,R*Math.max(0,p.value)/max).join(',')).join(' ');const labels=pts.map((p,i)=>{const [x,y]=xy(i,R+24);return `<text x="${x}" y="${y}" text-anchor="middle" font-size="9" fill="#5a6479">${esc(p.label.slice(0,18))}</text>`}).join('');
   return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}">${grid}<polygon points="${poly}" fill="#2f57b829" stroke="#2f57b8" stroke-width="2.5"/>${labels}</svg>`;
 }
+// ---------- WISC-IV / WAIS: gráficos de índices e de subtestes ----------
+// Dois gráficos, montados dinamicamente a partir dos dados corrigidos do paciente:
+//  1) "QI e Índices" — barras por índice (ICV/IOP/IMO/IVP/QIT) em pontos compostos,
+//     faixa da Média (90–109) ao fundo e sobreposição translúcida do IC 95%.
+//  2) "Perfil de Subtestes" — barras horizontais Obtido × Esperado (média = 10).
+const WECHSLER_INDEX_ABBR=[
+  [/q\.?\s*i\.?\s*total|qi\s*total|escala\s*total/i,'QIT'],
+  [/compreens[ãa]o\s+verbal|verbal\s+comprehension/i,'ICV'],
+  [/(organiza[çc][ãa]o|racioc[íi]nio)\s+perceptual|perceptual\s+(reasoning|organi)/i,'IOP'],
+  [/mem[óo]ria\s+operacional|working\s+memory/i,'IMO'],
+  [/velocidade\s+de\s+processamento|processing\s+speed/i,'IVP'],
+];
+const WECHSLER_INDEX_ORDER=['ICV','IOP','IMO','IVP','QIT'];
+const WECHSLER_INDEX_COLORS={ICV:'#4a86c6',IOP:'#e08a3c',IMO:'#9aa0a6',IVP:'#f2c33d',QIT:'#5aa85a'};
+const WISC_SUBTEST_ABBR=[
+  [/cubos/i,'CB'],[/semelhan/i,'SM'],[/d[íi]gitos/i,'DG'],
+  [/conceitos?\s+figurativos?/i,'CN'],[/c[óo]digo/i,'CD'],[/vocabul[áa]rio/i,'VC'],
+  [/sequ[êe]ncia\s+de\s+n[úu]meros/i,'SNL'],[/racioc[íi]nio\s+matricial/i,'RM'],
+  [/compreens[ãa]o/i,'CO'],[/procurar\s+s[íi]mbolos/i,'PS'],
+  [/completar\s+figuras/i,'CF'],[/cancelamento/i,'CA'],
+  [/informa[çc][ãa]o/i,'IN'],[/aritm[ée]tica/i,'AR'],
+  [/racioc[íi]nio\s+com\s+palavras/i,'RP'],
+];
+function _abbr(name,table){
+  const s=String(name||'');
+  for(const [re,ab] of table) if(re.test(s)) return ab;
+  return s.replace(/\s*[\(\-–].*$/,'').trim().slice(0,4).toUpperCase();
+}
+function wechslerIndexSeries(tables){
+  const find=(cols,re)=>cols.findIndex(c=>re.test(c.label||''));
+  for(const t of tables||[]){
+    const cols=t.columns||[];
+    const vi=find(cols,/ponto\s*composto|pts?\s*compostos/i);
+    const li=find(cols,/escala|[íi]ndice/i);
+    if(vi<0||li<0) continue;
+    const ci=find(cols,/intervalo\s+de\s+confian/i);
+    const pi=find(cols,/percentil/i);
+    const by={};
+    for(const r of t.rows||[]){
+      const value=parseNum(r.values[vi]); if(value===null) continue;
+      const full=String(r.values[li]||'').trim(); if(!full) continue;
+      const ab=_abbr(full,WECHSLER_INDEX_ABBR);
+      if(!WECHSLER_INDEX_ORDER.includes(ab)) continue;
+      const m=ci>=0?String(r.values[ci]||'').match(/(-?\d+(?:[.,]\d+)?)\s*[-–a]\s*(-?\d+(?:[.,]\d+)?)/):null;
+      by[ab]={label:ab,full,value,
+        low:m?parseNum(m[1]):null,high:m?parseNum(m[2]):null,
+        pct:pi>=0?parseNum(r.values[pi]):null};
+    }
+    const points=WECHSLER_INDEX_ORDER.map(k=>by[k]).filter(Boolean);
+    if(points.length>=2) return {title:'QI e Índices WISC-IV',points};
+  }
+  return null;
+}
+function wechslerSubtestSeries(tables){
+  for(const t of tables||[]){
+    const cols=t.columns||[];
+    const ni=cols.findIndex(c=>/^teste$|subteste/i.test(c.label||''));
+    const wi=cols.findIndex(c=>/pontos?\s*ponderad/i.test(c.label||''));
+    if(ni<0||wi<0) continue;
+    const points=[];
+    for(const r of t.rows||[]){
+      const w=parseNum(r.values[wi]); if(w===null) continue;
+      const name=String(r.values[ni]||'').trim();
+      if(!name||/soma|m[ée]dia|convers|escala/i.test(name)) continue;
+      points.push({label:_abbr(name,WISC_SUBTEST_ABBR),full:name,obtido:w,esperado:10});
+    }
+    if(points.length>=3) return {title:'WISC-IV — Perfil de Subtestes',points};
+  }
+  return null;
+}
+function svgWechslerIndex(series){
+  const pts=series.points;
+  const W=1000,H=330,L=50,Rp=16,T=30,Bp=38;
+  const lo=0,hi=160,plotW=W-L-Rp,plotH=H-T-Bp;
+  const y=v=>T+(hi-Math.max(lo,Math.min(hi,v)))/(hi-lo)*plotH;
+  const step=plotW/pts.length, bw=Math.min(76,step*0.5);
+  const cx=i=>L+(i+0.5)*step;
+  let grid='';
+  for(let v=lo;v<=hi;v+=10){
+    grid+=`<line x1="${L}" x2="${W-Rp}" y1="${y(v)}" y2="${y(v)}" stroke="#edeff4"/>`
+        +`<text x="${L-6}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="#8a94a6">${v}</text>`;
+  }
+  const band=`<rect x="${L}" y="${y(109)}" width="${plotW}" height="${y(90)-y(109)}" fill="#eeb8db" opacity="0.5"/>`;
+  const bars=pts.map((p,i)=>{
+    const c=cx(i),x=c-bw/2,top=y(p.value),base=y(lo),col=WECHSLER_INDEX_COLORS[p.label]||'#4a86c6';
+    let g=`<rect x="${x}" y="${top}" width="${bw}" height="${base-top}" fill="${col}"/>`;
+    if(p.low!=null&&p.high!=null)
+      g+=`<rect x="${x}" y="${y(p.high)}" width="${bw}" height="${y(p.low)-y(p.high)}" fill="${col}" opacity="0.4"/>`;
+    g+=`<text x="${c}" y="${top-6}" text-anchor="middle" font-size="12" font-weight="700" fill="#1b2333">${esc(p.value)}</text>`;
+    g+=`<text x="${c}" y="${H-Bp+15}" text-anchor="middle" font-size="11" font-weight="600" fill="#3d4759">${esc(p.label)}</text>`;
+    return `<g>${g}</g>`;
+  }).join('');
+  return `<svg class="chart-svg chart-svg--wisc" viewBox="0 0 ${W} ${H}" role="img">`
+    +`<text x="${W/2}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#1b2333">QI e Índices WISC-IV</text>`
+    +band+grid
+    +`<line x1="${L}" x2="${L}" y1="${T}" y2="${y(lo)}" stroke="#c9cfdb"/><line x1="${L}" x2="${W-Rp}" y1="${y(lo)}" y2="${y(lo)}" stroke="#c9cfdb"/>`
+    +bars
+    +`<g transform="translate(${W-Rp-150},${T-2})"><rect width="22" height="9" fill="#eeb8db" opacity="0.7"/><text x="28" y="8" font-size="9" fill="#5a6479">Média (90–109)</text></g>`
+    +`</svg>`;
+}
+function svgWechslerSubtests(series){
+  const pts=series.points, n=pts.length;
+  const W=980,rowH=28,T=48,Bp=30,L=52,Rp=18;
+  const H=T+Bp+n*rowH, xlo=0,xhi=19,plotW=W-L-Rp,plotH=n*rowH;
+  const x=v=>L+(Math.max(xlo,Math.min(xhi,v))-xlo)/(xhi-xlo)*plotW;
+  const barH=9;
+  let grid='';
+  for(let v=xlo;v<=xhi;v++){
+    grid+=`<line x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${T+plotH}" stroke="${v===10?'#c9433f':'#eceff4'}" stroke-width="${v===10?1.2:1}"/>`;
+    if(v===0||v%2===1) grid+=`<text x="${x(v)}" y="${T+plotH+13}" text-anchor="middle" font-size="8.5" fill="#8a94a6">${v}</text>`;
+  }
+  const rows=pts.map((p,i)=>{
+    const cy=T+i*rowH+rowH/2;
+    return `<g>`
+      +`<rect x="${L}" y="${cy-barH-1}" width="${Math.max(0,x(p.esperado)-L)}" height="${barH}" fill="#e6a8cf"/>`
+      +`<rect x="${L}" y="${cy+1}" width="${Math.max(0,x(p.obtido)-L)}" height="${barH}" fill="#3f76c0"/>`
+      +`<text x="${L-8}" y="${cy+3}" text-anchor="end" font-size="10" font-weight="700" fill="#3d4759">${esc(p.label)}</text>`
+      +`<text x="${x(p.obtido)+4}" y="${cy+barH+1}" font-size="8.5" fill="#5a6479">${esc(p.obtido)}</text>`
+      +`</g>`;
+  }).join('');
+  return `<svg class="chart-svg chart-svg--wisc" viewBox="0 0 ${W} ${H}" role="img">`
+    +`<text x="${W/2}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#1b2333">WISC-IV — Perfil de Subtestes</text>`
+    +`<g transform="translate(${L},26)"><rect width="11" height="9" fill="#3f76c0"/><text x="15" y="8" font-size="9" fill="#5a6479">Obtido</text>`
+    +`<rect x="72" width="11" height="9" fill="#e6a8cf"/><text x="87" y="8" font-size="9" fill="#5a6479">Esperado (10)</text></g>`
+    +grid+rows+`</svg>`;
+}
+
 // Retorna [{title, svg}] com os gráficos de um resultado (reaproveitado no laudo).
 function chartsFor(result){
   if(result.chart_type==='learning_curve'){
@@ -215,9 +342,17 @@ function chartsFor(result){
     if(pts.length>=3) return [{title:'Curva de aprendizagem • pontos brutos',svg:svgLine({title:'',points:pts})}];
   }
   const cand=result.tables.map(t=>seriesFromTable(t)).filter(Boolean);
+  if(result.chart_type==='wechsler'){
+    const out=[];
+    const idx=wechslerIndexSeries(result.tables);
+    if(idx) out.push({title:idx.title,svg:svgWechslerIndex(idx)});
+    const subs=wechslerSubtestSeries(result.tables);
+    if(subs) out.push({title:subs.title,svg:svgWechslerSubtests(subs)});
+    if(out.length) return out;
+    const comp=cand.find(s=>/composto|qi/i.test(s.title)); if(comp) return [{title:comp.title,svg:svgBar(comp)}];
+  }
   if(!cand.length) return [];
-  let chosen=cand.slice(0,result.chart_type==='wechsler'?2:1);
-  if(result.chart_type==='wechsler'){const comp=cand.find(s=>/composto|qi/i.test(s.title));if(comp&&!chosen.includes(comp))chosen[1]=comp;}
+  let chosen=cand.slice(0,1);
   return chosen.filter(Boolean).map(s=>({
     title:s.title,
     svg: result.chart_type==='domains'?svgRadar(s):(result.chart_type==='learning_curve'?svgLine(s):svgBar(s)),
@@ -225,13 +360,17 @@ function chartsFor(result){
 }
 function renderCharts(result){
   const cs=chartsFor(result);
-  els.charts.innerHTML=cs.map(c=>`<article class="chart-card"><h3>${esc(c.title)}</h3><p>${esc(result.test)} • ${esc(result.chart_type.replace('_',' '))}</p>${c.svg}</article>`).join('');
+  els.charts.innerHTML=cs.map(c=>{
+    const wide=/chart-svg--wisc/.test(c.svg)?' chart-card--wide':'';
+    return `<article class="chart-card${wide}"><h3>${esc(c.title)}</h3><p>${esc(result.test)} • ${esc(result.chart_type.replace('_',' '))}</p>${c.svg}</article>`;
+  }).join('');
 }
 // SVG -> PNG (data URL) para embutir no .docx
 function chartSvgStandalone(svg){
   const m=svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   const w=m?m[1]:'680', h=m?m[2]:'300';
-  return {w:+w,h:+h,xml:svg.replace('<svg ',`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="font-family:Inter,'Segoe UI',Arial,sans-serif" `)};
+  const fam=/chart-svg--wisc/.test(svg)?"'Times New Roman',Times,serif":"Inter,'Segoe UI',Arial,sans-serif";
+  return {w:+w,h:+h,xml:svg.replace('<svg ',`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="font-family:${fam}" `)};
 }
 function svgToPng(svg){
   return new Promise(res=>{
@@ -385,11 +524,12 @@ function laudoHtml(){
   const tests=state.results.map(r=>r.test).join(', ')||'—';
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
-body{font-family:Georgia,"Times New Roman",serif;max-width:760px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.65}
-h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:8px;margin:0 0 16px}
-h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#333;margin:20px 0 4px}
-.meta{font-size:13px;color:#333;background:#f6f6f6;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin-bottom:22px}
+body{font-family:"Times New Roman",Times,serif;font-size:12pt;max-width:760px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.6;text-align:justify}
+h1{font-size:16pt;border-bottom:2px solid #333;padding-bottom:8px;margin:0 0 16px;text-align:center}
+h4{font-size:12pt;text-transform:uppercase;letter-spacing:.04em;color:#333;margin:20px 0 4px;text-align:left}
+.meta{font-size:11pt;color:#333;background:#f6f6f6;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin-bottom:22px;text-align:left}
 .ai-block{margin:0 0 4px}p{margin:4px 0}ul{margin:4px 0 4px 18px}
+li{text-align:justify}
 table{border-collapse:collapse;width:100%;margin:6px 0 14px;font-size:11px}
 th,td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top}
 th{background:#eef2f9;font-weight:700}

@@ -117,6 +117,22 @@ def clean_text(value: Any) -> str:
     return str(value).replace('\n', ' ').strip()
 
 
+_HEADER_BAD_RE = re.compile(r'#(DIV/0|VALUE|REF|N/?A|NUM|NAME)|\bmensagem\b|\bsignifica\b', re.I)
+
+
+def plausible_header(text: str) -> bool:
+    """Célula de cabeçalho de tabela: curta, não é frase/aviso/erro."""
+    t = (text or '').strip()
+    if not t or len(t) > 60 or _HEADER_BAD_RE.search(t):
+        return False
+    words = t.split()
+    if len(words) > 9:
+        return False
+    if len(words) > 5 and t.rstrip()[-1:] in '.!:':
+        return False
+    return True
+
+
 def internal_scalar(value: Any):
     """Unwrap 1-cell formula arrays before feeding them into other formulas."""
     if isinstance(value, np.generic):
@@ -646,8 +662,8 @@ class WorkbookEngine:
                 continue
             if not any(RESULT_HEADER_RE.search(t) or RAW_HEADER_RE.search(t) for _,t in headers):
                 continue
-            # Exclude explanatory paragraphs.
-            compact=[(c,t) for c,t in headers if len(t)<90]
+            # Exclude explanatory paragraphs, warnings and error strings.
+            compact=[(c,t) for c,t in headers if plausible_header(t)]
             if len(compact)<2:
                 continue
             candidates.append((rnum,compact))
@@ -696,6 +712,13 @@ class WorkbookEngine:
                 blanks=0
                 if nonblank>=1:
                     data.append({'row':rr,'cells':rec})
+            # Uma tabela de resultado tem conteúdo calculado. Linhas que são só
+            # rótulos de texto (sem fórmula e sem número) são ruído de layout.
+            form_cells=sum(1 for d in data for cc in d['cells'] if cc['formula'])
+            num_cached=sum(1 for d in data for cc in d['cells']
+                           if isinstance(cc['cached'],(int,float)))
+            if form_cells<2 and num_cached<2:
+                continue
             if len(data)>=2:
                 title=' / '.join(t for _,t in headers[:2])
                 tables.append({
@@ -832,6 +855,16 @@ class WorkbookEngine:
             overrides[(sheet.upper(),r,c)]=val if val not in (None,'') else sh.EMPTY
         return overrides
 
+    @staticmethod
+    def _round_display(val):
+        """Arredonda floats para leitura clínica sem afetar o encadeamento de fórmulas."""
+        if isinstance(val, float):
+            if math.isnan(val) or math.isinf(val):
+                return None
+            r = round(val, 2)
+            return int(r) if abs(r - round(r)) < 1e-9 else r
+        return val
+
     def score(self, test_name: str, patient: dict, raw_scores: dict, parameters: dict | None = None):
         with self._lock:
             meta=self.test_meta(test_name)
@@ -848,7 +881,10 @@ class WorkbookEngine:
                             val=self.evaluate_address(test_name,cell['cell'],overrides)
                         except Exception as exc:
                             val=f'#ERRO: {type(exc).__name__}'
-                        vals.append(val)
+                        # Vazamento de matriz (ex.: IF($A$1:$A$4="";...)) -> em branco.
+                        if isinstance(val,list):
+                            val=''
+                        vals.append(self._round_display(val))
                     # Suppress rows that are wholly blank after recalculation.
                     if any(v not in ('',None) for v in vals):
                         rows_out.append({'row':row['row'],'values':vals,'cells':[x['cell'] for x in row['cells']]})
@@ -863,7 +899,8 @@ class WorkbookEngine:
             # Also recalc each raw field's current value to report exactly what was applied.
             applied=[]
             for f in meta['raw_fields']:
-                applied.append({**f,'value':self.evaluate_address(test_name,f['cell'],overrides)})
+                v=self.evaluate_address(test_name,f['cell'],overrides)
+                applied.append({**f,'value':self._round_display(v) if not isinstance(v,list) else ''})
 
             return {
                 'test':test_name,

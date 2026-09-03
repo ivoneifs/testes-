@@ -11,7 +11,7 @@ const state = {
 };
 
 const els = {
-  list: $('#testList'), search: $('#testSearch'), title: $('#pageTitle'), raw: $('#rawFields'),
+  list: $('#testList'), search: $('#testSearch'), title: $('#laudosTestTitle'), raw: $('#rawFields'),
   params: $('#parameterFields'), paramsPanel: $('#parametersPanel'), count: $('#fieldCount'), inputMode: $('#inputMode'),
   calc: $('#calculateBtn'), clear: $('#clearBtn'), results: $('#resultsSection'),
   tables: $('#resultTables'), charts: $('#chartGrid'), toast: $('#toast'),
@@ -85,7 +85,10 @@ async function init(){
     $('#apiDot').className='status-dot ok'; $('#apiStatus').textContent=`${health.tests} instrumentos • IA ${health.openai_configured?'configurada':'sem chave'}`; $('#aiConfigNote').hidden=health.openai_configured;
     const data=await api('/api/tests'); state.tests=data.tests; renderTestList();
   }catch(e){$('#apiDot').className='status-dot bad';$('#apiStatus').textContent='Servidor indisponível';toast(e.message,true);}
+  try{ if(typeof window.onSessionReady==='function') await window.onSessionReady(); }catch(e){ console.error('shell',e); }
 }
+// helpers reaproveitados pelo shell
+window.NS = { api, toast, state, esc, get sb(){return state.sb;} };
 function renderTestList(){
   const q=els.search.value.trim().toLowerCase();
   els.list.innerHTML=state.tests.filter(t=>t.name.toLowerCase().includes(q)).map(t=>`<button class="test-item ${state.meta?.name===t.name?'active':''}" data-test="${esc(t.name)}"><span>${esc(t.name)}</span><small>${esc(t.chart_type||'')}</small></button>`).join('');

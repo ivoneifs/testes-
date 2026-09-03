@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#131d2f" />
-  <meta name="description" content="NeuroScore — correção neuropsicológica automática a partir de pontos brutos, com normas da planilha original e apoio de IA para laudos." />
-  <title>NeuroScore — Correção Neuropsicológica</title>
+  <meta name="description" content="NeuroScore — plataforma de correção neuropsicológica automática, história de vida e laudos com apoio de IA." />
+  <title>NeuroScore</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233157d5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,165 +14,288 @@
   <link rel="stylesheet" href="/assets/styles.css" />
 </head>
 <body>
-  <!-- Aplicação responsiva: a correção é feita no servidor local usando as normas da planilha original. -->
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div class="brand-mark">NS</div>
-        <div><strong>NeuroScore</strong><span>Correção neuropsicológica</span></div>
+        <div><strong>NeuroScore</strong><span>Plataforma clínica</span></div>
       </div>
-      <div class="search-wrap">
-        <input id="testSearch" type="search" placeholder="Buscar teste..." autocomplete="off" />
+
+      <nav class="nav" id="nav">
+        <a class="nav-item" data-view="dashboard" href="#dashboard"><i>▦</i><span>Dashboard</span></a>
+        <a class="nav-item" data-view="pacientes" href="#pacientes"><i>👥</i><span>Pacientes</span></a>
+        <a class="nav-item" data-view="historia" href="#historia"><i>📇</i><span>História de Vida</span></a>
+        <a class="nav-item" data-view="laudos" href="#laudos"><i>📄</i><span>Laudos</span></a>
+        <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
+        <a class="nav-item" data-view="config" href="#config"><i>⚙</i><span>Configurações</span></a>
+        <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span></a>
+        <a class="nav-item" data-view="conta" href="#conta"><i>👤</i><span>Conta</span></a>
+      </nav>
+
+      <div class="credit-card" id="creditCard" hidden>
+        <div class="cc-top"><span>⚡</span><span>Saldo atual</span></div>
+        <strong id="creditBalance">0</strong>
+        <span class="cc-sub">Créditos disponíveis para uso</span>
+        <button type="button" class="cc-btn" data-goto="planos">Comprar mais</button>
       </div>
-      <div class="test-list" id="testList"></div>
+      <a class="nav-item nav-danger" id="logoutBtn" href="#"><i>⇥</i><span>Sair</span></a>
+
       <div class="sidebar-foot">
         <span class="status-dot" id="apiDot"></span>
-        <span id="apiStatus">Verificando sistema…</span>
+        <span id="apiStatus">Verificando…</span>
       </div>
       <div class="sidebar-user" id="sidebarUser" hidden>
         <span id="userEmail" class="user-email"></span>
-        <button type="button" class="linklike" id="logoutBtn">Sair</button>
+        <span id="userRole" class="pill"></span>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <button type="button" class="icon-btn mobile-only" id="menuBtn" aria-label="Abrir testes">☰</button>
+        <button type="button" class="icon-btn mobile-only" id="menuBtn" aria-label="Menu">☰</button>
         <div>
-          <p class="eyebrow">Avaliação neuropsicológica</p>
-          <h1 id="pageTitle">Selecione um instrumento</h1>
+          <p class="eyebrow" id="viewEyebrow">NeuroScore</p>
+          <h1 id="pageTitle">Dashboard</h1>
         </div>
-        <div class="top-actions">
-          <button type="button" class="btn primary" id="saveEvalBtn" hidden>💾 Salvar avaliação</button>
+        <div class="top-actions" id="topActions"></div>
+      </header>
+
+      <!-- ================= DASHBOARD ================= -->
+      <section class="view" id="view-dashboard" hidden>
+        <div class="kpi-grid">
+          <div class="kpi"><span class="kpi-label">Avaliações salvas</span><strong id="kpiEvals">—</strong></div>
+          <div class="kpi"><span class="kpi-label">Pacientes</span><strong id="kpiPatients">—</strong></div>
+          <div class="kpi"><span class="kpi-label">Créditos de laudo</span><strong id="kpiCredits">—</strong></div>
+          <div class="kpi"><span class="kpi-label">Instrumentos</span><strong id="kpiTests">62</strong></div>
+        </div>
+        <div class="card">
+          <div class="section-heading"><div><h2>Atividade recente</h2></div>
+            <button type="button" class="btn ghost" data-goto="laudos">Nova avaliação</button></div>
+          <div id="dashRecent" class="list-plain"><p class="muted small">Carregando…</p></div>
+        </div>
+      </section>
+
+      <!-- ================= PACIENTES ================= -->
+      <section class="view" id="view-pacientes" hidden>
+        <div class="card">
+          <div class="section-heading">
+            <div><h2>Pacientes</h2><span class="muted">Cadastro reutilizável nas avaliações.</span></div>
+            <button type="button" class="btn primary" id="patientNewBtn">+ Novo paciente</button>
+          </div>
+          <div class="table-scroll">
+            <table class="result-table" id="patientsTable">
+              <thead><tr><th>Nome</th><th>Nascimento</th><th>Sexo</th><th>Escolaridade</th><th></th></tr></thead>
+              <tbody id="patientsBody"><tr><td colspan="5" class="muted small">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HISTÓRIA DE VIDA ================= -->
+      <section class="view" id="view-historia" hidden>
+        <div class="card ai-card">
+          <div class="section-heading"><div><h2>História de Vida</h2>
+            <span class="muted">Envie a anamnese (PDF/imagem) e a IA organiza a história clínica.</span></div>
+            <span class="badge ai">OpenAI</span></div>
+          <p class="ai-config-note" id="aiConfigNote" hidden>IA não configurada no servidor.</p>
+          <label class="upload-zone" id="uploadZone">
+            <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
+            <span class="upload-icon">⇧</span><strong>Selecionar anamnese</strong>
+            <small>PDF, JPG, PNG</small>
+          </label>
+          <div id="fileList" class="file-list"></div>
+          <div class="alert success" id="anamnesisAlert" hidden></div>
+          <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
+          <div class="ai-output" id="anamnesisOutput"></div>
+        </div>
+      </section>
+
+      <!-- ================= LAUDOS (corretor) ================= -->
+      <section class="view" id="view-laudos" hidden>
+        <section class="patient-card card">
+          <div class="section-heading">
+            <div><span class="step">1</span><h2>Paciente</h2></div>
+            <span class="muted">A faixa etária é aplicada automaticamente pela norma do teste.</span>
+          </div>
+          <div class="form-grid patient-grid">
+            <label class="field span-2">Nome<input id="patientName" type="text" placeholder="Nome do paciente" list="patientOptions" /></label>
+            <datalist id="patientOptions"></datalist>
+            <label class="field">Nascimento<input id="birthDate" type="date" /></label>
+            <label class="field">Aplicação<input id="applicationDate" type="date" /></label>
+            <label class="field">Sexo<select id="sex"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select></label>
+            <label class="field span-2">Escolaridade<input id="education" type="text" placeholder="Ex.: Ensino Fundamental" /></label>
+            <div class="age-chip" id="ageChip">Idade: —</div>
+          </div>
+        </section>
+
+        <section class="card instrument-card">
+          <div class="section-heading"><div><h2>Instrumento</h2></div>
+            <span class="muted" id="instrumentHint">Escolha o teste para corrigir.</span></div>
+          <input id="testSearch" type="search" placeholder="Buscar teste…" autocomplete="off" class="instrument-search" />
+          <div class="test-list" id="testList"></div>
+        </section>
+
+        <section class="workspace-grid">
+          <div class="card input-card">
+            <div class="section-heading">
+              <div><span class="step">2</span><h2 id="laudosTestTitle">Pontos brutos</h2></div>
+              <div class="field-meta"><span class="badge" id="inputMode">PB</span><span class="badge" id="fieldCount">0 campos</span></div>
+            </div>
+            <div id="testLoading" class="empty-state">Escolha um teste acima.</div>
+            <div id="rawFields" class="raw-sections"></div>
+            <details id="parametersPanel" class="parameters-panel" hidden>
+              <summary>Ajustes normativos avançados</summary>
+              <div id="parameterFields" class="form-grid"></div>
+            </details>
+            <div class="action-row">
+              <button type="button" class="btn primary big" id="calculateBtn" disabled>Calcular resultados</button>
+              <button type="button" class="btn ghost" id="clearBtn">Limpar</button>
+            </div>
+          </div>
+          <div class="card quick-info">
+            <h3>Automatizado</h3>
+            <div class="feature"><span>✓</span><div><b>Faixa etária</b><small>Nascimento e aplicação alimentam a norma.</small></div></div>
+            <div class="feature"><span>✓</span><div><b>Normas originais</b><small>Direto da base da planilha.</small></div></div>
+            <div class="feature"><span>✓</span><div><b>Gráficos por teste</b><small>Perfil, curva, índices ou domínios.</small></div></div>
+          </div>
+        </section>
+
+        <section id="resultsSection" class="results-section card" hidden>
+          <div class="section-heading results-head">
+            <div><span class="step">3</span><h2>Resultados</h2></div>
+            <span class="badge success">Calculado pela planilha</span>
+          </div>
+          <div id="chartGrid" class="chart-grid"></div>
+          <div id="resultTables" class="result-tables"></div>
+        </section>
+
+        <section class="card ai-card" id="aiSection">
+          <div class="section-heading"><div><span class="step">4</span><h2>IA • Laudo</h2></div>
+            <span class="badge ai">OpenAI</span></div>
+          <p class="privacy-note">O texto clínico gerado exige revisão e assinatura de profissional habilitado.</p>
+          <div class="ai-grid">
+            <article class="ai-panel">
+              <h3>Laudo do teste selecionado</h3>
+              <button type="button" class="btn ai-btn" id="testReportBtn" disabled>Gerar laudo deste teste</button>
+              <div class="ai-output" id="testReportOutput"></div>
+            </article>
+            <article class="ai-panel">
+              <h3>Modelo de formatação</h3>
+              <label class="upload-zone" id="modelZone">
+                <input id="laudoModelFiles" type="file" multiple accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,image/*" />
+                <span class="upload-icon">📐</span><strong>Selecionar modelo</strong><small>PDF, DOCX, TXT</small>
+              </label>
+              <div id="modelFileList" class="file-list"></div>
+              <div class="alert success" id="modelAlert" hidden></div>
+              <button type="button" class="btn ai-btn" id="analyzeModelBtn" disabled>Ler modelo</button>
+              <div class="ai-output" id="modelOutput"></div>
+            </article>
+          </div>
+          <div class="integrated-panel">
+            <div><h3>Avaliação Neuropsicológica Completa</h3>
+              <p class="muted">Gera o laudo de cada teste calculado e integra tudo.</p></div>
+            <div class="integrated-btns">
+              <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar Avaliação Completa</button>
+              <button type="button" class="btn ghost" id="docxBtn" hidden>📝 .docx</button>
+            </div>
+          </div>
+          <div class="ai-output integrated-output" id="integratedOutput"></div>
+          <div class="laudo-actions" id="laudoActions" hidden>
+            <button type="button" class="btn primary" id="docxBtn2">📝 Salvar (.docx)</button>
+            <button type="button" class="btn ghost" id="saveLaudoBtn">💾 .html</button>
+            <button type="button" class="btn ghost" id="printLaudoBtn">Imprimir</button>
+            <button type="button" class="btn ghost" id="saveEvalBtn" hidden>💾 Salvar avaliação</button>
+          </div>
+        </section>
+
+        <div class="laudos-toolbar">
           <button type="button" class="btn ghost" id="myEvalsBtn" hidden>Minhas avaliações</button>
           <button type="button" class="btn ghost" id="exportBtn">Exportar JSON</button>
           <button type="button" class="btn ghost" id="printBtn">Imprimir / PDF</button>
         </div>
-      </header>
+      </section>
 
-      <section class="patient-card card">
-        <div class="section-heading">
-          <div><span class="step">1</span><h2>Paciente</h2></div>
-          <span class="muted">Preencha uma vez; a faixa etária é aplicada automaticamente.</span>
+      <!-- ================= PLANOS ================= -->
+      <section class="view" id="view-planos" hidden>
+        <div class="planos-head">
+          <p class="muted">Escolha o pacote que melhor se adapta à sua demanda clínica. Os créditos não expiram e garantem acesso total à inteligência artificial.</p>
         </div>
-        <div class="form-grid patient-grid">
-          <label class="field span-2">Nome
-            <input id="patientName" type="text" placeholder="Nome do paciente" />
-          </label>
-          <label class="field">Nascimento
-            <input id="birthDate" type="date" />
-          </label>
-          <label class="field">Aplicação
-            <input id="applicationDate" type="date" />
-          </label>
-          <label class="field">Sexo
-            <select id="sex"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select>
-          </label>
-          <label class="field span-2">Escolaridade
-            <input id="education" type="text" placeholder="Ex.: Ensino Fundamental" />
-          </label>
-          <div class="age-chip" id="ageChip">Idade: —</div>
+        <div class="planos-grid" id="planosGrid"></div>
+        <div class="card planos-custom">
+          <div><h3>Precisa de um plano personalizado?</h3>
+            <p class="muted">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
+          <a class="btn primary" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
         </div>
       </section>
 
-      <section class="workspace-grid">
-        <div class="card input-card">
+      <!-- ================= CONFIGURAÇÕES ================= -->
+      <section class="view" id="view-config" hidden>
+        <div class="card">
+          <h2>Aparência</h2>
+          <p class="muted small">Tema do aplicativo — selecione claro ou escuro.</p>
+          <div class="seg" id="themeSeg">
+            <button type="button" data-theme="light" class="seg-btn">Claro</button>
+            <button type="button" data-theme="dark" class="seg-btn">Escuro</button>
+            <button type="button" data-theme="system" class="seg-btn">Sistema</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Notificações</h2>
+          <label class="switch-row">
+            <div><b>Notificações por e-mail</b><small>Receba lembretes de tarefas e atualizações.</small></div>
+            <input type="checkbox" id="prefEmail" class="switch" />
+          </label>
+          <label class="switch-row">
+            <div><b>Lembretes de tarefas</b><small>Mostra notificações no app para tarefas pendentes.</small></div>
+            <input type="checkbox" id="prefTasks" class="switch" />
+          </label>
+        </div>
+      </section>
+
+      <!-- ================= ADMINISTRAÇÃO ================= -->
+      <section class="view" id="view-admin" hidden>
+        <div class="card">
           <div class="section-heading">
-            <div><span class="step">2</span><h2>Pontos brutos</h2></div>
-            <div class="field-meta"><span class="badge" id="inputMode">PB</span><span class="badge" id="fieldCount">0 campos</span></div>
+            <div><h2>Controle de Profissionais</h2><span class="muted">Acesso total do administrador mestre.</span></div>
+            <input id="proSearch" type="search" placeholder="Buscar…" class="instrument-search" style="max-width:220px" />
           </div>
-          <div id="testLoading" class="empty-state">Escolha um teste na lateral.</div>
-          <div id="rawFields" class="raw-sections"></div>
-          <details id="parametersPanel" class="parameters-panel" hidden>
-            <summary>Ajustes normativos avançados</summary>
-            <p class="muted small">Os valores originais da planilha são mantidos automaticamente. Altere apenas quando a norma exigir.</p>
-            <div id="parameterFields" class="form-grid"></div>
-          </details>
-          <div class="action-row">
-            <button type="button" class="btn primary big" id="calculateBtn" disabled>Calcular resultados</button>
-            <button type="button" class="btn ghost" id="clearBtn">Limpar pontos</button>
+          <div class="table-scroll">
+            <table class="result-table" id="prosTable">
+              <thead><tr><th>Nome</th><th>E-mail</th><th>CRP</th><th>Papel</th><th>Status</th><th>Plano</th><th>Créditos</th><th></th></tr></thead>
+              <tbody id="prosBody"><tr><td colspan="8" class="muted small">Carregando…</td></tr></tbody>
+            </table>
           </div>
-        </div>
-
-        <div class="card quick-info">
-          <h3>O que é automatizado</h3>
-          <div class="feature"><span>✓</span><div><b>Faixa etária</b><small>Nascimento e data de aplicação alimentam a seleção normativa da planilha.</small></div></div>
-          <div class="feature"><span>✓</span><div><b>Normas originais</b><small>Conversões consultadas na base derivada do Excel — sem reescrever fórmulas.</small></div></div>
-          <div class="feature"><span>✓</span><div><b>Gráficos por teste</b><small>Perfil, curva de aprendizagem, índices ou domínios conforme o instrumento.</small></div></div>
-          <div class="feature"><span>✓</span><div><b>Processamento local</b><small>Pontos brutos e cálculo permanecem no seu computador.</small></div></div>
         </div>
       </section>
 
-      <section id="resultsSection" class="results-section" hidden>
-        <div class="section-heading results-head">
-          <div><span class="step">3</span><h2>Resultados</h2></div>
-          <span class="badge success">Calculado pela planilha</span>
-        </div>
-        <div id="chartGrid" class="chart-grid"></div>
-        <div id="resultTables" class="result-tables"></div>
-      </section>
-
-      <section class="card ai-card" id="aiSection">
-        <div class="section-heading">
-          <div><span class="step">4</span><h2>IA • Laudo e anamnese</h2></div>
-          <span class="badge ai">OpenAI API</span>
-        </div>
-        <p class="privacy-note">A correção dos testes permanece no servidor local. PDFs e imagens da anamnese só são enviados à OpenAI quando você clicar em analisar. Revise todo texto clínico antes de utilizá-lo.</p><p class="ai-config-note" id="aiConfigNote" hidden>IA não configurada. Copie <b>.env.example</b> para <b>.env</b>, informe <b>OPENAI_API_KEY</b> e reinicie o servidor.</p>
-        <div class="ai-grid">
-          <article class="ai-panel">
-            <h3>Laudo do teste selecionado</h3>
-            <p>Gera síntese quantitativa, interpretação, forças, fragilidades, limitações e texto estruturado para revisão.</p>
-            <button type="button" class="btn ai-btn" id="testReportBtn" disabled>Gerar laudo deste teste</button>
-            <div class="ai-output" id="testReportOutput"></div>
-          </article>
-          <article class="ai-panel">
-            <h3>Anamnese → história de vida</h3>
-            <p>Envie PDF ou imagem, inclusive fotografia de conteúdo manuscrito.</p>
-            <label class="upload-zone" id="uploadZone">
-              <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
-              <span class="upload-icon">⇧</span>
-              <strong>Selecionar anamnese</strong>
-              <small>PDF, JPG, PNG e outras imagens</small>
-            </label>
-            <div id="fileList" class="file-list"></div>
-            <div class="alert success" id="anamnesisAlert" hidden></div>
-            <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
-            <div class="ai-output" id="anamnesisOutput"></div>
-          </article>
-          <article class="ai-panel">
-            <h3>Modelo de formatação</h3>
-            <p>Envie um laudo-modelo. O <b>laudo integrado</b> vai seguir a estrutura, os títulos e o estilo dele.</p>
-            <label class="upload-zone" id="modelZone">
-              <input id="laudoModelFiles" type="file" multiple accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,image/*" />
-              <span class="upload-icon">📐</span>
-              <strong>Selecionar modelo</strong>
-              <small>PDF, DOCX, TXT ou imagem</small>
-            </label>
-            <div id="modelFileList" class="file-list"></div>
-            <div class="alert success" id="modelAlert" hidden></div>
-            <button type="button" class="btn ai-btn" id="analyzeModelBtn" disabled>Ler modelo</button>
-            <div class="ai-output" id="modelOutput"></div>
-          </article>
-        </div>
-        <div class="integrated-panel">
-          <div><h3>Avaliação Neuropsicológica Completa</h3><p class="muted">Gera o laudo de cada teste calculado (se ainda faltar) e integra tudo em um laudo único.</p></div>
-          <div class="integrated-btns">
-            <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar Avaliação Completa</button>
-            <button type="button" class="btn ghost" id="docxBtn" hidden>📝 Salvar (.docx)</button>
+      <!-- ================= CONTA ================= -->
+      <section class="view" id="view-conta" hidden>
+        <div class="card">
+          <h2>Informações do Perfil</h2>
+          <div class="form-grid">
+            <label class="field span-2">Nome<input id="acctName" type="text" /></label>
+            <label class="field">E-mail<input id="acctEmail" type="email" disabled /></label>
+            <label class="field">CRP<input id="acctCrp" type="text" placeholder="Ex.: 06/123456" /></label>
+            <label class="field span-2">Cabeçalho padrão do laudo<textarea id="acctHeader" rows="2"></textarea></label>
           </div>
+          <button type="button" class="btn primary" id="acctSaveBtn">Salvar Alterações</button>
+          <span id="acctMsg" class="inline-msg"></span>
         </div>
-        <div class="ai-output integrated-output" id="integratedOutput"></div>
-        <div class="laudo-actions" id="laudoActions" hidden>
-          <button type="button" class="btn primary" id="docxBtn2">📝 Salvar Avaliação Completa (.docx)</button>
-          <button type="button" class="btn ghost" id="saveLaudoBtn">💾 Salvar em .html</button>
-          <button type="button" class="btn ghost" id="printLaudoBtn">Imprimir</button>
+        <div class="card">
+          <h2>Segurança</h2>
+          <div class="form-grid">
+            <label class="field">Nova senha<input id="pwNew" type="password" minlength="6" autocomplete="new-password" /></label>
+            <label class="field">Confirmar<input id="pwNew2" type="password" minlength="6" autocomplete="new-password" /></label>
+          </div>
+          <button type="button" class="btn" id="pwBtn">Alterar Senha</button>
+          <span id="pwMsg" class="inline-msg"></span>
         </div>
       </section>
 
       <footer class="app-foot">
-        <span><strong>NeuroScore</strong> · ferramenta de apoio à correção e redação</span>
+        <span><strong>NeuroScore</strong> · apoio à correção e redação</span>
         <span class="app-foot-sep">•</span>
-        <span>Não substitui julgamento clínico. Todo laudo exige revisão e assinatura de profissional habilitado.</span>
+        <span>Não substitui julgamento clínico. Todo laudo exige revisão e assinatura profissional.</span>
       </footer>
     </main>
   </div>
@@ -181,15 +304,23 @@
 
   <div class="modal" id="evalsModal" hidden>
     <div class="modal-card">
-      <div class="modal-head">
-        <h3>Minhas avaliações</h3>
-        <button type="button" class="icon-btn" id="evalsClose" aria-label="Fechar">✕</button>
-      </div>
+      <div class="modal-head"><h3>Minhas avaliações</h3>
+        <button type="button" class="icon-btn" id="evalsClose" aria-label="Fechar">✕</button></div>
       <div class="modal-body" id="evalsList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="editModal" hidden>
+    <div class="modal-card">
+      <div class="modal-head"><h3 id="editTitle">Editar</h3>
+        <button type="button" class="icon-btn" id="editClose" aria-label="Fechar">✕</button></div>
+      <div class="modal-body" id="editBody"></div>
+      <div class="modal-foot"><button type="button" class="btn primary" id="editSave">Salvar</button></div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.6/dist/umd/supabase.js" defer></script>
   <script src="/assets/app.js" defer></script>
+  <script src="/assets/shell.js" defer></script>
 </body>
 </html>

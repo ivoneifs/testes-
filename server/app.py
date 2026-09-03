@@ -68,6 +68,23 @@ class ProfileRequest(BaseModel):
     professional_id: str|None=None
     header: str|None=None
     default_model: dict[str,Any]|None=None
+    avatar_url: str|None=None
+    prefs: dict[str,Any]|None=None
+
+class ProfessionalUpdate(BaseModel):
+    full_name: str|None=None
+    professional_id: str|None=None
+    role: str|None=None
+    status: str|None=None
+    plan: str|None=None
+    credits: int|None=None
+
+class PatientRequest(BaseModel):
+    name: str|None=None
+    birth_date: str|None=None
+    sex: str|None=None
+    education: str|None=None
+    notes: str|None=None
 
 
 def _slug(text: str) -> str:
@@ -220,6 +237,38 @@ async def profile_put(req: ProfileRequest, user: dict = Depends(current_user)):
 async def audit_get(user: dict = Depends(current_user)):
     return {'audit': await store.list_audit(user)}
 
+# ---------------- Administração: profissionais ----------------
+@app.get('/api/admin/professionals')
+async def admin_professionals(user: dict = Depends(current_user)):
+    return {'professionals': await store.list_professionals(user)}
+
+@app.put('/api/admin/professionals/{pid}')
+async def admin_professional_update(pid: str, req: ProfessionalUpdate, user: dict = Depends(current_user)):
+    return await store.admin_update_professional(user, pid, req.model_dump())
+
+@app.delete('/api/admin/professionals/{pid}')
+async def admin_professional_delete(pid: str, user: dict = Depends(current_user)):
+    await store.admin_delete_professional(user, pid)
+    return {'ok': True}
+
+# ---------------- Pacientes ----------------
+@app.get('/api/patients')
+async def patients_list(user: dict = Depends(current_user)):
+    return {'patients': await store.list_patients(user)}
+
+@app.post('/api/patients')
+async def patients_create(req: PatientRequest, user: dict = Depends(current_user)):
+    return await store.save_patient(user, req.model_dump())
+
+@app.put('/api/patients/{pid}')
+async def patients_update(pid: str, req: PatientRequest, user: dict = Depends(current_user)):
+    return await store.save_patient(user, req.model_dump(), pid)
+
+@app.delete('/api/patients/{pid}')
+async def patients_delete(pid: str, user: dict = Depends(current_user)):
+    await store.delete_patient(user, pid)
+    return {'ok': True}
+
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
 
 
@@ -242,7 +291,7 @@ def _index_html() -> Response:
         html = (STATIC/'index.html').read_text(encoding='utf-8')
     except OSError:
         raise HTTPException(500, 'index.html ausente')
-    for asset in ('app.js', 'styles.css'):
+    for asset in ('app.js', 'shell.js', 'styles.css'):
         h = _asset_hash(asset)
         if h:
             html = html.replace(f'/assets/{asset}"', f'/assets/{asset}?v={h}"')

@@ -65,7 +65,7 @@ static/
   app.js        corretor: paciente, seletor de instrumento, cálculo, gráficos SVG, IA, laudo/.docx
   shell.js      nav + router (hash), Dashboard, Pacientes, Planos, Config (tema), Admin, Conta
   styles.css    + tema escuro em :root[data-theme="dark"]
-supabase/migrations/  0001..0005 (todas RODADAS na cloud)
+supabase/migrations/  0001..0006 (todas RODADAS na cloud)
 data/neuro_normas.db  base normativa (68 MB, VERSIONADA no repo p/ o Docker) — já patcheada p/ WASI
 ```
 
@@ -95,6 +95,7 @@ Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems":
   `alter ... orders/credit_ledger alter column owner set default auth.uid()`, policies `orders_insert`/`orders_update`
 - **0004** tabela `plans` (packs editáveis pelo admin) + seed inicial/profissional/premium
 - **0005** `evaluations.patient_id` (FK patients), função `dashboard_summary()`
+- **0006** `evaluations.external_results` (jsonb) — instrumentos corrigidos fora do sistema
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
 
@@ -107,6 +108,12 @@ Auto-teste: `python -m server.self_test` → deve dar `{"tests": 62, "problems":
   estavam travados/readonly), cache-busting de assets.
 - **WASI**: as 112 fórmulas `#REF!` **corrigidas** (`scripts/repair_wasi_refs.py`, .db versionado).
   QIV/QIE/QIT-4/QIT-2 calculam certo, 0 `#REF!` visível.
+- **Outros instrumentos** (aba Laudos): campo p/ testes corrigidos FORA do sistema
+  (TAVIS, SON-R, Perfil Sensorial 2). Digita manual OU anexa o relatório já corrigido →
+  `/api/ai/external-instrument` **transcreve** (não pontua, não usa normas — guardrail no
+  prompt; se for protocolo sem correção, avisa). Entra no laudo integrado
+  (`instrumentos_externos` no payload da IA). Salvo em `evaluations.external_results`.
+  **Decisão firme:** IA não corrige teste protegido de terceiro — só o profissional pontua.
 - **Shell**: Dashboard (KPIs reais + mini-gráficos de avaliações/mês e top instrumentos +
   atividade recente clicável), Pacientes (CRUD + nº de avaliações → abre no corretor),
   História de Vida, Laudos (o corretor), Planos (lê do banco), Configurações

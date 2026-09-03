@@ -114,15 +114,16 @@ function renderInputs(){
   els.raw.innerHTML=groups.map((g,i)=>{
     const auto=g.every(f=>f.allow_override_formula);
     const title=auto
-      ? 'Automático — a planilha recalcula pelos pontos brutos (idade/sexo conforme a norma do teste)'
+      ? 'Calculado pela planilha — digite um valor apenas se quiser sobrepor'
       : (groups.length>1?`Bloco ${i+1}`:'Entrada rápida');
     const cells=g.map(f=>{
-      const a=!!f.allow_override_formula;
-      return `<div class="raw-field${a?' raw-field--auto':''}">`
+      const calc=!!f.allow_override_formula;
+      const prefill=(!calc && typeof f.current==='number')?f.current:'';
+      return `<div class="raw-field${calc?' raw-field--auto':''}">`
         +`<label>${esc(f.label)} <span class="cell-ref">${esc(f.cell)}</span></label>`
-        +`<input data-raw="${esc(f.cell)}"${a?' data-auto="1" readonly':''} inputmode="decimal" type="number" step="any"`
-        +` value="${!a&&typeof f.current==='number'?f.current:''}" placeholder="${a?'auto':'PB'}"`
-        +`${a?' title="Preenchido automaticamente ao calcular, a partir do Bloco 1 e da norma do teste."':''} /></div>`;
+        +`<input data-raw="${esc(f.cell)}"${calc?' data-calc="1"':''} inputmode="decimal" type="number" step="any"`
+        +` value="${prefill}" placeholder="${calc?'auto':'PB'}"`
+        +`${calc?' title="A planilha calcula este campo sozinha. Digite um valor para sobrepor."':''} /></div>`;
     }).join('');
     return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${title}</div><div class="raw-grid">${cells}</div></section>`;
   }).join('');
@@ -130,20 +131,33 @@ function renderInputs(){
   els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${esc(p.current??'')}" /></label>`).join('');
   els.calc.disabled=!m.raw_fields.length; els.results.hidden=true; els.testReportBtn.disabled=true;
 }
-// Campos [data-auto] (somas/índices com fórmula) nunca são enviados: a planilha
-// os recalcula sozinha pela idade e pelo sexo. Só vão pontos brutos digitados.
-function collectRaw(){const out={};document.querySelectorAll('[data-raw]:not([data-auto])').forEach(i=>{out[i.dataset.raw]=i.value===''?'':Number(i.value);});return out;}
+// Campos [data-calc] (somas/índices/totais com fórmula) são calculados pela
+// planilha por padrão e só são enviados quando a pessoa digita um valor (override).
+// Ao digitar, o campo é marcado com data-touched; ao esvaziar, volta a ser automático.
+els.raw.addEventListener('input',e=>{
+  const t=e.target; if(!t||!t.dataset||!('calc' in t.dataset)) return;
+  if(t.value==='') delete t.dataset.touched; else t.dataset.touched='1';
+});
+function collectRaw(){
+  const out={};
+  document.querySelectorAll('[data-raw]').forEach(i=>{
+    if(i.dataset.calc==='1' && i.dataset.touched!=='1') return; // deixa a planilha calcular
+    out[i.dataset.raw]=i.value===''?'':Number(i.value);
+  });
+  return out;
+}
 function collectParams(){const out={};document.querySelectorAll('[data-param]').forEach(i=>out[i.dataset.param]=i.value);return out;}
-els.clear.addEventListener('click',()=>document.querySelectorAll('[data-raw]').forEach(i=>i.value=''));
+els.clear.addEventListener('click',()=>document.querySelectorAll('[data-raw]').forEach(i=>{i.value='';delete i.dataset.touched;}));
 
-// Mostra nos campos automáticos (somas dos ponderados / índices) o valor que a
-// planilha calculou pela idade e pelo sexo. São só exibição — nunca reenviados.
+// Mostra nos campos calculados o valor que a planilha obteve — sem apagar o que a
+// pessoa digitou (campos com data-touched são preservados).
 function fillAutoFields(result){
   (result.raw_scores||[]).forEach(f=>{
     if(!f.allow_override_formula)return;
     const sel=(window.CSS&&CSS.escape)?CSS.escape(f.cell):f.cell;
-    const el=document.querySelector(`[data-raw="${sel}"][data-auto]`);
-    if(el)el.value=(typeof f.value==='number'&&Number.isFinite(f.value))?f.value:'';
+    const el=document.querySelector(`[data-raw="${sel}"][data-calc]`);
+    if(el && el.dataset.touched!=='1')
+      el.value=(typeof f.value==='number'&&Number.isFinite(f.value))?f.value:'';
   });
 }
 

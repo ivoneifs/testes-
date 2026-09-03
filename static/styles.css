@@ -239,9 +239,11 @@ h1,h2,h3,h4{letter-spacing:-.017em;font-weight:700;margin:0}
 .raw-section--auto .raw-section-title::before{content:"⚙ ";font-size:10px}
 .raw-field--auto{background:var(--surface-2)}
 .raw-field--auto label{color:var(--primary-ink)}
-.raw-field--auto input{background:#eef1f6;border-style:dashed;border-color:#c4cfe6;color:var(--ink-2);font-weight:700;cursor:not-allowed}
-.raw-field--auto input:focus{box-shadow:none;border-color:#c4cfe6}
+.raw-field--auto input{background:#f2f5fb;border-style:dashed;border-color:#c4cfe6;color:var(--ink-2)}
+.raw-field--auto input:hover{border-color:var(--primary)}
+.raw-field--auto input:focus{border-style:solid;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px var(--primary-ring)}
 .raw-field--auto input::placeholder{color:#9aa4b6;font-weight:500}
+.raw-field--auto input[data-touched="1"]{background:#fff;border-style:solid;border-color:var(--primary);color:var(--ink);font-weight:700}
 
 .parameters-panel{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface-2)}
 .parameters-panel summary{cursor:pointer;font-weight:700;font-size:12px;color:#455066}

@@ -32,6 +32,7 @@ async def create_preference(order_id: str, pack: dict, payer_email: str) -> dict
             'unit_price': round(pack['amount_cents'] / 100, 2),
         }],
         'external_reference': order_id,
+        'metadata': {'payer_email': payer_email} if payer_email else {},
         'back_urls': {
             'success': f'{PUBLIC_URL}/#planos?pago=1',
             'failure': f'{PUBLIC_URL}/#planos?pago=0',
@@ -41,8 +42,6 @@ async def create_preference(order_id: str, pack: dict, payer_email: str) -> dict
         'notification_url': f'{PUBLIC_URL}/api/webhooks/mercadopago',
         'statement_descriptor': 'NEUROSCORE',
     }
-    if payer_email and '@' in payer_email:
-        body['payer'] = {'email': payer_email}
     async with httpx.AsyncClient(timeout=20.0) as c:
         r = await c.post(f'{MP_BASE}/checkout/preferences', json=body,
                          headers={'Authorization': f'Bearer {MP_TOKEN}'})

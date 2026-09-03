@@ -36,6 +36,9 @@ alter table public.orders enable row level security;
 drop policy if exists "orders_read" on public.orders;
 create policy "orders_read" on public.orders for select
   using (owner = auth.uid() or public.is_admin());
+drop policy if exists "orders_insert" on public.orders;
+create policy "orders_insert" on public.orders for insert
+  with check (owner = auth.uid());
 drop trigger if exists t_orders_touch on public.orders;
 create trigger t_orders_touch before update on public.orders
   for each row execute function public.touch_updated_at();

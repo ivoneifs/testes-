@@ -4,7 +4,7 @@
 -- ---------------- razão dos créditos (extrato) ----------------
 create table if not exists public.credit_ledger (
   id            bigint generated always as identity primary key,
-  owner         uuid not null references auth.users(id) on delete cascade,
+  owner         uuid not null default auth.uid() references auth.users(id) on delete cascade,
   delta         integer not null,            -- +N compra / -1 laudo / +N ajuste admin
   reason        text not null,               -- purchase | laudo | admin_grant | refund
   ref           text,                        -- id do pagamento / da avaliação
@@ -21,7 +21,7 @@ create policy "credit_ledger_read" on public.credit_ledger for select
 -- ---------------- pedidos de compra ----------------
 create table if not exists public.orders (
   id           uuid primary key default gen_random_uuid(),
-  owner        uuid not null references auth.users(id) on delete cascade,
+  owner        uuid not null default auth.uid() references auth.users(id) on delete cascade,
   pack         text not null,                -- inicial | profissional | premium
   credits      integer not null,
   amount_cents integer not null,

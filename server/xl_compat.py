@@ -47,8 +47,8 @@ def patch() -> None:
     global _patched
     if _patched:
         return
-    from formulas.functions import operators as _ops, wrap_ufunc
-    from formulas.functions import Error
+    from formulas.functions import operators as _ops, wrap_ufunc, get_functions
+    from formulas.functions import FUNCTIONS, Error
 
     arith = {
         '+': lambda x, y: x + y,
@@ -60,4 +60,10 @@ def patch() -> None:
     }
     for sym, fn in arith.items():
         _ops.OPERATORS[sym] = wrap_ufunc(fn, input_parser=_num_parser)
+
+    # Funções que a `formulas` 1.3.3 não implementa e as planilhas usam.
+    FUNCTIONS['QUOTIENT'] = wrap_ufunc(
+        lambda a, b: Error.errors['#DIV/0!'] if b == 0 else int(a / b)
+    )
+    get_functions.cache_clear()
     _patched = True

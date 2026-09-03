@@ -69,6 +69,7 @@ async def save_evaluation(user: dict, payload: dict, eval_id: str | None = None)
         'test_reports': payload.get('test_reports') or [],
         'integrated_report': payload.get('integrated_report'),
         'laudo_model': payload.get('laudo_model'),
+        'external_results': payload.get('external_results') or [],
     }
     if payload.get('patient_id'):
         body['patient_id'] = payload['patient_id']

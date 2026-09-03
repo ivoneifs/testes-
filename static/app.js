@@ -8,6 +8,7 @@ const state = {
   tests: [], meta: null, result: null, results: [], anamnesis: null,
   testReports: [], integrated: null, laudoModel: null, openaiConfigured: false,
   authEnabled: false, token: '', user: null, evalId: null, sb: null,
+  externalTests: [],
 };
 
 const els = {
@@ -23,7 +24,41 @@ const els = {
   integratedBtn: $('#integratedBtn'), integratedOutput: $('#integratedOutput'),
   laudoActions: $('#laudoActions'), saveLaudoBtn: $('#saveLaudoBtn'), printLaudoBtn: $('#printLaudoBtn'),
   docxBtn: $('#docxBtn'), docxBtn2: $('#docxBtn2'),
+  externalList: $('#externalList'),
 };
+
+// ---------- Outros instrumentos (corrigidos fora do sistema) ----------
+function renderExternal(){
+  els.externalList.innerHTML=state.externalTests.map((t,i)=>`
+    <div class="external-item" data-ext="${i}">
+      <div class="external-head">
+        <input class="ext-name" data-k="nome" value="${esc(t.nome||'')}" placeholder="Nome do instrumento" />
+        <button type="button" class="btn ghost xs danger" data-ext-del="${i}">Remover</button>
+      </div>
+      <textarea class="ext-res" data-k="resultados" rows="3" placeholder="Resultados corrigidos (escores, percentis, classificações…)">${esc(t.resultados||'')}</textarea>
+      <textarea class="ext-obs" data-k="observacoes" rows="2" placeholder="Observações / interpretação (opcional)">${esc(t.observacoes||'')}</textarea>
+    </div>`).join('');
+}
+els.externalList?.addEventListener('input',e=>{
+  const item=e.target.closest('[data-ext]'); if(!item) return;
+  const i=+item.dataset.ext, k=e.target.dataset.k;
+  if(state.externalTests[i]) state.externalTests[i][k]=e.target.value;
+});
+els.externalList?.addEventListener('click',e=>{
+  const b=e.target.closest('[data-ext-del]'); if(!b) return;
+  state.externalTests.splice(+b.dataset.extDel,1); renderExternal();
+});
+document.querySelector('#externalCard')?.addEventListener('click',e=>{
+  const b=e.target.closest('[data-ext-preset]'); if(!b) return;
+  state.externalTests.push({nome:b.dataset.extPreset||'',resultados:'',observacoes:''});
+  renderExternal();
+  els.externalList.querySelector('.external-item:last-child .ext-name')?.focus();
+});
+function collectExternal(){
+  return state.externalTests
+    .map(t=>({nome:(t.nome||'').trim(),resultados:(t.resultados||'').trim(),observacoes:(t.observacoes||'').trim()}))
+    .filter(t=>t.nome && (t.resultados || t.observacoes));
+}
 
 function toast(msg, error=false){
   els.toast.textContent = msg; els.toast.className = `toast show${error?' error':''}`;
@@ -506,7 +541,7 @@ els.integratedBtn.addEventListener('click',async()=>{
     }
     // 2) laudo geral com todos os testes
     els.integratedBtn.textContent='Integrando tudo…';
-    const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,model:state.laudoModel})});
+    const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,external_results:collectExternal(),model:state.laudoModel})});
     state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);
     els.laudoActions.hidden=false;els.docxBtn.hidden=false;
     toast('Avaliação Neuropsicológica Completa gerada.');
@@ -606,7 +641,8 @@ function currentPatientId(){
 }
 function evalPayload(){
   return {patient:patient(),patient_id:currentPatientId(),results:state.results,anamnesis:state.anamnesis,
-          test_reports:state.testReports,integrated_report:state.integrated,laudo_model:state.laudoModel};
+          test_reports:state.testReports,integrated_report:state.integrated,laudo_model:state.laudoModel,
+          external_results:collectExternal()};
 }
 $('#saveEvalBtn')?.addEventListener('click',async()=>{
   const btn=$('#saveEvalBtn'); btn.disabled=true; const t=btn.textContent; btn.textContent='Salvando…';
@@ -659,6 +695,8 @@ function loadEvaluation(ev){
   state.results=ev.tests||[]; state.anamnesis=ev.anamnesis||null;
   state.testReports=ev.test_reports||[]; state.integrated=ev.integrated_report||null;
   state.laudoModel=ev.laudo_model||null; state.evalId=ev.id;
+  state.externalTests=Array.isArray(ev.external_results)?ev.external_results.map(x=>({...x})):[];
+  renderExternal();
   if(state.anamnesis){ els.anamnesisOutput.innerHTML=renderStructured(state.anamnesis); }
   if(state.laudoModel){ els.modelOutput.innerHTML=renderStructured(state.laudoModel); }
   if(state.integrated){

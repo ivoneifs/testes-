@@ -289,12 +289,14 @@ def analyze_laudo_model(files: list[tuple[str, str, bytes]]):
 
 
 def generate_integrated_report(patient: dict, anamnesis: dict | None, test_reports: list[dict],
-                               raw_results: list[dict], model: dict | None = None):
+                               raw_results: list[dict], model: dict | None = None,
+                               external_results: list[dict] | None = None):
     payload={
         'patient':patient,
         'anamnesis':anamnesis or {},
         'test_reports':test_reports,
         'quantitative_results':raw_results,
+        'instrumentos_externos':external_results or [],
     }
     instructions=(
         'Atue como assistente de redação de laudo neuropsicológico para revisão de profissional habilitado. '
@@ -320,6 +322,15 @@ def generate_integrated_report(patient: dict, anamnesis: dict | None, test_repor
         'que retome cada índice/resultado, sua classificação e o percentil, articule forças e fragilidades e '
         'relacione com a demanda e a história — no estilo de uma conclusão de laudo neuropsicológico.'
     )
+    if external_results:
+        instructions+=(
+            ' Em "instrumentos_externos" há testes corrigidos FORA deste sistema pela pessoa '
+            '(ex.: TAVIS, SON-R, Perfil Sensorial). Trate-os como fonte de dados válida: inclua '
+            'cada um em "analise_instrumentos" com uma tabela montada a partir dos campos '
+            'informados (nome, resultados, observações) e integre-os na "conclusao", nas '
+            'hipóteses e nas recomendações junto com os demais. Use SÓ os valores fornecidos; '
+            'não invente escores nem normas.'
+        )
     if model:
         payload['modelo_de_formatacao']=model
         instructions+=(

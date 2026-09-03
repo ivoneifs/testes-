@@ -48,6 +48,7 @@ class IntegratedRequest(BaseModel):
     anamnesis: dict[str,Any]|None=None
     test_reports: list[dict[str,Any]]=Field(default_factory=list)
     raw_results: list[dict[str,Any]]=Field(default_factory=list)
+    external_results: list[dict[str,Any]]=Field(default_factory=list)
     model: dict[str,Any]|None=None
 
 class IntegratedDocxRequest(BaseModel):
@@ -64,6 +65,7 @@ class EvaluationRequest(BaseModel):
     test_reports: list[dict[str,Any]]=Field(default_factory=list)
     integrated_report: dict[str,Any]|None=None
     laudo_model: dict[str,Any]|None=None
+    external_results: list[dict[str,Any]]=Field(default_factory=list)
 
 class ProfileRequest(BaseModel):
     full_name: str|None=None
@@ -207,7 +209,7 @@ async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_use
     try:
         report = await run_in_threadpool(
             generate_integrated_report, req.patient, req.anamnesis,
-            req.test_reports, req.raw_results, req.model)
+            req.test_reports, req.raw_results, req.model, req.external_results)
     except Exception as exc:
         raise HTTPException(502, str(exc))
     if auth.AUTH_ENABLED:

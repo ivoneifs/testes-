@@ -187,7 +187,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
    `order_id` (fica na URL de retorno `#planos?pago=1`). O sandbox foi impossível de testar
    (bloqueios do MP: real-account email, test-buyer login, headless, direct-API). Fallback:
    admin concede créditos manualmente.
-3. **EFA / SON-R nativos** — pediram, mas só mandaram apostila/slide de curso. Precisam da
+3. **EFA (normas) / SON-R nativos** — EFA já soma os brutos (2026-09-28); faltam as normas. Pediram, mas só mandaram apostila/slide de curso. Precisam da
    **planilha de correção** (como a do Perfil Sensorial 2) OU das **tabelas normativas**
    (EFA: manual Vetor pág. 35–46 + valor de cada resposta; SON-R: manual pág. 191–208).
    Sem isso não dá pra pontuar — segue como instrumento externo. Doc teórico/slide não serve.
@@ -225,5 +225,15 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **Aba "Geração de Laudo"** (`#geracao`): identificação + queixa/anamnese/observação + upload dos testes
   JÁ CORRIGIDOS (PDF/JPG/PNG/DOC/DOCX/XLS/XLSX) → `/api/ai/laudo-neuro` → laudo nas 14 seções de
   `server/laudo_neuro_spec.json`, com gráfico por instrumento, `.docx` e impressão/PDF. A IA só
-  transcreve escores (mesma regra dos instrumentos externos). Testado com dados fictícios: 71 s.
+  transcreve escores já corrigidos. Testado com dados fictícios: 71 s.
+- **Correção automática na Geração de Laudo** (`server/auto_score.py`): IA faz a triagem dos arquivos
+  (instrumento → nome do catálogo, corrigido / escores_brutos / sem escores); os com escores brutos
+  que existem no catálogo têm os brutos extraídos para os campos do motor e são corrigidos pelo
+  NeuroScore (normas das planilhas). Resultado vai ao laudo como `resultados_corrigidos_pelo_sistema`.
+  Precisa de nascimento + data de aplicação. Testado: WISC-IV brutos → ICV 110/IOP 106/IMO 94/IVP 103/
+  QIT 105, idêntico ao motor direto (~2 min no total).
+- **Upload de anamnese** na Geração de Laudo (`anamnese_files`): a IA escreve a seção 06 a partir dele.
+- **EFA** nativa em `scales.py` (50 itens: Social 15, Prático 24, Conceitual 11; 2/1/0, branco = não sei):
+  só somas brutas por domínio + % do máximo. **Sem classificação normativa** (faltam as tabelas do
+  manual) — o resultado diz isso. Catálogo agora = 71.
 - Não rodar Chromium/Playwright no servidor: RAM no limite, a carga foi a 600.

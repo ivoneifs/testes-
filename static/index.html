@@ -261,6 +261,7 @@
             <label class="field">CRP<input id="gl_crp" type="text" /></label>
             <label class="field span-2">Solicitante<input id="gl_solic" type="text" placeholder="Ex.: Neuropediatra, escola, família" /></label>
             <label class="field span-2">Finalidade<input id="gl_final" type="text" placeholder="Ex.: Investigação diagnóstica" /></label>
+            <label class="field">Data de aplicação<input id="gl_aplic" type="date" /></label>
             <label class="field">Data do laudo<input id="gl_data" type="date" /></label>
           </div>
         </section>
@@ -269,7 +270,14 @@
           <div class="section-heading"><div><span class="step">2</span><h2>Demanda, anamnese e observação</h2></div></div>
           <div class="gl-texts">
             <label class="field">Queixa principal<textarea id="gl_queixa" rows="3" placeholder="Queixa, contexto do encaminhamento e objetivo da avaliação"></textarea></label>
-            <label class="field">Anamnese<textarea id="gl_anamnese" rows="6" placeholder="Gestação e parto, desenvolvimento, linguagem, escola/ocupação, sono e alimentação, comportamento, socialização, autonomia, histórico familiar, medicações"></textarea></label>
+            <div class="field">Anamnese (arquivos) — a IA transcreve a história de vida
+              <label class="upload-zone gl-zone-sm" id="gl_anamZone">
+                <input id="gl_anamFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/*" />
+                <span class="upload-icon">📇</span><strong>Enviar anamnese</strong><small>PDF, JPG, PNG, DOC, DOCX</small>
+              </label>
+              <div id="gl_anamList" class="file-list"></div>
+            </div>
+            <label class="field">Anamnese (texto, opcional)<textarea id="gl_anamnese" rows="4" placeholder="Gestação e parto, desenvolvimento, linguagem, escola/ocupação, sono e alimentação, comportamento, socialização, autonomia, histórico familiar, medicações"></textarea></label>
             <label class="field">Observação clínica<textarea id="gl_obs" rows="4" placeholder="Atenção, engajamento, comunicação, contato ocular, regulação emocional, controle inibitório, comportamento motor"></textarea></label>
             <div class="form-grid gl-grid">
               <label class="field">Nº de sessões<input id="gl_sessoes" type="number" min="0" /></label>
@@ -281,7 +289,7 @@
 
         <section class="card ai-card">
           <div class="section-heading"><div><span class="step">3</span><h2>Testes aplicados</h2>
-            <span class="muted">Envie os testes já corrigidos. A IA transcreve os escores, não corrige.</span></div>
+            <span class="muted">Envie os testes. Os já corrigidos são transcritos; os com escores brutos são corrigidos pelo NeuroScore com as normas das planilhas.</span></div>
             <span class="badge ai">OpenAI</span></div>
           <label class="upload-zone" id="gl_zone">
             <input id="gl_files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,application/pdf,image/*" />
@@ -303,6 +311,7 @@
               <button type="button" class="btn primary xs" id="gl_docx">📝 .docx</button>
               <button type="button" class="btn ghost xs" id="gl_print">🖨 Imprimir / PDF</button>
             </div></div>
+          <div class="alert success" id="gl_corrigidos" hidden></div>
           <div class="alert warn" id="gl_alertas" hidden></div>
           <article class="gl-doc" id="gl_doc"></article>
         </section>

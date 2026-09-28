@@ -2,9 +2,9 @@
 
 Instrumentos de rastreamento com pontuação publicada e simples (soma de itens +
 nota de corte) — o profissional já faz essa conta à mão; aqui é só automatizado,
-igual aos instrumentos de planilha. Nada de norma proprietária: instrumentos que
-dependem de tabela normativa por idade (ex.: EFA/Vetor) NÃO entram aqui até haver
-os dados; seguem como "instrumento externo".
+igual aos instrumentos de planilha. Nada de norma proprietária: a EFA entra só com
+as somas brutas por domínio (a classificação depende das tabelas normativas do
+manual, que não temos) — o resultado diz isso explicitamente.
 
 Cada escala expõe `meta()` e `score()` no MESMO formato do WorkbookEngine, para
 o front e o /api/score não precisarem saber a diferença.
@@ -144,10 +144,86 @@ def _hads_score(patient, raw_scores):
             'profile_cells': {}, 'parameters': []}
 
 
+# ─────────────────────────── EFA ─────────────────────────────────────────────
+# Avaliação de Funcionamento Adaptativo. Cada item: 2 = sim · 1 = com ajuda ·
+# 0 = não · em branco = "não sei" (não pontua). Somas brutas por domínio.
+EFA_DOMINIOS = [
+    ('soc', 'Social', [
+        'Entende o que as pessoas falam', 'Participa de atividades de interesse', 'Entende gestos',
+        'Faz favores simples', 'Tem melhores amigos', 'Sabe se comportar socialmente',
+        'É compreendido por estranhos', 'Entende expressões figuradas', 'Oferece ajuda',
+        'Convida pares para atividades', 'Segue regras da família', 'Interação (espera a vez)',
+        'Interessa-se pelo que outros pensam', 'Controle inibitório (não grita/bate)', 'Percebe más intenções']),
+    ('pra', 'Prático', [
+        'Assoa e limpa o nariz', 'Coloca lixo no cesto', 'Sabe tomar banho', 'Escova os dentes',
+        'Veste/tira roupas', 'Usa aparelhos elétricos', 'Usa vaso sanitário', 'Lava o cabelo',
+        'Calça sapatos/cadarços', 'Guarda objetos', 'Perigo com estranhos', 'Escolhe roupa/clima',
+        'Evita perigos (rua/quente)', 'Pequenas tarefas domésticas', 'Usa faca (manteiga)',
+        'Prepara alimentos simples', 'Compra algo sozinho', 'Come com garfo e faca',
+        'Organiza rotina', 'Serve a própria comida', 'Corta carnes', 'Cuida de ferimentos leves',
+        'Estratégias para objetivos', 'Sabe telefone de familiares']),
+    ('con', 'Conceitual', [
+        'Faz dever de casa', 'Noção de tempo/horários', 'Entende regras de jogos',
+        'Placas e símbolos', 'Sabe dia da semana', 'Soma e subtração', 'Habilidades de escrita',
+        'Habilidades de leitura', 'Valor de moedas', 'Letra cursiva', 'Multiplicação e divisão']),
+]
+EFA_NAME = 'EFA – Avaliação de Funcionamento Adaptativo'
+
+
+def _efa_meta():
+    fields = []
+    for pre, dom, itens in EFA_DOMINIOS:
+        for i, item in enumerate(itens, 1):
+            fields.append({
+                'cell': f'{pre}{i}', 'label': f'{i}. {item}', 'current': '',
+                'source': 'scale-item', 'allow_override_formula': False,
+                'group': f'Domínio {dom} (2 = sim · 1 = com ajuda · 0 = não · em branco = não sei)',
+                'range': [0, 2],
+            })
+    return {
+        'name': EFA_NAME,
+        'raw_fields': fields, 'detail_fields': [], 'input_mode': 'itens',
+        'profile_cells': {}, 'parameters': [], 'tables': [], 'chart_type': 'escala',
+        'note': 'EFA: 50 itens (Social 15, Prático 24, Conceitual 11), 0–2 cada. O sistema soma os '
+                'pontos brutos por domínio; a classificação normativa exige as tabelas do manual.',
+    }
+
+
+def _efa_score(patient, raw_scores):
+    rows, applied, total, total_max, ns_total = [], [], 0, 0, 0
+    por_item = []
+    for pre, dom, itens in EFA_DOMINIOS:
+        soma, ns = 0, 0
+        for i, item in enumerate(itens, 1):
+            v = _num((raw_scores or {}).get(f'{pre}{i}'))
+            if v is None:
+                ns += 1
+                val = ''
+            else:
+                val = int(max(0, min(2, v)))
+                soma += val
+            applied.append({'cell': f'{pre}{i}', 'label': f'{i}. {item}', 'value': val,
+                            'source': 'scale-item', 'allow_override_formula': False})
+            por_item.append([dom, f'{i}. {item}', val if val != '' else 'Não sei'])
+        mx = 2 * len(itens)
+        rows.append([dom, soma, mx, f'{round(100 * soma / mx)}%', ns])
+        total, total_max, ns_total = total + soma, total_max + mx, ns_total + ns
+    rows.append(['Total', total, total_max, f'{round(100 * total / total_max)}%', ns_total])
+    result = _table('Pontuação bruta por domínio',
+                    ['Domínio', 'Pontos brutos', 'Máximo', '% do máximo', 'Itens "não sei"'], rows)
+    nota = _table('Classificação normativa', ['Observação'],
+                  [['Classificação normativa não aplicada: requer as tabelas do manual da EFA por '
+                    'faixa etária. Os valores acima são somas brutas.']])
+    itens_t = _table('Respostas por item', ['Domínio', 'Item', 'Pontos'], por_item)
+    return {'test': EFA_NAME, 'chart_type': 'escala', 'raw_scores': applied,
+            'tables': [result, nota, itens_t], 'profile_cells': {}, 'parameters': []}
+
+
 # ─────────────────────────── registro ────────────────────────────────────────
 _SCALES = {
     'ATA – Escala de Traços Autísticos': (_ata_meta, _ata_score),
     'HADS – Ansiedade e Depressão': (_hads_meta, _hads_score),
+    EFA_NAME: (_efa_meta, _efa_score),
 }
 
 

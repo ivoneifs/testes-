@@ -25,6 +25,7 @@ from .openai_service import (analyze_anamnesis, analyze_laudo_model, extract_ext
                              generate_integrated_report, generate_test_report)
 from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content
+from . import auto_score
 from .openai_service import generate_laudo_neuro
 from . import auth, payments, store, scales
 from .auth import current_user
@@ -255,12 +256,13 @@ async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_use
 # ---------------- Geração de Laudo Neuropsicológico (aba dedicada) ----------------
 @app.post('/api/ai/laudo-neuro')
 async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=File(default=[]),
+                         anamnese_files: list[UploadFile]=File(default=[]),
                          user: dict = Depends(current_user)):
     try:
         dados=json.loads(dados_json or '{}')
     except json.JSONDecodeError:
         raise HTTPException(400,'dados_json inválido')
-    items=[]
+    groups=[]
     total=0
     for f in files:
         data=await f.read()
@@ -268,21 +270,54 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
         if len(data)>25*1024*1024:
             raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
         try:
-            items.extend(file_to_content(f.filename or 'arquivo', f.content_type or '', data))
+            groups.append((f.filename or 'arquivo', file_to_content(f.filename or 'arquivo', f.content_type or '', data)))
+        except ValueError as exc:
+            raise HTTPException(415,str(exc))
+        except Exception as exc:
+            raise HTTPException(422,f'{f.filename}: não foi possível ler o arquivo ({type(exc).__name__})')
+    # anamnese: só para a história de vida (seção 06) — não passa pela triagem/motor
+    anamnese_items=[]
+    for f in anamnese_files:
+        data=await f.read()
+        total+=len(data)
+        if len(data)>25*1024*1024:
+            raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
+        try:
+            anamnese_items.extend(file_to_content(f.filename or 'anamnese', f.content_type or '', data))
         except ValueError as exc:
             raise HTTPException(415,str(exc))
         except Exception as exc:
             raise HTTPException(422,f'{f.filename}: não foi possível ler o arquivo ({type(exc).__name__})')
     if total>60*1024*1024:
         raise HTTPException(413,'Total de anexos acima de 60 MB')
+    if str(dados.get('escores_digitados') or '').strip():
+        groups.append(('escores_digitados.txt', [{'type': 'input_text', 'text':
+            '--- Arquivo: escores_digitados.txt ---\n' + str(dados['escores_digitados'])}]))
+    items=[it for _, its in groups for it in its]
     if not items and not str(dados.get('escores_digitados') or '').strip():
         raise HTTPException(400,'Envie os arquivos dos testes (ou digite os escores).')
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
         raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+    # 1) testes com escores brutos que o NeuroScore conhece: corrige pelo motor (normas das planilhas)
+    alertas_correcao, corrigidos = [], []
+    if groups:
+        try:
+            corrigidos, _triagem, alertas_correcao = await run_in_threadpool(
+                auto_score.run, engine, groups, dados.pop('paciente_motor', None) or {})
+        except Exception as exc:
+            alertas_correcao = [f'Correção automática indisponível ({type(exc).__name__}); '
+                                'o laudo usou só os escores já corrigidos nos arquivos.']
+    dados.pop('paciente_motor', None)
+    if corrigidos:
+        dados['resultados_corrigidos_pelo_sistema'] = corrigidos
+    # 2) laudo
     try:
-        laudo=await run_in_threadpool(generate_laudo_neuro, dados, items)
+        laudo=await run_in_threadpool(generate_laudo_neuro, dados, items, anamnese_items)
     except Exception as exc:
         raise HTTPException(502,str(exc))
+    laudo['alertas_para_revisao'] = alertas_correcao + list(laudo.get('alertas_para_revisao') or [])
+    laudo['correcao_automatica'] = [{'teste': c['teste'], 'escores_brutos_usados': c['escores_brutos_usados']}
+                                    for c in corrigidos]
     if auth.AUTH_ENABLED:
         try:
             await store.spend_laudo(user, (dados.get('identificacao') or {}).get('nome'))

@@ -584,3 +584,11 @@ textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ri
 #externalList:empty::after{content:"Nenhum. Use os botões acima para adicionar.";color:var(--muted);font-size:12px}
 .ext-up{position:relative;overflow:hidden;cursor:pointer}
 .ext-status:empty{display:none}
+
+/* Testes arquivados p/ a Avaliação Completa */
+.archived-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.archived-title{width:100%;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.archived-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--success-soft);font-size:12.5px}
+.archived-chip small{color:var(--success);font-weight:600}
+.archived-chip button{border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:0 4px;border-radius:50%}
+.archived-chip button:hover{color:#c0392b;background:rgba(192,57,43,.1)}

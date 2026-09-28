@@ -143,7 +143,7 @@ async function init(){
   try{
     const health=await api('/api/health'); state.openaiConfigured=health.openai_configured;
     $('#apiDot').className='status-dot ok'; $('#apiStatus').textContent=`${health.tests} instrumentos • IA ${health.openai_configured?'configurada':'sem chave'}`; $('#aiConfigNote').hidden=health.openai_configured;
-    const data=await api('/api/tests'); state.tests=data.tests; renderTestList();
+    const data=await api('/api/tests'); state.tests=data.tests; renderTestList(); renderArchive();
   }catch(e){$('#apiDot').className='status-dot bad';$('#apiStatus').textContent='Servidor indisponível';toast(e.message,true);}
   try{ if(typeof window.onSessionReady==='function') await window.onSessionReady(); }catch(e){ console.error('shell',e); }
 }
@@ -193,7 +193,7 @@ async function selectTest(name){
   }
   els.title.textContent=g?g.label:full; els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
   try{
-    state.meta=await api(`/api/tests/${encodeURIComponent(full)}`); state.result=null; renderTestList(); renderInputs();
+    state.meta=await api(`/api/tests/${encodeURIComponent(full)}`); state.result=null; renderTestList(); renderInputs(); renderArchive();
     $('#sidebar').classList.remove('open');
   }catch(e){$('#testLoading').textContent='Não foi possível preparar este teste.';toast(e.message,true);}
 }
@@ -280,10 +280,46 @@ els.calc.addEventListener('click',async()=>{
   els.calc.disabled=true;els.calc.textContent='Calculando…';
   try{
     const result=await api('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:state.meta.name,patient:p,raw_scores:collectRaw(),parameters:collectParams()})});
-    state.result=result; const ix=state.results.findIndex(x=>x.test===result.test); if(ix>=0)state.results[ix]=result;else state.results.push(result);
-    renderResults(result); fillAutoFields(result); els.testReportBtn.disabled=!state.openaiConfigured; els.integratedBtn.disabled=!state.openaiConfigured; toast('Resultados recalculados.');
+    state.result=result;
+    renderResults(result); fillAutoFields(result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); toast('Resultados recalculados. Clique em "Arquivar teste" para incluí-lo na Avaliação Completa.');
     els.results.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){toast(e.message,true);}finally{els.calc.disabled=false;els.calc.textContent='Calcular resultados';}
+});
+
+// ---------- Testes arquivados (só eles entram na Avaliação Completa) ----------
+// state.results = testes arquivados; state.result = o teste calculado na tela.
+function reportIsFor(rep,test){return !!rep.teste && String(rep.teste).toLowerCase().includes(String(test).toLowerCase());}
+function renderArchive(){
+  const cur=state.result, arch=cur&&state.results.find(x=>x.test===cur.test);
+  const btn=$('#archiveBtn');
+  if(btn){
+    btn.hidden=!cur;
+    btn.disabled=!!arch&&arch===cur;
+    btn.textContent=!arch?'📁 Arquivar teste':arch===cur?'✓ Arquivado':'📁 Atualizar arquivado';
+  }
+  $('#archivedList').innerHTML=state.results.length
+    ? `<div class="archived-title">Testes arquivados (${state.results.length})</div>`+state.results.map(r=>{
+        const done=state.testReports.some(x=>reportIsFor(x,r.test));
+        return `<span class="archived-chip">${esc(r.test)}${done?' <small>• laudo pronto</small>':''}<button type="button" data-unarchive="${esc(r.test)}" title="Remover da Avaliação Completa">×</button></span>`;
+      }).join('')
+    : '<p class="muted small">Nenhum teste arquivado. Calcule um teste e clique em "Arquivar teste".</p>';
+  els.integratedBtn.disabled=!state.openaiConfigured||(!state.results.length&&!state.anamnesis);
+}
+$('#archiveBtn').addEventListener('click',()=>{
+  const r=state.result; if(!r)return;
+  const ix=state.results.findIndex(x=>x.test===r.test);
+  if(ix>=0){
+    // valores mudaram: o laudo individual antigo não vale mais
+    state.results[ix]=r; state.testReports=state.testReports.filter(x=>!reportIsFor(x,r.test));
+    toast(`${r.test}: arquivo atualizado.`);
+  }else{ state.results.push(r); toast(`${r.test} arquivado para a Avaliação Completa.`); }
+  renderArchive();
+});
+$('#archivedList').addEventListener('click',e=>{
+  const t=e.target.closest('[data-unarchive]')?.dataset.unarchive; if(!t)return;
+  state.results=state.results.filter(x=>x.test!==t);
+  state.testReports=state.testReports.filter(x=>!reportIsFor(x,t));
+  renderArchive(); toast(`${t} removido da Avaliação Completa.`);
 });
 
 function visibleTable(table){
@@ -624,7 +660,7 @@ function renderStructured(obj){
 }
 els.testReportBtn.addEventListener('click',async()=>{
   if(!state.result)return; els.testReportBtn.disabled=true;els.testReportBtn.textContent='Gerando…';
-  try{const rep=await api('/api/ai/test-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),score_result:state.result,history:state.anamnesis})});state.testReports=state.testReports.filter(x=>x.teste!==rep.teste);state.testReports.push(rep);els.testReportOutput.innerHTML=renderStructured(rep);els.integratedBtn.disabled=false;toast('Laudo do teste gerado.');}catch(e){toast(e.message,true);}finally{els.testReportBtn.disabled=false;els.testReportBtn.textContent='Gerar laudo deste teste';}
+  try{const rep=await api('/api/ai/test-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),score_result:state.result,history:state.anamnesis})});state.testReports=state.testReports.filter(x=>x.teste!==rep.teste);state.testReports.push(rep);els.testReportOutput.innerHTML=renderStructured(rep);renderArchive();toast('Laudo do teste gerado.');}catch(e){toast(e.message,true);}finally{els.testReportBtn.disabled=false;els.testReportBtn.textContent='Gerar laudo deste teste';}
 });
 function anamnesisAlert(msg,kind='info'){
   els.anamnesisAlert.textContent=msg; els.anamnesisAlert.hidden=false;
@@ -675,19 +711,19 @@ async function ensureTestReport(result){
   state.testReports.push(rep);
 }
 els.integratedBtn.addEventListener('click',async()=>{
-  if(!state.results.length&&!state.anamnesis){toast('Calcule pelo menos um teste ou analise a anamnese.',true);return;}
+  if(!state.results.length&&!state.anamnesis){toast('Arquive pelo menos um teste ou analise a anamnese.',true);return;}
   els.integratedBtn.disabled=true; const orig='Gerar Avaliação Completa';
   try{
-    // 1) laudo de cada teste calculado que ainda não tem
-    const pend=state.results.filter(r=>!state.testReports.some(x=>x.teste&&String(x.teste).toLowerCase().includes(String(r.test).toLowerCase())));
+    // 1) laudo de cada teste arquivado que ainda não tem
+    const pend=state.results.filter(r=>!state.testReports.some(x=>reportIsFor(x,r.test)));
     for(let i=0;i<pend.length;i++){
       els.integratedBtn.textContent=`Laudo ${i+1}/${pend.length}: ${pend[i].test}…`;
       await ensureTestReport(pend[i]);
     }
-    // 2) laudo geral com todos os testes
+    // 2) laudo geral só com os testes arquivados
     els.integratedBtn.textContent='Integrando tudo…';
-    const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports,raw_results:state.results,external_results:collectExternal(),model:state.laudoModel})});
-    state.integrated=rep;els.integratedOutput.innerHTML=renderStructured(rep);
+    const rep=await api('/api/ai/integrated-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),anamnesis:state.anamnesis,test_reports:state.testReports.filter(x=>state.results.some(r=>reportIsFor(x,r.test))),raw_results:state.results,external_results:collectExternal(),model:state.laudoModel})});
+    state.integrated=rep;renderArchive();els.integratedOutput.innerHTML=renderStructured(rep);
     els.laudoActions.hidden=false;els.docxBtn.hidden=false;
     toast('Avaliação Neuropsicológica Completa gerada.');
     try{ window.afterLaudo && window.afterLaudo(); }catch{}
@@ -695,7 +731,7 @@ els.integratedBtn.addEventListener('click',async()=>{
   }catch(e){
     toast(e.message,true);
     if(/cr[eé]dito/i.test(e.message||'') && window.showView) window.showView('planos');
-  }finally{els.integratedBtn.disabled=false;els.integratedBtn.textContent=orig;}
+  }finally{els.integratedBtn.textContent=orig;renderArchive();}
 });
 
 // ---------- Salvar laudo integrado em .docx (Word) ----------
@@ -851,8 +887,9 @@ function loadEvaluation(ev){
   if(state.results.length){
     state.result=state.results[state.results.length-1];
     renderResults(state.result); fillAutoFields(state.result);
-    els.testReportBtn.disabled=!state.openaiConfigured; els.integratedBtn.disabled=!state.openaiConfigured;
+    els.testReportBtn.disabled=!state.openaiConfigured;
   }
+  renderArchive();
 }
 
 init();

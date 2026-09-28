@@ -171,7 +171,10 @@
         <section id="resultsSection" class="results-section card" hidden>
           <div class="section-heading results-head">
             <div><span class="step">3</span><h2>Resultados</h2></div>
-            <span class="badge success">Calculado pela planilha</span>
+            <div class="row-acts">
+              <span class="badge success">Calculado pela planilha</span>
+              <button type="button" class="btn primary xs" id="archiveBtn">📁 Arquivar teste</button>
+            </div>
           </div>
           <div id="chartGrid" class="chart-grid"></div>
           <div id="resultTables" class="result-tables"></div>
@@ -215,7 +218,8 @@
           </div>
           <div class="integrated-panel">
             <div><h3>Avaliação Neuropsicológica Completa</h3>
-              <p class="muted">Gera o laudo de cada teste calculado e integra tudo.</p></div>
+              <p class="muted">Gera o laudo de cada teste arquivado e integra tudo.</p>
+              <div id="archivedList" class="archived-list"></div></div>
             <div class="integrated-btns">
               <button type="button" class="btn primary" id="integratedBtn" disabled>Gerar Avaliação Completa</button>
               <button type="button" class="btn ghost" id="docxBtn" hidden>📝 .docx</button>

@@ -481,7 +481,7 @@ LAUDO_NEURO_SCHEMA = {
 }
 
 
-def generate_laudo_neuro(dados: dict, file_items: list[dict]):
+def generate_laudo_neuro(dados: dict, file_items: list[dict], anamnese_items: list[dict] | None = None):
     """dados = formulário da aba (faixa etária, identificação, queixa, anamnese,
     observação clínica, procedimentos, escores digitados). file_items = conteúdo
     já convertido dos arquivos dos testes (server/file_content.to_content)."""
@@ -492,7 +492,7 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict]):
         '01/2009, 09/2018) para revisão e assinatura da profissional responsável.\n'
         'REGRAS:\n'
         '1. Use EXCLUSIVAMENTE os dados do formulário e os resultados que constam nos arquivos anexados. '
-        'Os arquivos são testes JÁ CORRIGIDOS pela profissional: transcreva escores brutos, ponderados, '
+        'Os arquivos trazem os testes aplicados: transcreva escores brutos, ponderados, '
         'compostos, percentis e classificações exatamente como estão. NÃO calcule escores, NÃO consulte '
         'tabelas normativas, NÃO infira valores ausentes. A única classificação que você pode aplicar é a '
         '"tabela_classificacao_qi" da especificação, a um QI/índice composto que esteja no documento.\n'
@@ -515,7 +515,17 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict]):
         'restrições adicionais.\n'
         '8. Linguagem formal, clínica, fluida, em texto corrido; diferencie dados objetivos, observação '
         'clínica e integração. Sem explicações meta, sem avisos técnicos no corpo do laudo.\n'
-        '9. Em "alertas_para_revisao" (não vai para o laudo) liste para a profissional: arquivos ilegíveis, '
+        '9. Se houver "resultados_corrigidos_pelo_sistema" nos DADOS DO FORMULÁRIO: esses instrumentos foram '
+        'corrigidos pelo motor normativo do NeuroScore a partir dos escores brutos dos arquivos. Use essas '
+        'tabelas (escores padronizados, percentis, classificações) como os resultados corrigidos oficiais do '
+        'instrumento, transcrevendo os valores exatamente; ignore colunas auxiliares, vazias ou com erro. '
+        'Não recalcule nada.\n'
+        '10. DOCUMENTOS DE ANAMNESE (se anexados): leia-os e transcreva a história de vida do paciente na '
+        'seção 06, organizada pelos subitens da especificação (gestação e parto, desenvolvimento, linguagem, '
+        'escolarização/ocupação, sono e alimentação, comportamento/emocional, socialização, autonomia, '
+        'histórico familiar, medicações), em texto corrido, fiel ao documento; use também na demanda, na '
+        'integração e nas recomendações. Complementa (não substitui) a anamnese digitada.\n'
+        '11. Em "alertas_para_revisao" (não vai para o laudo) liste para a profissional: arquivos ilegíveis, '
         'protocolos sem correção, dados faltantes importantes, inconsistências entre fontes.\n\n'
         'ESPECIFICAÇÃO:\n' + json.dumps(spec, ensure_ascii=False)
     )
@@ -525,5 +535,71 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict]):
         content.append({'type': 'input_text',
                         'text': f'A seguir, {len(file_items)} item(ns) com os testes aplicados e corrigidos:'})
         content.extend(file_items)
+    if anamnese_items:
+        content.append({'type': 'input_text',
+                        'text': 'DOCUMENTOS DE ANAMNESE (história de vida do paciente — não são testes):'})
+        content.extend(anamnese_items)
     return _request([{'role': 'user', 'content': content}], 'laudo_neuropsicologico',
                     LAUDO_NEURO_SCHEMA, instructions, timeout=420.0)
+
+
+# ---- correção automática pelo motor do app (antes do laudo) ----
+def triage_instruments(file_items: list[dict], catalog: list[str]):
+    """Identifica os instrumentos nos arquivos e se já vêm corrigidos ou só com
+    escores brutos. teste_catalogo = nome exato no catálogo do NeuroScore, ou ''."""
+    schema = {
+        'type': 'object',
+        'properties': {'instrumentos': {'type': 'array', 'items': {
+            'type': 'object',
+            'properties': {
+                'instrumento': _S,
+                'teste_catalogo': {'type': 'string', 'enum': catalog + ['']},
+                'situacao': {'type': 'string', 'enum': ['corrigido', 'escores_brutos', 'protocolo_sem_escores']},
+                'arquivos': _SL,
+                'observacao': _S,
+            },
+            'required': ['instrumento', 'teste_catalogo', 'situacao', 'arquivos', 'observacao'],
+            'additionalProperties': False}}},
+        'required': ['instrumentos'], 'additionalProperties': False,
+    }
+    instructions = (
+        'Você faz a triagem de documentos de testes psicológicos. Para CADA instrumento presente nos '
+        'arquivos: (1) nome do instrumento; (2) "teste_catalogo": o nome EXATO correspondente na lista do '
+        'catálogo (mesma versão/forma/informante; ex.: WISC-IV ≠ WISC-V; ETDAH-Pais ≠ ETDAH-AD), ou "" se '
+        'não houver correspondente seguro; (3) "situacao": "corrigido" se o documento já traz escores '
+        'padronizados/ponderados/compostos, percentis ou classificações; "escores_brutos" se traz só pontos '
+        'brutos, somas ou respostas item a item pontuadas; "protocolo_sem_escores" se não há pontuação; '
+        '(4) "arquivos": os nomes dos arquivos onde ele aparece. Não invente instrumentos.'
+    )
+    content = [{'type': 'input_text', 'text': 'CATÁLOGO DO NEUROSCORE:\n' + '\n'.join(catalog)}] + file_items
+    return _request([{'role': 'user', 'content': content}], 'triagem_instrumentos', schema, instructions,
+                    timeout=240.0)
+
+
+def extract_raw_scores(test_name: str, fields: list[dict], file_items: list[dict]):
+    """Extrai do documento os escores BRUTOS de um teste, nos campos de entrada do motor."""
+    schema = {
+        'type': 'object',
+        'properties': {
+            'valores': {'type': 'array', 'items': {
+                'type': 'object', 'properties': {'campo': _S, 'valor': _S},
+                'required': ['campo', 'valor'], 'additionalProperties': False}},
+            'alertas': _SL,
+        },
+        'required': ['valores', 'alertas'], 'additionalProperties': False,
+    }
+    lines = []
+    for f in fields:
+        extra = ' · '.join(x for x in (f.get('group') or '', f"faixa {f['range'][0]}–{f['range'][1]}" if f.get('range') else '') if x)
+        lines.append(f"{f['cell']}: {f['label']}" + (f' ({extra})' if extra else ''))
+    instructions = (
+        f'Transcreva do documento os escores BRUTOS do instrumento {test_name} para os campos de entrada do '
+        'sistema de correção. "campo" = o código do campo (ex.: E10) exatamente como na lista; "valor" = o '
+        'número bruto como está no documento (use ponto decimal). Preencha só campos cujo valor esteja '
+        'escrito no documento; NÃO calcule, NÃO estime, NÃO converta escores padronizados em brutos. '
+        'Campos de texto (ex.: informante) podem receber o texto do documento. Em "alertas" liste valores '
+        'ilegíveis ou ambíguos.'
+    )
+    content = [{'type': 'input_text', 'text': f'CAMPOS DE ENTRADA DO {test_name}:\n' + '\n'.join(lines)}] + file_items
+    return _request([{'role': 'user', 'content': content}], 'escores_brutos', schema, instructions,
+                    timeout=240.0)

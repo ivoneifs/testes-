@@ -615,3 +615,4 @@ textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ri
 .gl-chart{margin:8px 0 12px}.gl-chart svg{width:100%;max-width:680px;height:auto}
 .gl-sign{text-align:center;margin-top:48px}
 @media (max-width:760px){.gl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gl-doc{padding:18px}}
+.gl-zone-sm{padding:14px;margin:6px 0 4px}

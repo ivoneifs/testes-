@@ -6,6 +6,7 @@
   const $ = (s) => document.querySelector(s);
   const AUSENTE = 'Dado não fornecido para esta avaliação.';
   let files = [];
+  let anamFiles = [];
   let laudo = null;
 
   // ---------- formulário ----------
@@ -15,7 +16,7 @@
   }
   function fmtDate(iso) { return iso ? iso.split('-').reverse().join('/') : ''; }
   function calcAge() {
-    const b = $('#gl_nasc').value, ref = $('#gl_data').value || today();
+    const b = $('#gl_nasc').value, ref = $('#gl_aplic').value || $('#gl_data').value || today();
     if (!b) return;
     const [by, bm, bd] = b.split('-').map(Number), [ry, rm, rd] = ref.split('-').map(Number);
     let y = ry - by, m = rm - bm;
@@ -26,6 +27,7 @@
   }
   $('#gl_nasc').addEventListener('change', calcAge);
   $('#gl_data').addEventListener('change', calcAge);
+  $('#gl_aplic').addEventListener('change', calcAge);
   $('#gl_nome').addEventListener('change', () => {
     const nm = $('#gl_nome').value.trim().toLowerCase();
     const p = (state.patients || []).find((x) => (x.name || '').trim().toLowerCase() === nm);
@@ -41,6 +43,7 @@
     if (!$('#gl_psi').value && p.full_name) $('#gl_psi').value = p.full_name;
     if (!$('#gl_crp').value && p.professional_id) $('#gl_crp').value = p.professional_id;
     if (!$('#gl_data').value) $('#gl_data').value = today();
+    if (!$('#gl_aplic').value) $('#gl_aplic').value = today();
   };
 
   function dados() {
@@ -58,32 +61,43 @@
       observacao_clinica: v('#gl_obs'),
       procedimentos: { numero_sessoes: v('#gl_sessoes'), duracao_sessoes: v('#gl_duracao'), outros: v('#gl_proc') },
       escores_digitados: v('#gl_escores'),
+      data_aplicacao: fmtDate(v('#gl_aplic')),
       arquivos_enviados: files.map((f) => f.name),
+      anamnese_arquivos: anamFiles.map((f) => f.name),
+      // para o motor de correção (normas por idade), datas em ISO
+      paciente_motor: { name: v('#gl_nome'), birth_date: v('#gl_nasc'), application_date: v('#gl_aplic') || v('#gl_data'),
+        sex: v('#gl_sexo'), education: v('#gl_escol') },
     };
   }
 
   // ---------- arquivos ----------
   const OK_EXT = /\.(pdf|jpe?g|png|webp|docx?|xlsx?)$/i;
-  function renderFiles() {
-    $('#gl_fileList').innerHTML = files.map((f, i) =>
+  const pills = (arr) => arr.map((f, i) =>
       `<div class="file-pill"><span>${esc(f.name)}</span><small>${(f.size / 1024 / 1024).toFixed(1)} MB</small>` +
       `<button type="button" class="btn ghost xs" data-rm="${i}" title="Remover">×</button></div>`).join('');
+  function renderFiles() {
+    $('#gl_fileList').innerHTML = pills(files);
+    $('#gl_anamList').innerHTML = pills(anamFiles);
   }
-  $('#gl_files').addEventListener('change', (e) => {
-    for (const f of e.target.files) {
-      if (!OK_EXT.test(f.name)) { toast(`${f.name}: formato não aceito.`, true); continue; }
+  function addFiles(arr, input, re) {
+    for (const f of input.files) {
+      if (!re.test(f.name)) { toast(`${f.name}: formato não aceito.`, true); continue; }
       if (f.size > 25 * 1024 * 1024) { toast(`${f.name}: acima de 25 MB.`, true); continue; }
-      if (!files.some((x) => x.name === f.name && x.size === f.size)) files.push(f);
+      if (!arr.some((x) => x.name === f.name && x.size === f.size)) arr.push(f);
     }
-    e.target.value = '';
+    input.value = '';
     renderFiles();
-  });
-  $('#gl_fileList').addEventListener('click', (e) => {
-    const i = e.target.dataset.rm;
-    if (i === undefined) return;
-    files.splice(+i, 1);
-    renderFiles();
-  });
+  }
+  $('#gl_files').addEventListener('change', (e) => addFiles(files, e.target, OK_EXT));
+  $('#gl_anamFiles').addEventListener('change', (e) => addFiles(anamFiles, e.target, /\.(pdf|jpe?g|png|webp|docx?)$/i));
+  for (const [id, arr] of [['#gl_fileList', files], ['#gl_anamList', anamFiles]]) {
+    $(id).addEventListener('click', (e) => {
+      const i = e.target.dataset.rm;
+      if (i === undefined) return;
+      arr.splice(+i, 1);
+      renderFiles();
+    });
+  }
 
   // ---------- gráfico (barras horizontais) ----------
   function chartSvg(g) {
@@ -160,6 +174,9 @@
     $('#gl_resultCard').hidden = false;
     $('#gl_doc').innerHTML = laudoHtml(laudo);
     const al = laudo.alertas_para_revisao || [];
+    const cc = laudo.correcao_automatica || [];
+    $('#gl_corrigidos').hidden = !cc.length;
+    $('#gl_corrigidos').innerHTML = cc.length ? `<div><b>Corrigidos pelo NeuroScore (normas das planilhas):</b> ${cc.map((c) => esc(c.teste)).join(', ')}</div>` : '';
     $('#gl_alertas').hidden = !al.length;
     $('#gl_alertas').innerHTML = al.length ? `<div><b>Para revisar antes de assinar:</b>${list(al)}</div>` : '';
     $('#gl_resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -171,11 +188,12 @@
     if (!$('#gl_nome').value.trim()) { toast('Informe o nome do paciente.', true); return; }
     const btn = $('#gl_gerar'), orig = btn.textContent, t0 = Date.now();
     btn.disabled = true;
-    const tick = setInterval(() => { btn.textContent = `Gerando laudo… ${Math.round((Date.now() - t0) / 1000)}s`; }, 1000);
+    const tick = setInterval(() => { btn.textContent = `Corrigindo e gerando laudo… ${Math.round((Date.now() - t0) / 1000)}s`; }, 1000);
     try {
       const fd = new FormData();
       fd.append('dados_json', JSON.stringify(dados()));
       files.forEach((f) => fd.append('files', f));
+      anamFiles.forEach((f) => fd.append('anamnese_files', f));
       laudo = await api('/api/ai/laudo-neuro', { method: 'POST', body: fd });
       showLaudo();
       toast('Laudo neuropsicológico gerado.');

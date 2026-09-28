@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -147,7 +148,8 @@ def _extract_output_text(data: dict) -> str:
     return '\n'.join(parts)
 
 
-def _request(input_items: list[dict], schema_name: str, schema: dict, instructions: str):
+def _request(input_items: list[dict], schema_name: str, schema: dict, instructions: str,
+             timeout: float = 120.0):
     payload={
         'model': _model(),
         'store': False,
@@ -162,7 +164,7 @@ def _request(input_items: list[dict], schema_name: str, schema: dict, instructio
             }
         },
     }
-    with httpx.Client(timeout=120.0) as client:
+    with httpx.Client(timeout=timeout) as client:
         resp=client.post(
             OPENAI_URL,
             headers={'Authorization':f'Bearer {_api_key()}','Content-Type':'application/json'},
@@ -402,3 +404,126 @@ def generate_integrated_report(patient: dict, anamnesis: dict | None, test_repor
         [{'role':'user','content':[{'type':'input_text','text':json.dumps(payload,ensure_ascii=False,default=str)}]}],
         'integrated_neuropsychological_report', INTEGRATED_SCHEMA, instructions
     )
+
+
+# ---------------- Geração de Laudo Neuropsicológico (aba dedicada) ----------------
+# Laudo nas 14 seções de server/laudo_neuro_spec.json, a partir dos dados digitados
+# e dos arquivos dos testes JÁ CORRIGIDOS (PDF, imagem, Word, Excel).
+
+LAUDO_SPEC_PATH = Path(__file__).with_name('laudo_neuro_spec.json')
+
+_S = {'type': 'string'}
+_SL = {'type': 'array', 'items': _S}
+LAUDO_NEURO_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'identificacao': {
+            'type': 'object',
+            'properties': {k: _S for k in (
+                'nome_paciente', 'sexo', 'idade', 'data_nascimento', 'escolaridade_ou_profissao',
+                'lateralidade', 'psicologa_responsavel', 'crp', 'solicitante', 'finalidade', 'data_laudo')},
+            'required': ['nome_paciente', 'sexo', 'idade', 'data_nascimento', 'escolaridade_ou_profissao',
+                         'lateralidade', 'psicologa_responsavel', 'crp', 'solicitante', 'finalidade', 'data_laudo'],
+            'additionalProperties': False,
+        },
+        'descricao_demanda': _S,
+        'procedimentos_realizados': _S,
+        'instrumentos_utilizados': {'type': 'array', 'items': {
+            'type': 'object',
+            'properties': {'nome': _S, 'categoria': _S, 'o_que_avalia': _S},
+            'required': ['nome', 'categoria', 'o_que_avalia'], 'additionalProperties': False}},
+        'referencial_teorico': _S,
+        'analise_anamnese': _S,
+        'observacao_clinica': _S,
+        'analise_testes': {'type': 'array', 'items': {
+            'type': 'object',
+            'properties': {
+                'instrumento': _S,
+                'o_que_o_teste_avalia': _S,
+                'tabela': {'type': 'object', 'properties': {
+                    'colunas': _SL, 'linhas': {'type': 'array', 'items': _SL}},
+                    'required': ['colunas', 'linhas'], 'additionalProperties': False},
+                'resultados_obtidos': _S,
+                'classificacao_normativa': _S,
+                'impacto_funcional': _S,
+                'integracao_clinica': _S,
+                'grafico': {'type': 'object', 'properties': {
+                    'titulo': _S, 'rotulos': _SL,
+                    'valores': {'type': 'array', 'items': {'type': 'number'}},
+                    'valor_maximo': {'type': 'number'}},
+                    'required': ['titulo', 'rotulos', 'valores', 'valor_maximo'],
+                    'additionalProperties': False},
+            },
+            'required': ['instrumento', 'o_que_o_teste_avalia', 'tabela', 'resultados_obtidos',
+                         'classificacao_normativa', 'impacto_funcional', 'integracao_clinica', 'grafico'],
+            'additionalProperties': False}},
+        'integracao_neuropsicologica': _S,
+        'impressao_diagnostica': {'type': 'object', 'properties': {
+            'texto': _S,
+            'hipoteses': {'type': 'array', 'items': {'type': 'object', 'properties': {
+                'nome': _S, 'codigo_dsm': _S, 'codigo_cid': _S, 'fundamentacao': _S},
+                'required': ['nome', 'codigo_dsm', 'codigo_cid', 'fundamentacao'],
+                'additionalProperties': False}}},
+            'required': ['texto', 'hipoteses'], 'additionalProperties': False},
+        'conclusao': _S,
+        'recomendacoes': {'type': 'object', 'properties': {
+            'escolares': _SL, 'familia': _SL, 'equipe_multidisciplinar': _SL},
+            'required': ['escolares', 'familia', 'equipe_multidisciplinar'], 'additionalProperties': False},
+        'parecer_tecnico': _S,
+        'observacao_etica_final': _S,
+        'alertas_para_revisao': _SL,
+    },
+    'required': ['identificacao', 'descricao_demanda', 'procedimentos_realizados', 'instrumentos_utilizados',
+                 'referencial_teorico', 'analise_anamnese', 'observacao_clinica', 'analise_testes',
+                 'integracao_neuropsicologica', 'impressao_diagnostica', 'conclusao', 'recomendacoes',
+                 'parecer_tecnico', 'observacao_etica_final', 'alertas_para_revisao'],
+    'additionalProperties': False,
+}
+
+
+def generate_laudo_neuro(dados: dict, file_items: list[dict]):
+    """dados = formulário da aba (faixa etária, identificação, queixa, anamnese,
+    observação clínica, procedimentos, escores digitados). file_items = conteúdo
+    já convertido dos arquivos dos testes (server/file_content.to_content)."""
+    spec = json.loads(LAUDO_SPEC_PATH.read_text(encoding='utf-8'))
+    instructions = (
+        'Você atua conforme a especificação JSON abaixo ("sistema.papel"): neuropsicóloga clínica sênior, '
+        'redigindo um Laudo Psicológico de Avaliação Neuropsicológica Completo (Resoluções CFP 06/2019, '
+        '01/2009, 09/2018) para revisão e assinatura da profissional responsável.\n'
+        'REGRAS:\n'
+        '1. Use EXCLUSIVAMENTE os dados do formulário e os resultados que constam nos arquivos anexados. '
+        'Os arquivos são testes JÁ CORRIGIDOS pela profissional: transcreva escores brutos, ponderados, '
+        'compostos, percentis e classificações exatamente como estão. NÃO calcule escores, NÃO consulte '
+        'tabelas normativas, NÃO infira valores ausentes. A única classificação que você pode aplicar é a '
+        '"tabela_classificacao_qi" da especificação, a um QI/índice composto que esteja no documento.\n'
+        '2. Campo ou seção sem dado: escreva exatamente "Dado não fornecido para esta avaliação."\n'
+        '3. Siga as 14 seções de "estrutura_do_laudo" e a ênfase de "diferenciacoes_por_faixa_etaria" '
+        'conforme a faixa etária informada.\n'
+        '4. Seção 04: liste só instrumentos efetivamente aplicados (presentes nos arquivos ou nos escores '
+        'digitados), com a categoria e o que avalia conforme a especificação.\n'
+        '5. Seção 08 (analise_testes): um item por instrumento, com os 5 campos obrigatórios, uma tabela com '
+        'TODOS os escores do documento (cada linha = array de strings na ordem das colunas) e, quando houver '
+        'escores numéricos comparáveis (índices, percentis, escores T), um gráfico: rótulos + valores + '
+        'valor_maximo da escala (ex.: 160 para QI, 100 para percentil). Sem dado para gráfico: rotulos e '
+        'valores vazios e valor_maximo 0. Para WISC/WAIS use os índices e construtos da especificação; para '
+        'CARS/PROTEA-R/SRS-2 inclua nível de suporte e repercussões sociais e adaptativas quando os dados permitirem.\n'
+        '6. Seção 10: hipóteses só quando os dados sustentarem, sempre condicionais, com códigos DSM-5-TR e '
+        'CID-10 e a nota de cautela. Sem sustentação: hipoteses vazio e texto explicando que os achados não '
+        'configuram hipótese diagnóstica. Nunca contradiga os resultados psicométricos.\n'
+        '7. Seção 11: inclua a nota_obrigatoria. Seção 12: recomendações escolares só para criança/adolescente '
+        '(adulto: array vazio); individualize ao caso, sem listas genéricas. Seção 14: texto_obrigatorio + '
+        'restrições adicionais.\n'
+        '8. Linguagem formal, clínica, fluida, em texto corrido; diferencie dados objetivos, observação '
+        'clínica e integração. Sem explicações meta, sem avisos técnicos no corpo do laudo.\n'
+        '9. Em "alertas_para_revisao" (não vai para o laudo) liste para a profissional: arquivos ilegíveis, '
+        'protocolos sem correção, dados faltantes importantes, inconsistências entre fontes.\n\n'
+        'ESPECIFICAÇÃO:\n' + json.dumps(spec, ensure_ascii=False)
+    )
+    content = [{'type': 'input_text',
+                'text': 'DADOS DO FORMULÁRIO:\n' + json.dumps(dados, ensure_ascii=False, indent=1)}]
+    if file_items:
+        content.append({'type': 'input_text',
+                        'text': f'A seguir, {len(file_items)} item(ns) com os testes aplicados e corrigidos:'})
+        content.extend(file_items)
+    return _request([{'role': 'user', 'content': content}], 'laudo_neuropsicologico',
+                    LAUDO_NEURO_SCHEMA, instructions, timeout=420.0)

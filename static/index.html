@@ -26,6 +26,7 @@
         <a class="nav-item" data-view="pacientes" href="#pacientes"><i>👥</i><span>Pacientes</span></a>
         <a class="nav-item" data-view="historia" href="#historia"><i>📇</i><span>História de Vida</span></a>
         <a class="nav-item" data-view="laudos" href="#laudos"><i>📄</i><span>Laudos</span></a>
+        <a class="nav-item" data-view="geracao" href="#geracao"><i>🧠</i><span>Geração de Laudo</span></a>
         <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
         <a class="nav-item" data-view="config" href="#config"><i>⚙</i><span>Configurações</span></a>
         <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span></a>
@@ -241,6 +242,72 @@
         </div>
       </section>
 
+      <!-- ================= GERAÇÃO DE LAUDO NEUROPSICOLÓGICO ================= -->
+      <section class="view" id="view-geracao" hidden>
+        <section class="card">
+          <div class="section-heading">
+            <div><span class="step">1</span><h2>Identificação</h2></div>
+            <span class="muted">Campo em branco sai no laudo como "Dado não fornecido para esta avaliação."</span>
+          </div>
+          <div class="form-grid gl-grid">
+            <label class="field">Faixa etária<select id="gl_faixa"><option value="">Selecione</option><option>Criança</option><option>Adolescente</option><option>Adulto</option></select></label>
+            <label class="field span-2">Nome do paciente<input id="gl_nome" type="text" list="patientOptions" /></label>
+            <label class="field">Sexo<select id="gl_sexo"><option value="">Selecione</option><option>Feminino</option><option>Masculino</option></select></label>
+            <label class="field">Data de nascimento<input id="gl_nasc" type="date" /></label>
+            <label class="field">Idade<input id="gl_idade" type="text" placeholder="automática" /></label>
+            <label class="field span-2">Escolaridade / Profissão<input id="gl_escol" type="text" /></label>
+            <label class="field">Lateralidade<select id="gl_lat"><option value="">Selecione</option><option>Destro</option><option>Canhoto</option><option>Ambidestro</option></select></label>
+            <label class="field span-2">Psicóloga responsável<input id="gl_psi" type="text" /></label>
+            <label class="field">CRP<input id="gl_crp" type="text" /></label>
+            <label class="field span-2">Solicitante<input id="gl_solic" type="text" placeholder="Ex.: Neuropediatra, escola, família" /></label>
+            <label class="field span-2">Finalidade<input id="gl_final" type="text" placeholder="Ex.: Investigação diagnóstica" /></label>
+            <label class="field">Data do laudo<input id="gl_data" type="date" /></label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-heading"><div><span class="step">2</span><h2>Demanda, anamnese e observação</h2></div></div>
+          <div class="gl-texts">
+            <label class="field">Queixa principal<textarea id="gl_queixa" rows="3" placeholder="Queixa, contexto do encaminhamento e objetivo da avaliação"></textarea></label>
+            <label class="field">Anamnese<textarea id="gl_anamnese" rows="6" placeholder="Gestação e parto, desenvolvimento, linguagem, escola/ocupação, sono e alimentação, comportamento, socialização, autonomia, histórico familiar, medicações"></textarea></label>
+            <label class="field">Observação clínica<textarea id="gl_obs" rows="4" placeholder="Atenção, engajamento, comunicação, contato ocular, regulação emocional, controle inibitório, comportamento motor"></textarea></label>
+            <div class="form-grid gl-grid">
+              <label class="field">Nº de sessões<input id="gl_sessoes" type="number" min="0" /></label>
+              <label class="field">Duração das sessões<input id="gl_duracao" type="text" placeholder="Ex.: 50 min" /></label>
+              <label class="field span-2">Outros procedimentos<input id="gl_proc" type="text" placeholder="Ex.: rapport, hora do jogo, entrevista com a escola" /></label>
+            </div>
+          </div>
+        </section>
+
+        <section class="card ai-card">
+          <div class="section-heading"><div><span class="step">3</span><h2>Testes aplicados</h2>
+            <span class="muted">Envie os testes já corrigidos. A IA transcreve os escores, não corrige.</span></div>
+            <span class="badge ai">OpenAI</span></div>
+          <label class="upload-zone" id="gl_zone">
+            <input id="gl_files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,application/pdf,image/*" />
+            <span class="upload-icon">⇧</span><strong>Selecionar arquivos dos testes</strong>
+            <small>PDF, JPG, PNG, DOC, DOCX, XLS, XLSX — até 25 MB cada</small>
+          </label>
+          <div id="gl_fileList" class="file-list"></div>
+          <label class="field">Escores digitados (opcional)<textarea id="gl_escores" rows="3" placeholder="Ex.: WISC-IV: ICV 95, IOP 88, IMO 79, IVP 84, QIT 85"></textarea></label>
+          <div class="gl-actions">
+            <button type="button" class="btn primary" id="gl_gerar">🧠 Gerar Laudo Neuropsicológico</button>
+            <span class="muted small">Consome 1 crédito.</span>
+          </div>
+        </section>
+
+        <section class="card" id="gl_resultCard" hidden>
+          <div class="section-heading"><div><span class="step">4</span><h2>Laudo gerado</h2>
+            <span class="muted">Revise antes de assinar. O texto clínico exige revisão de profissional habilitado.</span></div>
+            <div class="row-acts">
+              <button type="button" class="btn primary xs" id="gl_docx">📝 .docx</button>
+              <button type="button" class="btn ghost xs" id="gl_print">🖨 Imprimir / PDF</button>
+            </div></div>
+          <div class="alert warn" id="gl_alertas" hidden></div>
+          <article class="gl-doc" id="gl_doc"></article>
+        </section>
+      </section>
+
       <!-- ================= PLANOS ================= -->
       <section class="view" id="view-planos" hidden>
         <div class="planos-head">
@@ -362,5 +429,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.6/dist/umd/supabase.js" defer></script>
   <script src="/assets/app.js" defer></script>
   <script src="/assets/shell.js" defer></script>
+  <script src="/assets/laudo.js" defer></script>
 </body>
 </html>

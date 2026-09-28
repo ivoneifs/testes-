@@ -254,3 +254,151 @@ def build_integrated_docx(patient: dict, report: dict, tests: list[str] | None =
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
+
+# ---------------- Laudo Neuropsicológico (aba "Geração de Laudo") ----------------
+AUSENTE = "Dado não fornecido para esta avaliação."
+
+IDENT_LABELS = [
+    ("nome_paciente", "Nome"), ("sexo", "Sexo"), ("idade", "Idade"),
+    ("data_nascimento", "Data de nascimento"), ("escolaridade_ou_profissao", "Escolaridade / Profissão"),
+    ("lateralidade", "Lateralidade"), ("psicologa_responsavel", "Psicóloga responsável"), ("crp", "CRP"),
+    ("solicitante", "Solicitante"), ("finalidade", "Finalidade"), ("data_laudo", "Data do laudo"),
+]
+
+
+def _kv_table(doc: Document, rows: list) -> None:
+    table = doc.add_table(rows=len(rows), cols=2)
+    table.style = "Table Grid"
+    for (label, value), row in zip(rows, table.rows):
+        c0, c1 = row.cells
+        r = c0.paragraphs[0].add_run(label)
+        r.bold = True
+        r.font.size = Pt(10)
+        c1.paragraphs[0].add_run(_clean(value) or AUSENTE).font.size = Pt(10)
+    doc.add_paragraph()
+
+
+def _sub(doc: Document, text: str) -> None:
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(2)
+    r = p.add_run(text)
+    r.bold = True
+    r.font.size = Pt(11)
+
+
+def _chart_for(doc: Document, charts: list, instrumento: str) -> None:
+    for c in charts or []:
+        if _clean(c.get("test")) == instrumento:
+            _charts_section(doc, [c])
+
+
+def build_laudo_neuro_docx(laudo: dict, charts: list | None = None) -> bytes:
+    laudo = laudo or {}
+    doc = Document()
+    _style(doc)
+    sec = doc.sections[0]
+    sec.left_margin = sec.right_margin = Pt(64)
+    sec.top_margin = sec.bottom_margin = Pt(56)
+
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    tr = title.add_run("LAUDO PSICOLÓGICO DE AVALIAÇÃO NEUROPSICOLÓGICA")
+    tr.bold = True
+    tr.font.size = Pt(15)
+    tr.font.color.rgb = INK
+    title.paragraph_format.space_after = Pt(14)
+
+    ident = laudo.get("identificacao") or {}
+    _heading(doc, "1. Identificação")
+    _kv_table(doc, [(label, ident.get(key)) for key, label in IDENT_LABELS])
+
+    _heading(doc, "2. Descrição da demanda")
+    _body(doc, laudo.get("descricao_demanda") or AUSENTE)
+    _heading(doc, "3. Procedimentos realizados")
+    _body(doc, laudo.get("procedimentos_realizados") or AUSENTE)
+
+    _heading(doc, "4. Instrumentos utilizados")
+    instr = [i for i in laudo.get("instrumentos_utilizados") or [] if isinstance(i, dict)]
+    if instr:
+        _data_table(doc, ["Instrumento", "Categoria", "O que avalia"],
+                    [[i.get("nome"), i.get("categoria"), i.get("o_que_avalia")] for i in instr])
+    else:
+        _body(doc, AUSENTE)
+
+    _heading(doc, "5. Referencial teórico")
+    _body(doc, laudo.get("referencial_teorico") or AUSENTE)
+    _heading(doc, "6. Análise da anamnese")
+    _body(doc, laudo.get("analise_anamnese") or AUSENTE)
+    _heading(doc, "7. Observação clínica")
+    _body(doc, laudo.get("observacao_clinica") or AUSENTE)
+
+    _heading(doc, "8. Análise e interpretação dos testes")
+    testes = [t for t in laudo.get("analise_testes") or [] if isinstance(t, dict)]
+    if not testes:
+        _body(doc, AUSENTE)
+    for t in testes:
+        nome = _clean(t.get("instrumento"))
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(10)
+        r = p.add_run(nome)
+        r.bold = True
+        r.font.size = Pt(11.5)
+        r.font.color.rgb = ACCENT
+        _sub(doc, "O que o teste avalia")
+        _body(doc, t.get("o_que_o_teste_avalia"))
+        tab = t.get("tabela") or {}
+        _data_table(doc, tab.get("colunas"), tab.get("linhas"))
+        _chart_for(doc, charts, nome)
+        for key, label in (("resultados_obtidos", "Resultados obtidos"),
+                           ("classificacao_normativa", "Classificação normativa"),
+                           ("impacto_funcional", "Impacto funcional"),
+                           ("integracao_clinica", "Integração clínica")):
+            if _clean(t.get(key)):
+                _sub(doc, label)
+                _body(doc, t.get(key))
+
+    _heading(doc, "9. Integração neuropsicológica")
+    _body(doc, laudo.get("integracao_neuropsicologica") or AUSENTE)
+
+    _heading(doc, "10. Impressão diagnóstica")
+    imp = laudo.get("impressao_diagnostica") or {}
+    _body(doc, imp.get("texto") or AUSENTE)
+    hip = [h for h in imp.get("hipoteses") or [] if isinstance(h, dict)]
+    if hip:
+        _data_table(doc, ["Hipótese", "DSM-5-TR", "CID-10", "Fundamentação"],
+                    [[h.get("nome"), h.get("codigo_dsm"), h.get("codigo_cid"), h.get("fundamentacao")] for h in hip])
+
+    _heading(doc, "11. Conclusão")
+    _body(doc, laudo.get("conclusao") or AUSENTE)
+
+    _heading(doc, "12. Recomendações")
+    rec = laudo.get("recomendacoes") or {}
+    for key, label in (("escolares", "Escolares"), ("familia", "Família"),
+                       ("equipe_multidisciplinar", "Equipe multidisciplinar")):
+        if rec.get(key):
+            _sub(doc, label)
+            _bullets(doc, rec.get(key))
+
+    _heading(doc, "13. Parecer técnico")
+    _body(doc, laudo.get("parecer_tecnico") or AUSENTE)
+    _heading(doc, "14. Observação ética final")
+    _body(doc, laudo.get("observacao_etica_final"))
+
+    # assinatura
+    doc.add_paragraph()
+    doc.add_paragraph()
+    for text, bold in (("_" * 42, False), (_clean(ident.get("psicologa_responsavel")), True),
+                       (("CRP " + _clean(ident.get("crp"))) if _clean(ident.get("crp")) else "", False)):
+        if not text:
+            continue
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.paragraph_format.space_after = Pt(0)
+        run = p.add_run(text)
+        run.bold = bold
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

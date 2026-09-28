@@ -13,7 +13,7 @@ Supabase (Auth/Postgres) + OpenAI + Mercado Pago.
 | Produção | `https://neuro-testes.appsbrasil.store` |
 | Repo (público) | `github.com/ivoneifs/testes-` — branch `main` |
 | Deploy | Coolify — painel `painel.appsbrasil.store`, API `/api/v1`, app uuid `qnmeoeu38cuk8l19jpypf4q9` (nome `neuroscore`, Dockerfile, ~2 min) |
-| Banco / Auth | Supabase **Cloud** projeto `jqmfcqbblrqtmlzpxbud` (NÃO é o `neuropsi-postgres` do Coolify, que está solto) |
+| Banco / Auth | Supabase **self-hosted no Coolify** desde 2026-09-28: serviço `f13s4ssiztp71d8f8d4g2d4y` (só db/auth/rest/kong, por falta de RAM), URL `https://supabase-neuro.appsbrasil.store`. O Cloud `jqmfcqbblrqtmlzpxbud` sumiu (dados antigos não recuperados). Migração: `docker exec -i supabase-db-f13s4ssiztp71d8f8d4g2d4y psql -U postgres < arquivo.sql` |
 | Admin mestre | `ivoneifs@gmail.com` — `profiles.role = 'admin'` → créditos ilimitados |
 
 ### Segredos (o usuário fornece por sessão — nunca commitar)
@@ -65,7 +65,9 @@ server/
   store.py           PostgREST c/ JWT do usuário + helpers service-role (admin, webhook, planos)
   payments.py        Mercado Pago Checkout Pro (preference + consulta de pagamento)
   openai_service.py  laudos / anamnese / modelo (Responses API)
-  docx_report.py     laudo integrado .docx (Times New Roman 12 justificado)
+  docx_report.py     laudo integrado .docx (Times New Roman 12 justificado) + build_laudo_neuro_docx
+  file_content.py    upload → conteúdo OpenAI: PDF/imagem direto; DOCX/XLSX/XLS/DOC viram texto
+  laudo_neuro_spec.json  especificação das 14 seções do Laudo Neuropsicológico (vai no prompt)
 scripts/
   repair_wasi_refs.py   conserta os #REF! da aba WASI no .db (rodar SEMPRE após
                         `python -m server.build_db`)
@@ -74,8 +76,9 @@ static/
   index.html    shell com todas as views (Dashboard/Pacientes/História/Laudos/Planos/Config/Admin/Conta)
   app.js        corretor: paciente, seletor de instrumento, cálculo, gráficos SVG, IA, laudo/.docx
   shell.js      nav + router (hash), Dashboard, Pacientes, Planos, Config (tema), Admin, Conta
+  laudo.js      aba "Geração de Laudo" (#geracao): formulário + upload dos testes → laudo 14 seções
   styles.css    + tema escuro em :root[data-theme="dark"]
-supabase/migrations/  0001..0006 (todas RODADAS na cloud)
+supabase/migrations/  0001..0007 (todas rodadas no Supabase self-hosted)
 data/neuro_normas.db  base normativa (~68 MB, VERSIONADA no repo p/ o Docker) — já
                       patcheada p/ WASI; inclui as 6 abas do Perfil Sensorial 2
 data/Perfil Sensorial 2-0 correcao excel.xlsx  workbook extra (git-ignored por *.xlsx);
@@ -99,6 +102,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - `POST /api/ai/test-report` `/api/ai/anamnesis` `/api/ai/laudo-model` `/api/ai/integrated-report`
   (o integrado **consome 1 crédito**; 402 se zerado e não-admin)
 - `POST /api/laudo/integrated-docx`
+- `POST /api/ai/laudo-neuro` (multipart `dados_json` + `files`; **consome 1 crédito**) · `POST /api/laudo/neuro-docx`
 - `GET/POST/PUT/DELETE /api/evaluations[/{id}]` (`?patient=<id>` filtra) · `GET/PUT /api/profile`
 - `GET/POST/PUT/DELETE /api/patients[/{id}]` · `GET /api/dashboard` · `GET /api/audit`
 - `GET /api/plans` · `GET/POST/PUT/DELETE /api/admin/professionals[/{id}]` ·
@@ -115,6 +119,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **0004** tabela `plans` (packs editáveis pelo admin) + seed inicial/profissional/premium
 - **0005** `evaluations.patient_id` (FK patients), função `dashboard_summary()`
 - **0006** `evaluations.external_results` (jsonb) — instrumentos corrigidos fora do sistema
+- **0007** trigger `t_profiles_protect`: só admin (ou security definer/service_role) altera role/status/plan/credits
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
 
@@ -212,3 +217,13 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - Supabase Management API só responde com **User-Agent de navegador** (senão Cloudflare 403).
 - `git push` via Bash às vezes é bloqueado pelo classificador → tentar de novo ou GitKraken MCP.
 - `psql` direto no Supabase Cloud não dá (sem a senha do banco) — usar a Management API.
+
+## Sessão 2026-09-28
+
+- Supabase migrado para self-hosted (ver "Onde roda"). Admin recriado: `ivoneifs@gmail.com`.
+- **Laudos**: botão "Arquivar teste" — só os arquivados entram na Avaliação Completa (`state.results` = arquivados).
+- **Aba "Geração de Laudo"** (`#geracao`): identificação + queixa/anamnese/observação + upload dos testes
+  JÁ CORRIGIDOS (PDF/JPG/PNG/DOC/DOCX/XLS/XLSX) → `/api/ai/laudo-neuro` → laudo nas 14 seções de
+  `server/laudo_neuro_spec.json`, com gráfico por instrumento, `.docx` e impressão/PDF. A IA só
+  transcreve escores (mesma regra dos instrumentos externos). Testado com dados fictícios: 71 s.
+- Não rodar Chromium/Playwright no servidor: RAM no limite, a carga foi a 600.

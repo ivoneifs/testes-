@@ -23,7 +23,9 @@ load_dotenv(ROOT/'.env')
 from .workbook_engine import WorkbookEngine
 from .openai_service import (analyze_anamnesis, analyze_laudo_model, extract_external_instrument,
                              generate_integrated_report, generate_test_report)
-from .docx_report import build_integrated_docx
+from .docx_report import build_integrated_docx, build_laudo_neuro_docx
+from .file_content import to_content as file_to_content
+from .openai_service import generate_laudo_neuro
 from . import auth, payments, store, scales
 from .auth import current_user
 
@@ -250,6 +252,64 @@ async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_use
             pass
     return report
 
+# ---------------- Geração de Laudo Neuropsicológico (aba dedicada) ----------------
+@app.post('/api/ai/laudo-neuro')
+async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=File(default=[]),
+                         user: dict = Depends(current_user)):
+    try:
+        dados=json.loads(dados_json or '{}')
+    except json.JSONDecodeError:
+        raise HTTPException(400,'dados_json inválido')
+    items=[]
+    total=0
+    for f in files:
+        data=await f.read()
+        total+=len(data)
+        if len(data)>25*1024*1024:
+            raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
+        try:
+            items.extend(file_to_content(f.filename or 'arquivo', f.content_type or '', data))
+        except ValueError as exc:
+            raise HTTPException(415,str(exc))
+        except Exception as exc:
+            raise HTTPException(422,f'{f.filename}: não foi possível ler o arquivo ({type(exc).__name__})')
+    if total>60*1024*1024:
+        raise HTTPException(413,'Total de anexos acima de 60 MB')
+    if not items and not str(dados.get('escores_digitados') or '').strip():
+        raise HTTPException(400,'Envie os arquivos dos testes (ou digite os escores).')
+    if auth.AUTH_ENABLED and not await store.can_laudo(user):
+        raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+    try:
+        laudo=await run_in_threadpool(generate_laudo_neuro, dados, items)
+    except Exception as exc:
+        raise HTTPException(502,str(exc))
+    if auth.AUTH_ENABLED:
+        try:
+            await store.spend_laudo(user, (dados.get('identificacao') or {}).get('nome'))
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    return laudo
+
+class LaudoNeuroDocxRequest(BaseModel):
+    laudo: dict[str,Any]
+    charts: list[dict[str,Any]]=Field(default_factory=list)
+
+@app.post('/api/laudo/neuro-docx')
+def laudo_neuro_docx(req: LaudoNeuroDocxRequest, user: dict = Depends(current_user)):
+    try:
+        data=build_laudo_neuro_docx(req.laudo,req.charts)
+    except Exception as exc:
+        raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
+    nome=(req.laudo.get('identificacao') or {}).get('nome_paciente','')
+    name=f"laudo_neuropsicologico_{_slug(nome)}_{date.today().isoformat()}.docx"
+    return Response(
+        content=data,
+        media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        headers={'Content-Disposition': f'attachment; filename="{name}"'},
+    )
+
 @app.post('/api/laudo/integrated-docx')
 def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(current_user)):
     if not req.report:
@@ -410,7 +470,7 @@ def _index_html() -> Response:
         html = (STATIC/'index.html').read_text(encoding='utf-8')
     except OSError:
         raise HTTPException(500, 'index.html ausente')
-    for asset in ('app.js', 'shell.js', 'styles.css'):
+    for asset in ('app.js', 'shell.js', 'laudo.js', 'styles.css'):
         h = _asset_hash(asset)
         if h:
             html = html.replace(f'/assets/{asset}"', f'/assets/{asset}?v={h}"')

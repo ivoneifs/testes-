@@ -16,10 +16,10 @@
   try { applyTheme(localStorage.getItem(THEME_KEY) || 'system'); } catch { applyTheme('system'); }
 
   // ---------------- Views / navegação ----------------
-  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'planos', 'config', 'admin', 'conta'];
+  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'geracao', 'planos', 'config', 'admin', 'conta'];
   const TITLES = {
     dashboard: 'Dashboard', pacientes: 'Pacientes', historia: 'História de Vida',
-    laudos: 'Laudos', planos: 'Planos e Recargas', config: 'Configurações',
+    laudos: 'Laudos', geracao: 'Geração de Laudo Neuropsicológico', planos: 'Planos e Recargas', config: 'Configurações',
     admin: 'Administração', conta: 'Minha Conta',
   };
   let currentView = null;
@@ -436,6 +436,7 @@
   const VIEW_LOADERS = {
     dashboard: loadDashboard, pacientes: loadPatients, planos: loadPlanos,
     admin: loadAdmin, conta: fillConta,
+    geracao: () => window.glOnShow && window.glOnShow(),
   };
 
   // ---------------- Boot (chamado por app.js após auth) ----------------

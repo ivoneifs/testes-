@@ -392,7 +392,7 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
                 dados['historia_de_vida_salva']={'historia_modelo':res.get('historia_modelo'),'resumo':res.get('resumo'),
                                                  'historia_de_vida':res.get('historia_de_vida')}
             elif (r.get('result') or {}).get('tables'):
-                salvos.append({'teste':r['test'],'origem':'Testes realizados (corrigido pelo NeuroScore)',
+                salvos.append({'teste':vineland.display_name(r['test']),'origem':'Testes realizados (corrigido pelo NeuroScore)',
                                'escores_brutos_usados':vineland.split_inputs((r.get('inputs') or {}).get('raw_scores') or {}),
                                'tabelas_corrigidas':auto_score._compact(r['result']['tables'])})
     if dados.get('tipo_laudo')=='teste_isolado':

@@ -62,7 +62,7 @@
     const ord = [...saved].sort((a, b) => (b.test === HV) - (a.test === HV));
     $('#gl_saved').innerHTML = ord.map(r => `<label class="gl-saved-item${sel.has(r.id) ? ' on' : ''}">
       <input type="checkbox" data-gl-saved="${r.id}"${sel.has(r.id) ? ' checked' : ''}>
-      <span>${r.test === HV ? '📇 ' : '🧪 '}<b>${esc(r.test)}</b><small>${new Date(r.updated_at).toLocaleDateString('pt-BR')}</small></span></label>`).join('');
+      <span>${r.test === HV ? '📇 ' : '🧪 '}<b>${esc(window.NS?.testLabel ? window.NS.testLabel(r.test) : r.test)}</b><small>${new Date(r.updated_at).toLocaleDateString('pt-BR')}</small></span></label>`).join('');
   }
   $('#gl_saved').addEventListener('change', (e) => {
     const c = e.target.closest('[data-gl-saved]'); if (!c) return;

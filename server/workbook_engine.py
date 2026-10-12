@@ -1043,10 +1043,10 @@ class WorkbookEngine:
             if vineland.is_form(canonical):
                 # Vineland-3: itens por número (sem o texto da Pearson); a tela soma com
                 # basal/teto e a planilha recebe só os brutos de cada subdomínio.
-                meta['raw_fields']=vineland.raw_fields()
+                meta['raw_fields']=vineland.raw_fields(canonical)
                 meta['detail_fields']=[]
                 meta['parameters']=vineland.parameters(canonical)
-                meta['extra_inputs']=list(vineland.CRITICOS)
+                meta['extra_inputs']=list(vineland.FORMS[canonical]['criticos'])
                 meta['vineland']=vineland.layout(canonical)
                 meta['note']=('Vineland-3 — marque 2 / 1 / 0 pelo número do item, lendo o seu protocolo impresso. '
                               'O sistema aplica basal e teto, soma os brutos e a planilha corrige.')
@@ -1068,7 +1068,7 @@ class WorkbookEngine:
         sheet=meta['name']
         if meta.get('vineland'):
             raw_scores=vineland.split_inputs(raw_scores)
-            parameters=vineland.coerce_params(parameters)
+            parameters=vineland.coerce_params(sheet,parameters)
         version=hash(json.dumps([patient,raw_scores,parameters or {}],sort_keys=True,default=str)) & 0x7FFFFFFF
         overrides={'__version__':version}
         def put_sheet(target_sheet, addr, val):

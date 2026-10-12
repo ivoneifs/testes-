@@ -324,3 +324,12 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   reabrir em Testes realizados; `build_overrides` descarta essas chaves.
 - `L54` (intervalo de confiança 85/90/95) virou parâmetro (padrão 95): **sem ele a planilha não calcula domínios/CCA**.
   `R3` = respondente. self_test 68/0.
+- **6 formas num só item "Vineland-3"** da lista, com seletor de forma (`TEST_GROUPS` em app.js, igual ao Perfil
+  Sensorial 2). Ordem: Entrevista Extensivo, Entrevista Nível de Domínio, Pais Extensivo, Pais Nível de Domínio,
+  Professores Extensivo, Professores Nível de Domínio. `vineland.FORMS` guarda por aba: subdomínios, célula do intervalo
+  de confiança (Extensivo L54 / Domínio L19), mal-adaptativo e células dos críticos (Ext 20 ou 17 do Professor; Domínio 11 em M/O/Q46–49).
+- Professor Extensivo (folha da 2ª pasta do Drive): rec 30, exp 36, esc 36, pes 24, num 23 (célula H32), cme 22 (H35),
+  rin 31, bri 19, enf 25, cmg 21, cmf 26. A página do Mal-adaptativo A/B (P18) não veio, então o bruto é digitado.
+- Seção com `itens=None` = a folha ainda não veio, e a tela pede o bruto digitado. É o caso das 3 formas de **Nível de
+  Domínio** (bruto por domínio em H20/H23/H26/H33, mal-adaptativo em H46/H48) e do mal-adaptativo do Professor. Quando
+  as folhas chegarem, basta preencher `itens`/`inicio` em `vineland.py`.

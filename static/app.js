@@ -156,33 +156,44 @@ async function init(){
   try{ if(typeof window.onSessionReady==='function') await window.onSessionReady(); }catch(e){ console.error('shell',e); }
 }
 // helpers reaproveitados pelo shell
-window.NS = { api, toast, state, esc, get sb(){return state.sb;} };
+window.NS = { api, toast, state, esc, testLabel:(n)=>testLabel(n), get sb(){return state.sb;} };
 window.loadEvaluation = (ev)=>loadEvaluation(ev);
 // Instrumentos com "formas" (uma entrada na lista, seletor de forma dentro do teste).
-const TEST_GROUPS=[{label:'Perfil Sensorial 2',prefix:'Perfil Sensorial 2 - ',chart:'sensory_profile'}];
-// Nomes de exibição de abas com nome técnico na planilha.
-const TEST_LABELS={'Vin_3_Ext_Ent':'Vineland-3 · Entrevista (item a item)','Vin_3_Ext_Pais':'Vineland-3 · Pais/Cuidadores (item a item)'};
-function testLabel(name){return TEST_LABELS[name]||name;}
-function testGroupOf(name){return TEST_GROUPS.find(g=>name===g.label||name.startsWith(g.prefix));}
+const PS_FORMS=['Criança','Criança Pequena','Bebê','Professor','Abreviado','Consolidado'];
+const TEST_GROUPS=[
+  {label:'Perfil Sensorial 2',chart:'sensory_profile',forms:PS_FORMS.map(f=>({name:'Perfil Sensorial 2 - '+f,label:f}))},
+  {label:'Vineland-3',chart:'item a item',forms:[
+    {name:'Vin_3_Ext_Ent',label:'Formulário de Entrevista Extensivo'},
+    {name:'Vin_3_Dom_Ent',label:'Formulário de Entrevista de Nível de Domínio'},
+    {name:'Vin_3_Ext_Pais',label:'Formulário de Pais/Cuidadores Extensivo'},
+    {name:'Vin_3_Dom_Pais',label:'Formulário de Pais/Cuidadores de Nível de Domínio'},
+    {name:'Vin_3_Ext_Prof',label:'Formulário de Professores Extensivo'},
+    {name:'Vin_3_Dom_Prof',label:'Formulário de Professores de Nível de Domínio'}]},
+];
+function testGroupOf(name){return TEST_GROUPS.find(g=>name===g.label||g.forms.some(f=>f.name===name));}
+function testLabel(name){
+  for(const g of TEST_GROUPS){const f=g.forms.find(x=>x.name===name); if(f) return `${g.label} · ${f.label}`;}
+  return name;
+}
+function groupForms(g){return g.forms.filter(f=>state.tests.some(t=>t.name===f.name));}
 function renderTestList(){
   const q=els.search.value.trim().toLowerCase();
   const seen=new Set(); const items=[];
   for(const t of state.tests){
     const g=testGroupOf(t.name);
-    const disp=g?g.label:t.name, chart=g?g.chart:(t.chart_type||''), shown=testLabel(disp);
+    const disp=g?g.label:t.name, chart=g?g.chart:(t.chart_type||'');
     if(g){ if(seen.has(g.label))continue; seen.add(g.label); }
-    if(!disp.toLowerCase().includes(q) && !shown.toLowerCase().includes(q)) continue;
-    const active=g?(state.meta?.name||'').startsWith(g.prefix):state.meta?.name===t.name;
-    items.push(`<button class="test-item ${active?'active':''}" data-test="${esc(disp)}"><span>${esc(shown)}</span><small>${esc(chart)}</small></button>`);
+    const hay=[disp,...(g?g.forms.map(f=>f.label):[])].join(' ').toLowerCase();
+    if(!hay.includes(q)) continue;
+    const active=g?g.forms.some(f=>f.name===state.meta?.name):state.meta?.name===t.name;
+    items.push(`<button class="test-item ${active?'active':''}" data-test="${esc(disp)}"><span>${esc(disp)}</span><small>${esc(chart)}</small></button>`);
   }
   els.list.innerHTML=items.join('');
   els.list.querySelectorAll('.test-item').forEach(b=>b.addEventListener('click',()=>selectTest(b.dataset.test)));
 }
-const PS_FORMS=['Criança','Criança Pequena','Bebê','Professor','Abreviado','Consolidado'];
-function renderPsFormRow(currentFull){
+function renderPsFormRow(g,currentFull){
   const row=$('#psFormRow'), sel=$('#psFormSelect');
-  const forms=PS_FORMS.filter(f=>state.tests.some(t=>t.name==='Perfil Sensorial 2 - '+f));
-  sel.innerHTML=forms.map(f=>`<option value="Perfil Sensorial 2 - ${esc(f)}"${('Perfil Sensorial 2 - '+f)===currentFull?' selected':''}>${esc(f)}</option>`).join('');
+  sel.innerHTML=groupForms(g).map(f=>`<option value="${esc(f.name)}"${f.name===currentFull?' selected':''}>${esc(f.label)}</option>`).join('');
   row.hidden=false;
 }
 els.search.addEventListener('input',renderTestList);
@@ -192,17 +203,17 @@ async function selectTest(name){
   const g=testGroupOf(name);
   let full=name;
   if(g){
-    // "Perfil Sensorial 2" (grupo) -> abre a forma atual ou a primeira disponível.
+    // Grupo (ex.: "Vineland-3") -> abre a forma atual ou a primeira disponível.
     if(name===g.label){
-      const cur=(state.meta?.name||'').startsWith(g.prefix)?state.meta.name:null;
-      full=cur||(PS_FORMS.map(f=>g.prefix+f).find(n=>state.tests.some(t=>t.name===n)));
+      const cur=g.forms.some(f=>f.name===state.meta?.name)?state.meta.name:null;
+      full=cur||groupForms(g)[0]?.name;
       if(!full){toast('Nenhuma forma disponível.',true);return;}
     }
-    renderPsFormRow(full);
+    renderPsFormRow(g,full);
   }else{
     $('#psFormRow').hidden=true;
   }
-  els.title.textContent=g?g.label:testLabel(full); els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
+  els.title.textContent=g?g.label:full; els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
   try{
     state.meta=await api(`/api/tests/${encodeURIComponent(full)}`); state.result=null; renderTestList(); renderInputs(); renderArchive();
     $('#sidebar').classList.remove('open');
@@ -228,7 +239,9 @@ function renderInputs(){
     groups=[...map.values()]; titles=[...map.keys()];
   }else{
     const pc=m.item_protocol?new Set(protoCells(m.item_protocol)):null;
-    groups=groupFields(pc?m.raw_fields.filter(f=>!pc.has(f.cell)):m.raw_fields).filter(g=>g.length); titles=null;
+    const vinTyped=m.vineland?new Set([...m.vineland.subdominios,...m.vineland.mal_adaptativo].filter(x=>!x.itens).map(x=>x.cell)):null;
+    const base=m.raw_fields.filter(f=>!(pc&&pc.has(f.cell))&&!(vinTyped&&vinTyped.has(f.cell)));
+    groups=groupFields(base).filter(g=>g.length); titles=null;
   }
   els.raw.innerHTML=groups.map((g,i)=>{
     const auto=!bySection && g.every(f=>f.allow_override_formula);
@@ -266,7 +279,7 @@ function renderInputs(){
   }
   if(m.vineland){
     els.raw.innerHTML=vinHtml(m.vineland)
-      +`<details class="ravlt-manual"><summary>Ou digite só os pontos brutos de cada subdomínio (opcional)</summary>${els.raw.innerHTML}</details>`;
+      +(els.raw.innerHTML.trim()?`<details class="ravlt-manual"><summary>Ou digite só os pontos brutos de cada subdomínio (opcional)</summary>${els.raw.innerHTML}</details>`:'');
     vinSync();
   }
   if(m.answer_sheet){
@@ -353,18 +366,23 @@ function vinItemHtml(key,n){
     +`<button type="button" class="vin-est" data-vest title="Pontuação estimada">Est</button>`
     +`<input type="hidden" data-raw="${esc(id)}" data-text data-vin-val><input type="hidden" data-raw="${esc(id)}e" data-text data-vin-e></div>`;
 }
+function vinTypedHtml(x,extra){
+  return `<section class="raw-section vin-sec"><div class="raw-section-title"><span>${esc(x.nome)}${extra?` <small class="muted">· ${esc(extra)}</small>`:''}</span></div>
+    <div class="vin-typed"><label class="field">Pontos brutos (soma do protocolo)<input data-raw="${esc(x.cell)}" inputmode="decimal" type="number" step="any" min="0" placeholder="PB"></label>
+    <span class="muted small">Itens desta forma ainda não cadastrados: some os itens no protocolo e digite o bruto.</span></div></section>`;
+}
 function vinHtml(v){
-  const sub=v.subdominios.map(sd=>`<section class="raw-section vin-sec" data-vin="${esc(sd.key)}" data-cell="${esc(sd.cell)}" data-n="${sd.itens}">
+  const sub=v.subdominios.map(sd=>!sd.itens?vinTypedHtml(sd,'domínio'):`<section class="raw-section vin-sec" data-vin="${esc(sd.key)}" data-cell="${esc(sd.cell)}" data-n="${sd.itens}">
       <div class="raw-section-title"><span>${esc(sd.nome)} <small class="muted">· ${esc(sd.dominio)} · ${sd.itens} itens</small></span>
         <span class="vin-sum">Bruto: <b data-vin-raw>—</b></span></div>
       <div class="vin-status muted small" data-vin-status></div>
       <div class="vin-grid">${Array.from({length:sd.itens},(_,i)=>vinItemHtml(sd.key,i+1)).join('')}</div></section>`).join('');
-  const mal=v.mal_adaptativo.map(md=>`<section class="raw-section vin-sec vin-mal" data-vin="${esc(md.key)}" data-cell="${esc(md.cell)}" data-n="${md.itens}" data-all="1">
+  const mal=v.mal_adaptativo.map(md=>!md.itens?vinTypedHtml(md,'mal-adaptativo · a partir de 3 anos'):`<section class="raw-section vin-sec vin-mal" data-vin="${esc(md.key)}" data-cell="${esc(md.cell)}" data-n="${md.itens}" data-all="1">
       <div class="raw-section-title"><span>${esc(md.nome)} <small class="muted">· ${md.itens} itens · a partir de 3 anos · todos os itens</small></span>
         <span class="vin-sum">Bruto: <b data-vin-raw>—</b></span></div>
       <div class="vin-status muted small" data-vin-status></div>
       <div class="vin-grid">${Array.from({length:md.itens},(_,i)=>vinItemHtml(md.key,i+1)).join('')}</div></section>`).join('');
-  const crit=`<section class="raw-section vin-sec vin-crit"><div class="raw-section-title"><span>Itens críticos <small class="muted">· 20 itens · 2 / 1 / 0 (não somam)</small></span></div>
+  const crit=`<section class="raw-section vin-sec vin-crit"><div class="raw-section-title"><span>Itens críticos <small class="muted">· ${v.criticos.length} itens · 2 / 1 / 0 (não somam)</small></span></div>
       <div class="vin-grid">${v.criticos.map((c,i)=>`<div class="vin-item"><span class="vin-n">${i+1}</span><div class="score-seg vin-seg">${[2,1,0].map(x=>
         `<button type="button" data-vcrit="${x}">${x}</button>`).join('')}</div><input type="hidden" data-raw="${esc(c)}" data-vin-crit></div>`).join('')}</div></section>`;
   return `<section class="proto vin"><div class="ravlt-head"><b>Vineland-3 — ${esc(v.titulo)}</b>

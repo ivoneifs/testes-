@@ -950,3 +950,20 @@ h1,h2,h3{font-family:var(--display)}
 .hv-model-doc p{margin:0 0 12px}
 .hv-more summary{cursor:pointer;list-style:none}.hv-more summary h4{display:inline}
 @media (max-width:640px){.hv-model-doc{padding:12px 14px}}
+/* Laudo no modelo da profissional: Times 12, títulos pretos */
+.gl-doc{font-size:16px;color:#000}
+.gl-doc h3{color:#000;text-transform:none;font-size:16px;margin:20px 0 6px}
+.gl-doc h5{color:#000;font-size:16px;margin:10px 0 4px}
+.gl-doc .gl-id{text-align:left;margin:0 0 3px}
+.gl-doc .gl-test{margin-top:16px}
+.gl-doc .gl-date{text-align:right;margin-top:18px}
+.gl-doc .gl-foot{margin-top:36px;font-size:13px;line-height:1.4}
+.gl-doc ul{margin:0 0 10px 20px;padding:0}.gl-doc li{text-align:justify;margin-bottom:4px}
+.gl-hv-note{margin:6px 0 0}
+@media (max-width:640px){.gl-doc{padding:18px 16px;font-size:15px}}
+.gl-saved{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.gl-saved-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface)}
+.gl-saved-item.on{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+.gl-saved-item span{display:flex;flex-direction:column}.gl-saved-item small{color:var(--muted,#64748b);font-size:.78rem}
+.gl-tipo{display:flex;flex-wrap:wrap;gap:10px 22px}.gl-tipo label{display:flex;gap:6px;align-items:baseline;cursor:pointer}
+.gl-tipo small{color:var(--muted,#64748b)}

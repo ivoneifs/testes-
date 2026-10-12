@@ -10,7 +10,7 @@ import httpx
 
 from .ocr_prep import prepare_image
 
-from . import qplataforma
+from . import laudo_modelo, qplataforma
 
 OPENAI_URL = 'https://api.openai.com/v1/responses'
 
@@ -505,39 +505,33 @@ LAUDO_SPEC_PATH = Path(__file__).with_name('laudo_neuro_spec.json')
 
 _S = {'type': 'string'}
 _SL = {'type': 'array', 'items': _S}
+_TAB = {'type': 'object', 'properties': {'titulo': _S, 'colunas': _SL, 'linhas': {'type': 'array', 'items': _SL}},
+        'required': ['titulo', 'colunas', 'linhas'], 'additionalProperties': False}
+_IDENT_KEYS = ('nome_paciente', 'sexo', 'data_nascimento', 'lateralidade', 'idade', 'cpf', 'escolaridade',
+               'filiacao_mae', 'filiacao_pai', 'psicologa_responsavel', 'crp', 'solicitante', 'finalidade',
+               'data_construcao')
+# Estrutura do modelo da profissional (server/laudo_modelo.py)
 LAUDO_NEURO_SCHEMA = {
     'type': 'object',
     'properties': {
-        'identificacao': {
-            'type': 'object',
-            'properties': {k: _S for k in (
-                'nome_paciente', 'sexo', 'idade', 'data_nascimento', 'escolaridade_ou_profissao',
-                'lateralidade', 'psicologa_responsavel', 'crp', 'solicitante', 'finalidade', 'data_laudo')},
-            'required': ['nome_paciente', 'sexo', 'idade', 'data_nascimento', 'escolaridade_ou_profissao',
-                         'lateralidade', 'psicologa_responsavel', 'crp', 'solicitante', 'finalidade', 'data_laudo'],
-            'additionalProperties': False,
-        },
+        'identificacao': {'type': 'object', 'properties': {k: _S for k in _IDENT_KEYS},
+                          'required': list(_IDENT_KEYS), 'additionalProperties': False},
         'descricao_demanda': _S,
-        'procedimentos_realizados': _S,
+        'procedimentos': _SL,
         'instrumentos_utilizados': {'type': 'array', 'items': {
-            'type': 'object',
-            'properties': {'nome': _S, 'categoria': _S, 'o_que_avalia': _S},
-            'required': ['nome', 'categoria', 'o_que_avalia'], 'additionalProperties': False}},
-        'referencial_teorico': _S,
-        'analise_anamnese': _S,
-        'observacao_clinica': _S,
+            'type': 'object', 'properties': {'nome': _S, 'referencia': _S, 'objetivo': _S},
+            'required': ['nome', 'referencia', 'objetivo'], 'additionalProperties': False}},
+        'numero_encontros': _S,
+        'historico_familiar_transtornos': _S,
+        'medicacoes_em_uso': _S,
         'analise_testes': {'type': 'array', 'items': {
             'type': 'object',
             'properties': {
                 'instrumento': _S,
-                'o_que_o_teste_avalia': _S,
-                'tabela': {'type': 'object', 'properties': {
-                    'colunas': _SL, 'linhas': {'type': 'array', 'items': _SL}},
-                    'required': ['colunas', 'linhas'], 'additionalProperties': False},
-                'resultados_obtidos': _S,
-                'classificacao_normativa': _S,
-                'impacto_funcional': _S,
-                'integracao_clinica': _S,
+                'descricao': _S,
+                'tabelas': {'type': 'array', 'items': _TAB},
+                'base_conceitual': _S,
+                'interpretacao': _S,
                 'grafico': {'type': 'object', 'properties': {
                     'titulo': _S, 'rotulos': _SL,
                     'valores': {'type': 'array', 'items': {'type': 'number'}},
@@ -545,10 +539,9 @@ LAUDO_NEURO_SCHEMA = {
                     'required': ['titulo', 'rotulos', 'valores', 'valor_maximo'],
                     'additionalProperties': False},
             },
-            'required': ['instrumento', 'o_que_o_teste_avalia', 'tabela', 'resultados_obtidos',
-                         'classificacao_normativa', 'impacto_funcional', 'integracao_clinica', 'grafico'],
+            'required': ['instrumento', 'descricao', 'tabelas', 'base_conceitual', 'interpretacao', 'grafico'],
             'additionalProperties': False}},
-        'integracao_neuropsicologica': _S,
+        'conclusao_sintese': _S,
         'impressao_diagnostica': {'type': 'object', 'properties': {
             'texto': _S,
             'hipoteses': {'type': 'array', 'items': {'type': 'object', 'properties': {
@@ -556,18 +549,16 @@ LAUDO_NEURO_SCHEMA = {
                 'required': ['nome', 'codigo_dsm', 'codigo_cid', 'fundamentacao'],
                 'additionalProperties': False}}},
             'required': ['texto', 'hipoteses'], 'additionalProperties': False},
-        'conclusao': _S,
-        'recomendacoes': {'type': 'object', 'properties': {
-            'escolares': _SL, 'familia': _SL, 'equipe_multidisciplinar': _SL},
-            'required': ['escolares', 'familia', 'equipe_multidisciplinar'], 'additionalProperties': False},
-        'parecer_tecnico': _S,
-        'observacao_etica_final': _S,
+        'sugestoes_encaminhamentos': _SL,
+        'recomendacoes': {'type': 'object', 'properties': {'familia': _SL, 'escolares': _SL},
+                          'required': ['familia', 'escolares'], 'additionalProperties': False},
+        'local_data': _S,
         'alertas_para_revisao': _SL,
     },
-    'required': ['identificacao', 'descricao_demanda', 'procedimentos_realizados', 'instrumentos_utilizados',
-                 'referencial_teorico', 'analise_anamnese', 'observacao_clinica', 'analise_testes',
-                 'integracao_neuropsicologica', 'impressao_diagnostica', 'conclusao', 'recomendacoes',
-                 'parecer_tecnico', 'observacao_etica_final', 'alertas_para_revisao'],
+    'required': ['identificacao', 'descricao_demanda', 'procedimentos', 'instrumentos_utilizados',
+                 'numero_encontros', 'historico_familiar_transtornos', 'medicacoes_em_uso', 'analise_testes',
+                 'conclusao_sintese', 'impressao_diagnostica', 'sugestoes_encaminhamentos', 'recomendacoes',
+                 'local_data', 'alertas_para_revisao'],
     'additionalProperties': False,
 }
 
@@ -577,6 +568,14 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict], anamnese_items: li
     observação clínica, procedimentos, escores digitados). file_items = conteúdo
     já convertido dos arquivos dos testes (server/file_content.to_content)."""
     spec = json.loads(LAUDO_SPEC_PATH.read_text(encoding='utf-8'))
+    # a estrutura de seções agora é a do modelo da profissional (laudo_modelo.GUIA); da especificação
+    # antiga ficam o papel, a faixa etária e as referências técnicas (WISC/WAIS, CARS…, diagnóstico)
+    est = spec.pop('estrutura_do_laudo', {}) or {}
+    spec['referencias_tecnicas'] = {
+        'wisc_iv_wais_iii': (est.get('secao_08_analise_interpretacao_testes') or {}).get('wisc_iv_wais_iii'),
+        'cars_protea_srs2': (est.get('secao_08_analise_interpretacao_testes') or {}).get('cars_protea_srs2'),
+        'impressao_diagnostica': {k: v for k, v in (est.get('secao_10_impressao_diagnostica') or {}).items()},
+    }
     instructions = (
         'Você atua conforme a especificação JSON abaixo ("sistema.papel"): neuropsicóloga clínica sênior, '
         'redigindo um Laudo Psicológico de Avaliação Neuropsicológica Completo (Resoluções CFP 06/2019, '
@@ -587,43 +586,32 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict], anamnese_items: li
         'compostos, percentis e classificações exatamente como estão. NÃO calcule escores, NÃO consulte '
         'tabelas normativas, NÃO infira valores ausentes. A única classificação que você pode aplicar é a '
         '"tabela_classificacao_qi" da especificação, a um QI/índice composto que esteja no documento.\n'
-        '2. Campo ou seção sem dado: escreva exatamente "Dado não fornecido para esta avaliação."\n'
-        '3. Siga as 14 seções de "estrutura_do_laudo" e a ênfase de "diferenciacoes_por_faixa_etaria" '
-        'conforme a faixa etária informada.\n'
-        '4. Seção 04: liste só instrumentos efetivamente aplicados (presentes nos arquivos ou nos escores '
-        'digitados), com a categoria e o que avalia conforme a especificação.\n'
-        '5. Seção 08 (analise_testes): um item por instrumento, com os 5 campos obrigatórios, uma tabela com '
-        'TODOS os escores do documento (cada linha = array de strings na ordem das colunas) e, quando houver '
-        'escores numéricos comparáveis (índices, percentis, escores T), um gráfico: rótulos + valores + '
-        'valor_maximo da escala (ex.: 160 para QI, 100 para percentil). Sem dado para gráfico: rotulos e '
-        'valores vazios e valor_maximo 0. Para WISC/WAIS use os índices e construtos da especificação; para '
-        'CARS/PROTEA-R/SRS-2 inclua nível de suporte e repercussões sociais e adaptativas quando os dados permitirem.\n'
-        '6. Seção 10: hipóteses só quando os dados sustentarem, sempre condicionais, com códigos DSM-5-TR e '
-        'CID-10 e a nota de cautela. Sem sustentação: hipoteses vazio e texto explicando que os achados não '
-        'configuram hipótese diagnóstica. Nunca contradiga os resultados psicométricos.\n'
-        '7. Seção 11: inclua a nota_obrigatoria. Seção 12: recomendações escolares só para criança/adolescente '
-        '(adulto: array vazio); individualize ao caso, sem listas genéricas. Seção 14: texto_obrigatorio + '
-        'restrições adicionais.\n'
-        '8. Linguagem formal, clínica, fluida, em texto corrido; diferencie dados objetivos, observação '
-        'clínica e integração. Sem explicações meta, sem avisos técnicos no corpo do laudo.\n'
-        '9. Se houver "resultados_corrigidos_pelo_sistema" nos DADOS DO FORMULÁRIO: esses instrumentos foram '
+        '2. Siga o MODELO DO LAUDO abaixo (estrutura e estilo do laudo da profissional) e a ênfase de '
+        '"diferenciacoes_por_faixa_etaria" da especificação conforme a faixa etária. Seção sem dado: '
+        '"Dado não fornecido para esta avaliação."\n'
+        '3. Hipóteses diagnósticas só quando os dados sustentarem, sempre condicionais e sem contradizer os '
+        'resultados psicométricos.\n'
+        '4. Linguagem formal, clínica, fluida; sem explicações meta e sem avisos técnicos no corpo do laudo.\n'
+        '5. Se houver "historia_de_vida_salva" nos dados (História de Vida já organizada no sistema), use-a como '
+        'fonte principal da história do paciente na descrição da demanda e na conclusão.\n'
+        '6. Para WISC/WAIS use os índices e construtos da especificação e a "tabela_classificacao_qi" só para '
+        'QI/índice composto que esteja no documento sem classificação.\n'
+        '7. Se houver "resultados_corrigidos_pelo_sistema" nos DADOS DO FORMULÁRIO: esses instrumentos foram '
         'corrigidos pelo motor normativo do NeuroScore a partir dos escores brutos dos arquivos. Use essas '
         'tabelas (escores padronizados, percentis, classificações) como os resultados corrigidos oficiais do '
         'instrumento, transcrevendo os valores exatamente; ignore colunas auxiliares, vazias ou com erro. '
         'Não recalcule nada.\n'
-        '9b. RELATÓRIOS DA Q-PLATAFORMA (Pearson / Casa do Psicólogo): já vêm corrigidos pela Pearson. '
+        '7b. RELATÓRIOS DA Q-PLATAFORMA (Pearson / Casa do Psicólogo): já vêm corrigidos pela Pearson. '
         'Transcreva os escores, percentis e classificações exatamente como no relatório, com a nomenclatura '
         'do relatório, e monte o "grafico" do instrumento com esses valores. Se o mesmo instrumento também '
         'aparecer em "resultados_corrigidos_pelo_sistema", prevalece o relatório da Pearson; aponte a '
         'divergência em "alertas_para_revisao".\n'
-        '10. DOCUMENTOS DE ANAMNESE (se anexados): leia-os e transcreva a história de vida do paciente na '
-        'seção 06, organizada pelos subitens da especificação (gestação e parto, desenvolvimento, linguagem, '
-        'escolarização/ocupação, sono e alimentação, comportamento/emocional, socialização, autonomia, '
-        'histórico familiar, medicações), em texto corrido, fiel ao documento; use também na demanda, na '
-        'integração e nas recomendações. Complementa (não substitui) a anamnese digitada.\n'
-        '11. Em "alertas_para_revisao" (não vai para o laudo) liste para a profissional: arquivos ilegíveis, '
+        '8. DOCUMENTOS DE ANAMNESE (se anexados): leia-os e use a história de vida (gestação, desenvolvimento, '
+        'alimentação e sono, família, socialização, autonomia, escola, histórico familiar, medicações) na demanda, '
+        'no histórico familiar, nas medicações, na conclusão e nas recomendações, fiel ao documento.\n'
+        '9. Em "alertas_para_revisao" (não vai para o laudo) liste para a profissional: arquivos ilegíveis, '
         'protocolos sem correção, dados faltantes importantes, inconsistências entre fontes.\n\n'
-        'ESPECIFICAÇÃO:\n' + json.dumps(spec, ensure_ascii=False)
+        + laudo_modelo.GUIA + '\n\nESPECIFICAÇÃO:\n' + json.dumps(spec, ensure_ascii=False)
     )
     content = [{'type': 'input_text',
                 'text': 'DADOS DO FORMULÁRIO:\n' + json.dumps(dados, ensure_ascii=False, indent=1)}]

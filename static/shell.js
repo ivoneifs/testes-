@@ -604,13 +604,14 @@
           <div class="tr-sum">${trSummary(r)}</div>
         </div>
         <div class="row-acts">
+          ${r.test !== HV ? `<button class="btn ghost xs" data-tr-solo="${r.id}" title="Laudo neuropsicológico só deste teste (+ História de Vida)">Laudo deste teste</button>` : ''}
           <button class="btn ghost xs" data-tr-open="${r.id}">Abrir / editar</button>
           <button class="btn ghost xs danger" data-tr-del="${r.id}">Excluir</button>
         </div></article>`;
     }).join('') || `<div class="empty-state">Nenhum teste salvo para este paciente. Corrija um teste em <a href="#laudos">Laudos</a> ou leia a anamnese em <a href="#historia">História de Vida</a>: ele aparece aqui.</div>`;
     const n = recs.filter(r => state.trSel[r.id] !== false).length;
     $('#trFinal').hidden = !recs.length;
-    $('#trFinalInfo').textContent = `${n} de ${recs.length} teste(s) selecionado(s). Gera os laudos por teste e o laudo integrado (consome 1 crédito).`;
+    $('#trFinalInfo').textContent = `${n} de ${recs.length} teste(s) selecionado(s). Gera o Laudo Neuropsicológico completo no seu modelo, com a História de Vida e os testes marcados (1 crédito).`;
     $('#trLaudoBtn').disabled = !n;
   }
   $('#trPatient')?.addEventListener('change', (e) => { state.trKey = e.target.value; renderRealizados(); });
@@ -619,7 +620,12 @@
     state.trSel[c.dataset.trSel] = c.checked; renderRealizados();
   });
   $('#trList')?.addEventListener('click', async (e) => {
-    const o = e.target.closest('[data-tr-open]'), d = e.target.closest('[data-tr-del]');
+    const o = e.target.closest('[data-tr-open]'), d = e.target.closest('[data-tr-del]'), so = e.target.closest('[data-tr-solo]');
+    if (so) {
+      const rec = state.tr.find(x => x.id === so.dataset.trSolo); if (!rec) return;
+      const hv = state.tr.find(x => x.patient_key === rec.patient_key && x.test === HV);
+      showView('geracao'); NS.glFromSaved([rec, ...(hv ? [hv] : [])], 'teste_isolado'); return;
+    }
     if (o) {
       const rec = state.tr.find(x => x.id === o.dataset.trOpen); if (!rec) return;
       if (rec.test === HV) { showView('historia'); NS.openSavedHistoria(rec); return; }
@@ -636,8 +642,8 @@
   $('#trLaudoBtn')?.addEventListener('click', () => {
     const recs = (state.tr || []).filter(r => r.patient_key === state.trKey && state.trSel[r.id] !== false);
     if (!recs.length) return;
-    showView('laudos');
-    NS.laudoFromSaved(recs);
+    showView('geracao');
+    NS.glFromSaved(recs, 'completo');
   });
 
   // ---------------- Vídeos explicativos ----------------

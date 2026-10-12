@@ -81,7 +81,7 @@ def _bullets(doc: Document, items: list) -> None:
             doc.add_paragraph(item, style="List Bullet")
 
 
-def _data_table(doc: Document, columns: list, rows: list) -> None:
+def _data_table(doc: Document, columns: list, rows: list, size: float = 9) -> None:
     columns = [_clean(c) for c in (columns or []) if _clean(c)]
     rows = [r for r in (rows or []) if isinstance(r, list)]
     if not columns or not rows:
@@ -91,11 +91,11 @@ def _data_table(doc: Document, columns: list, rows: list) -> None:
     for j, name in enumerate(columns):
         run = table.rows[0].cells[j].paragraphs[0].add_run(name)
         run.bold = True
-        run.font.size = Pt(9)
+        run.font.size = Pt(size)
     for i, row in enumerate(rows, start=1):
         for j in range(len(columns)):
             val = _clean(row[j]) if j < len(row) else ""
-            table.rows[i].cells[j].paragraphs[0].add_run(val).font.size = Pt(9)
+            table.rows[i].cells[j].paragraphs[0].add_run(val).font.size = Pt(size)
     doc.add_paragraph()
 
 
@@ -294,47 +294,95 @@ def _chart_for(doc: Document, charts: list, instrumento: str) -> None:
             _charts_section(doc, [c])
 
 
+def _h(doc: Document, text: str, size: float = 12, center: bool = False, before: float = 14) -> None:
+    """Título de seção do modelo: negrito, preto, Times 12."""
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(before)
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.keep_with_next = True
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER if center else WD_ALIGN_PARAGRAPH.LEFT
+    r = p.add_run(text)
+    r.bold = True
+    r.font.size = Pt(size)
+
+
+def _label_line(doc: Document, pairs: list) -> None:
+    """Linha de identificação: "Rótulo: valor   Rótulo: valor" (rótulo em negrito)."""
+    pairs = [(k, _clean(v)) for k, v in pairs if _clean(v)]
+    if not pairs:
+        return
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_after = Pt(2)
+    for i, (k, v) in enumerate(pairs):
+        if i:
+            p.add_run("      ")
+        p.add_run(f"{k}: ").bold = True
+        p.add_run(v)
+
+
 def build_laudo_neuro_docx(laudo: dict, charts: list | None = None) -> bytes:
+    """Laudo no modelo da profissional (server/laudo_modelo.py), Times New Roman 12."""
+    from . import laudo_modelo
     laudo = laudo or {}
+    ident = laudo.get("identificacao") or {}
+    fx = laudo.get("textos_fixos") or laudo_modelo.textos_fixos(ident.get("nome_paciente"))
     doc = Document()
     _style(doc)
+    for st in ("Normal", "List Bullet", "List Number"):
+        try:
+            doc.styles[st].font.color.rgb = RGBColor(0, 0, 0)
+        except KeyError:
+            pass
     sec = doc.sections[0]
-    sec.left_margin = sec.right_margin = Pt(64)
-    sec.top_margin = sec.bottom_margin = Pt(56)
+    sec.left_margin = sec.right_margin = Pt(85)   # 3 cm
+    sec.top_margin = sec.bottom_margin = Pt(71)   # 2,5 cm
 
-    title = doc.add_paragraph()
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    tr = title.add_run("LAUDO PSICOLÓGICO DE AVALIAÇÃO NEUROPSICOLÓGICA")
-    tr.bold = True
-    tr.font.size = Pt(15)
-    tr.font.color.rgb = INK
-    title.paragraph_format.space_after = Pt(14)
+    _h(doc, fx.get("titulo") or laudo_modelo.TITULO, size=14, center=True, before=0)
+    _body(doc, fx.get("nota_cfp"))
 
-    ident = laudo.get("identificacao") or {}
-    _heading(doc, "1. Identificação")
-    _kv_table(doc, [(label, ident.get(key)) for key, label in IDENT_LABELS])
+    _h(doc, "IDENTIFICAÇÃO:")
+    _label_line(doc, [("Paciente", ident.get("nome_paciente")), ("Sexo", ident.get("sexo"))])
+    _label_line(doc, [("Data de nascimento", ident.get("data_nascimento")), ("Lateralidade", ident.get("lateralidade")),
+                      ("Idade na avaliação", ident.get("idade"))])
+    _label_line(doc, [("CPF", ident.get("cpf")), ("Escolaridade", ident.get("escolaridade"))])
+    fil = [x for x in (_clean(ident.get("filiacao_mae")), _clean(ident.get("filiacao_pai"))) if x]
+    if fil:
+        _label_line(doc, [("Filiação", " / ".join(fil))])
+    doc.add_paragraph()
+    _label_line(doc, [("Autora/Psicóloga", " - ".join(x for x in (_clean(ident.get("psicologa_responsavel")),
+                                                                  ("CRP " + _clean(ident.get("crp"))) if _clean(ident.get("crp")) else "") if x))])
+    _label_line(doc, [("Solicitante", ident.get("solicitante"))])
+    _label_line(doc, [("Finalidade", ident.get("finalidade") or "Avaliação Neuropsicológica.")])
+    if _clean(ident.get("data_construcao")):
+        _body(doc, f"Laudo construído em {_clean(ident.get('data_construcao'))}.")
 
-    _heading(doc, "2. Descrição da demanda")
+    _h(doc, "DESCRIÇÃO DA DEMANDA:")
     _body(doc, laudo.get("descricao_demanda") or AUSENTE)
-    _heading(doc, "3. Procedimentos realizados")
-    _body(doc, laudo.get("procedimentos_realizados") or AUSENTE)
 
-    _heading(doc, "4. Instrumentos utilizados")
+    _h(doc, "PROCEDIMENTOS:")
+    _body(doc, "Os instrumentos utilizados para aquisição de dados foram:")
+    _bullets(doc, laudo.get("procedimentos") or laudo_modelo.PROCEDIMENTOS_PADRAO)
+
     instr = [i for i in laudo.get("instrumentos_utilizados") or [] if isinstance(i, dict)]
-    if instr:
-        _data_table(doc, ["Instrumento", "Categoria", "O que avalia"],
-                    [[i.get("nome"), i.get("categoria"), i.get("o_que_avalia")] for i in instr])
-    else:
+    _h(doc, "TESTES PSICOLÓGICOS E NEUROPSICOLÓGICOS:")
+    if not instr:
         _body(doc, AUSENTE)
+    for n, i in enumerate(instr, 1):
+        ref = f" ({_clean(i.get('referencia'))})" if _clean(i.get("referencia")) else ""
+        obj = f" Objetivo: {_clean(i.get('objetivo'))}" if _clean(i.get("objetivo")) else ""
+        _body(doc, f"{n}. {_clean(i.get('nome'))}{ref}.{obj}")
 
-    _heading(doc, "5. Referencial teórico")
-    _body(doc, laudo.get("referencial_teorico") or AUSENTE)
-    _heading(doc, "6. Análise da anamnese")
-    _body(doc, laudo.get("analise_anamnese") or AUSENTE)
-    _heading(doc, "7. Observação clínica")
-    _body(doc, laudo.get("observacao_clinica") or AUSENTE)
+    _h(doc, "REFERENCIAL TEÓRICO METODOLÓGICO:")
+    _body(doc, fx.get("referencial_teorico"))
+    _h(doc, "NÚMERO DE ENCONTROS E TEMPO DE DURAÇÃO:")
+    _body(doc, laudo.get("numero_encontros") or AUSENTE)
+    _h(doc, "HISTÓRICO FAMILIAR DE TRANSTORNOS MENTAIS:")
+    _body(doc, laudo.get("historico_familiar_transtornos") or AUSENTE)
+    _h(doc, "MEDICAÇÕES EM USO:")
+    _body(doc, laudo.get("medicacoes_em_uso") or AUSENTE)
 
-    _heading(doc, "8. Análise e interpretação dos testes")
+    _h(doc, "ANÁLISE DO INSTRUMENTO E INTERPRETAÇÃO:")
     testes = [t for t in laudo.get("analise_testes") or [] if isinstance(t, dict)]
     if not testes:
         _body(doc, AUSENTE)
@@ -342,62 +390,73 @@ def build_laudo_neuro_docx(laudo: dict, charts: list | None = None) -> bytes:
         nome = _clean(t.get("instrumento"))
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(10)
-        r = p.add_run(nome)
-        r.bold = True
-        r.font.size = Pt(11.5)
-        r.font.color.rgb = ACCENT
-        _sub(doc, "O que o teste avalia")
-        _body(doc, t.get("o_que_o_teste_avalia"))
-        tab = t.get("tabela") or {}
-        _data_table(doc, tab.get("colunas"), tab.get("linhas"))
+        p.paragraph_format.keep_with_next = True
+        p.add_run(nome + ". ").bold = True
+        p.add_run(_clean(t.get("descricao")))
+        for tab in t.get("tabelas") or []:
+            if not isinstance(tab, dict):
+                continue
+            if _clean(tab.get("titulo")):
+                _sub(doc, _clean(tab.get("titulo")))
+            _data_table(doc, tab.get("colunas"), tab.get("linhas"), size=11)
         _chart_for(doc, charts, nome)
-        for key, label in (("resultados_obtidos", "Resultados obtidos"),
-                           ("classificacao_normativa", "Classificação normativa"),
-                           ("impacto_funcional", "Impacto funcional"),
-                           ("integracao_clinica", "Integração clínica")):
-            if _clean(t.get(key)):
-                _sub(doc, label)
-                _body(doc, t.get(key))
+        if _clean(t.get("base_conceitual")):
+            _sub(doc, "Base conceitual teórica:")
+            _body(doc, t.get("base_conceitual"))
+        _sub(doc, "Interpretação:")
+        _body(doc, t.get("interpretacao") or AUSENTE)
 
-    _heading(doc, "9. Integração neuropsicológica")
-    _body(doc, laudo.get("integracao_neuropsicologica") or AUSENTE)
+    _h(doc, "CONCLUSÃO E SÍNTESE")
+    _body(doc, laudo.get("conclusao_sintese") or AUSENTE)
 
-    _heading(doc, "10. Impressão diagnóstica")
     imp = laudo.get("impressao_diagnostica") or {}
+    _h(doc, "Impressão diagnóstica:")
     _body(doc, imp.get("texto") or AUSENTE)
     hip = [h for h in imp.get("hipoteses") or [] if isinstance(h, dict)]
     if hip:
-        _data_table(doc, ["Hipótese", "DSM-5-TR", "CID-10", "Fundamentação"],
+        _data_table(doc, ["Hipótese", "DSM-5-TR", "CID", "Fundamentação"],
                     [[h.get("nome"), h.get("codigo_dsm"), h.get("codigo_cid"), h.get("fundamentacao")] for h in hip])
 
-    _heading(doc, "11. Conclusão")
-    _body(doc, laudo.get("conclusao") or AUSENTE)
+    _h(doc, "Obs.: Importante:")
+    _bullets(doc, [fx.get("obs_importante")])
 
-    _heading(doc, "12. Recomendações")
+    _h(doc, "SUGESTÕES DE ENCAMINHAMENTOS:")
+    _bullets(doc, laudo.get("sugestoes_encaminhamentos") or [AUSENTE])
     rec = laudo.get("recomendacoes") or {}
-    for key, label in (("escolares", "Escolares"), ("familia", "Família"),
-                       ("equipe_multidisciplinar", "Equipe multidisciplinar")):
-        if rec.get(key):
-            _sub(doc, label)
-            _bullets(doc, rec.get(key))
+    if rec.get("familia") or rec.get("escolares"):
+        _h(doc, "RECOMENDAÇÕES:")
+        if rec.get("familia"):
+            _sub(doc, "Orientações à Família:")
+            _bullets(doc, rec.get("familia"))
+        if rec.get("escolares"):
+            _sub(doc, "Orientações Escolares:")
+            _bullets(doc, rec.get("escolares"))
 
-    _heading(doc, "13. Parecer técnico")
-    _body(doc, laudo.get("parecer_tecnico") or AUSENTE)
-    _heading(doc, "14. Observação ética final")
-    _body(doc, laudo.get("observacao_etica_final"))
+    _h(doc, "À EQUIPE MULTIDISCIPLINAR:")
+    for t in fx.get("equipe_multidisciplinar") or []:
+        _body(doc, t)
+    if _clean(laudo.get("local_data")):
+        p = doc.add_paragraph(_clean(laudo.get("local_data")))
+        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
-    # assinatura
     doc.add_paragraph()
     doc.add_paragraph()
-    for text, bold in (("_" * 42, False), (_clean(ident.get("psicologa_responsavel")), True),
+    for text, bold in (("_" * 40, False), (_clean(ident.get("psicologa_responsavel")), True),
                        (("CRP " + _clean(ident.get("crp"))) if _clean(ident.get("crp")) else "", False)):
         if not text:
             continue
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(0)
-        run = p.add_run(text)
-        run.bold = bold
+        p.add_run(text).bold = bold
+
+    doc.add_paragraph()
+    for i, t in enumerate(fx.get("rodape") or []):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(0)
+        r = p.add_run(t)
+        r.font.size = Pt(10)
+        r.bold = i == 0
 
     buf = io.BytesIO()
     doc.save(buf)

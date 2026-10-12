@@ -28,15 +28,76 @@
   $('#gl_nasc').addEventListener('change', calcAge);
   $('#gl_data').addEventListener('change', calcAge);
   $('#gl_aplic').addEventListener('change', calcAge);
-  $('#gl_nome').addEventListener('change', () => {
+  // dados do cadastro do paciente (inclui identificação e respostas da anamnese preenchida)
+  const setIf = (id, v) => { if (v && !$(id).value) $(id).value = v; };
+  function fillFromPatient(p) {
+    const d = p.dados || {}, a = (p.anamnese || {}).respostas || {};
+    setIf('#gl_nome', p.name); setIf('#gl_nasc', p.birth_date); setIf('#gl_sexo', p.sex || d.sexo); setIf('#gl_escol', p.education);
+    setIf('#gl_lat', d.lateralidade); setIf('#gl_cpf', d.cpf); setIf('#gl_mae', d.mae); setIf('#gl_pai', d.pai); setIf('#gl_cidade', d.cidade);
+    setIf('#gl_solic', [d.solicitante, d.especialidade].filter(Boolean).join(' – '));
+    if (a.medicacao === 'Não') setIf('#gl_meds', 'Nenhuma.');
+    else if (a.medicacao === 'Sim') setIf('#gl_meds', a.medicacao_qual || 'Faz uso de medicação (não especificada).');
+    const fam = [['fam_alcoolismo', 'alcoolismo'], ['fam_def_mental', 'deficiência mental'], ['fam_psiq', 'tratamento psiquiátrico']]
+      .filter(([k]) => (a[k] || []).length).map(([k, t]) => `${t} (${a[k].join(' e ').toLowerCase()})`);
+    if (fam.length) setIf('#gl_famhist', 'Há casos na família de ' + fam.join('; ') + '.');
+    calcAge();
+  }
+  // História de Vida + testes já corrigidos e salvos (aba Testes realizados) deste paciente
+  let saved = [], sel = new Set();
+  const pkey = (name, birth) => (String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/\s+/).filter(Boolean).join(' ') || 'sem-nome') + '|' + (birth || '');
+  async function loadSaved(preselect) {
+    const name = $('#gl_nome').value.trim();
+    if (!name) { saved = []; renderSaved(); return; }
+    try {
+      const { results = [] } = await api('/api/test-results');
+      const key = pkey(name, $('#gl_nasc').value), nm = key.split('|')[0];
+      saved = results.filter(r => r.patient_key === key || (!$('#gl_nasc').value && r.patient_key.split('|')[0] === nm));
+      sel = new Set(preselect || saved.map(r => r.id));
+    } catch { saved = []; }
+    renderSaved();
+  }
+  function renderSaved() {
+    $('#gl_savedCard').hidden = !saved.length;
+    const HV = 'História de Vida';
+    const ord = [...saved].sort((a, b) => (b.test === HV) - (a.test === HV));
+    $('#gl_saved').innerHTML = ord.map(r => `<label class="gl-saved-item${sel.has(r.id) ? ' on' : ''}">
+      <input type="checkbox" data-gl-saved="${r.id}"${sel.has(r.id) ? ' checked' : ''}>
+      <span>${r.test === HV ? '📇 ' : '🧪 '}<b>${esc(r.test)}</b><small>${new Date(r.updated_at).toLocaleDateString('pt-BR')}</small></span></label>`).join('');
+  }
+  $('#gl_saved').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-gl-saved]'); if (!c) return;
+    c.checked ? sel.add(c.dataset.glSaved) : sel.delete(c.dataset.glSaved); renderSaved();
+  });
+  async function onPatientChange() {
     const nm = $('#gl_nome').value.trim().toLowerCase();
     const p = (state.patients || []).find((x) => (x.name || '').trim().toLowerCase() === nm);
-    if (!p) return;
-    if (p.birth_date && !$('#gl_nasc').value) $('#gl_nasc').value = p.birth_date;
-    if (p.sex && !$('#gl_sexo').value) $('#gl_sexo').value = p.sex;
-    if (p.education && !$('#gl_escol').value) $('#gl_escol').value = p.education;
+    if (p) fillFromPatient(p);
     calcAge();
-  });
+    loadSaved();
+  }
+  $('#gl_nome').addEventListener('change', onPatientChange);
+  $('#gl_nasc').addEventListener('change', () => loadSaved());
+  // chamado pela aba Testes realizados: laudo completo (todos os marcados) ou de teste isolado
+  window.NS = window.NS || {};
+  window.NS.glFromSaved = async function (recs, tipo) {
+    const p0 = recs[0]?.patient || {};
+    ['#gl_nome', '#gl_nasc', '#gl_sexo', '#gl_escol', '#gl_lat', '#gl_cpf', '#gl_mae', '#gl_pai', '#gl_cidade', '#gl_solic', '#gl_meds', '#gl_famhist']
+      .forEach(id => { $(id).value = ''; });
+    $('#gl_nome').value = p0.name || ''; $('#gl_nasc').value = p0.birth_date || '';
+    if (p0.sex) $('#gl_sexo').value = p0.sex;
+    if (p0.application_date) $('#gl_aplic').value = p0.application_date;
+    try { state.patients = (await api('/api/patients')).patients || state.patients; } catch {}
+    const pat = (state.patients || []).find(x => x.id === recs[0]?.patient_id) ||
+      (state.patients || []).find(x => (x.name || '').trim().toLowerCase() === (p0.name || '').trim().toLowerCase());
+    if (pat) fillFromPatient(pat);
+    calcAge();
+    await loadSaved(recs.map(r => r.id));
+    const radio = document.querySelector(`[name="gl_tipo"][value="${tipo === 'teste_isolado' ? 'teste_isolado' : 'completo'}"]`);
+    if (radio) radio.checked = true;
+    window.glOnShow && window.glOnShow();
+    $('#gl_savedCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast('Confira a identificação e clique em "Gerar Laudo Neuropsicológico".');
+  };
 
   // Q-Plataforma (Pearson): atalho + lista dos testes reconhecidos nos relatórios
   let qpTests = null;
@@ -79,6 +140,10 @@
       observacao_clinica: v('#gl_obs'),
       procedimentos: { numero_sessoes: v('#gl_sessoes'), duracao_sessoes: v('#gl_duracao'), outros: v('#gl_proc') },
       escores_digitados: v('#gl_escores'),
+      cpf: v('#gl_cpf'), filiacao: { mae: v('#gl_mae'), pai: v('#gl_pai') }, cidade: v('#gl_cidade'),
+      historico_familiar_transtornos: v('#gl_famhist'), medicacoes_em_uso: v('#gl_meds'),
+      testes_realizados_ids: saved.filter(r => sel.has(r.id)).map(r => r.id),
+      tipo_laudo: (document.querySelector('[name="gl_tipo"]:checked') || {}).value || 'completo',
       data_aplicacao: fmtDate(v('#gl_aplic')),
       arquivos_enviados: files.map((f) => f.name),
       anamnese_arquivos: anamFiles.map((f) => f.name),
@@ -136,55 +201,61 @@
       `<line x1="${L}" y1="${top}" x2="${L}" y2="${H - 12}" stroke="#c9d1e0"/>${bars}</svg>`;
   }
 
-  // ---------- renderização do laudo ----------
-  const IDENT = [['nome_paciente', 'Nome'], ['sexo', 'Sexo'], ['idade', 'Idade'], ['data_nascimento', 'Data de nascimento'],
-    ['escolaridade_ou_profissao', 'Escolaridade / Profissão'], ['lateralidade', 'Lateralidade'],
-    ['psicologa_responsavel', 'Psicóloga responsável'], ['crp', 'CRP'], ['solicitante', 'Solicitante'],
-    ['finalidade', 'Finalidade'], ['data_laudo', 'Data do laudo']];
+  // ---------- renderização do laudo (modelo da profissional — server/laudo_modelo.py) ----------
   const para = (t) => esc(t || AUSENTE).split(/\n+/).filter(Boolean).map((x) => `<p>${x}</p>`).join('');
   const table = (cols, rows) => (cols && cols.length && rows && rows.length)
     ? `<table class="gl-table"><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
       rows.map((r) => `<tr>${cols.map((_, j) => `<td>${esc(r[j] ?? '')}</td>`).join('')}</tr>`).join('') + '</tbody></table>'
     : '';
   const list = (items) => (items && items.length) ? `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '';
+  const line = (pairs) => { const p = pairs.filter(([, v]) => v); return p.length ? `<p class="gl-id">${p.map(([k, v]) => `<b>${k}:</b> ${esc(v)}`).join('&emsp;&emsp;')}</p>` : ''; };
 
   function laudoHtml(l) {
-    const id = l.identificacao || {}, imp = l.impressao_diagnostica || {}, rec = l.recomendacoes || {};
-    const h = (n, t) => `<h3>${n}. ${t}</h3>`;
-    let s = `<h2 class="gl-title">LAUDO PSICOLÓGICO DE AVALIAÇÃO NEUROPSICOLÓGICA</h2>`;
-    s += h(1, 'Identificação') + table(['Campo', 'Informação'], IDENT.map(([k, t]) => [t, id[k] || AUSENTE]));
-    s += h(2, 'Descrição da demanda') + para(l.descricao_demanda);
-    s += h(3, 'Procedimentos realizados') + para(l.procedimentos_realizados);
-    s += h(4, 'Instrumentos utilizados') + (table(['Instrumento', 'Categoria', 'O que avalia'],
-      (l.instrumentos_utilizados || []).map((i) => [i.nome, i.categoria, i.o_que_avalia])) || para(''));
-    s += h(5, 'Referencial teórico') + para(l.referencial_teorico);
-    s += h(6, 'Análise da anamnese') + para(l.analise_anamnese);
-    s += h(7, 'Observação clínica') + para(l.observacao_clinica);
-    s += h(8, 'Análise e interpretação dos testes');
+    const id = l.identificacao || {}, imp = l.impressao_diagnostica || {}, rec = l.recomendacoes || {}, fx = l.textos_fixos || {};
+    const h = (t) => `<h3>${t}</h3>`;
+    let s = `<h2 class="gl-title">${esc(fx.titulo || 'Laudo Psicológico de Avaliação Neuropsicológica')}</h2>${para(fx.nota_cfp)}`;
+    s += h('IDENTIFICAÇÃO:');
+    s += line([['Paciente', id.nome_paciente], ['Sexo', id.sexo]]);
+    s += line([['Data de nascimento', id.data_nascimento], ['Lateralidade', id.lateralidade], ['Idade na avaliação', id.idade]]);
+    s += line([['CPF', id.cpf], ['Escolaridade', id.escolaridade]]);
+    s += line([['Filiação', [id.filiacao_mae, id.filiacao_pai].filter(Boolean).join(' / ')]]);
+    s += '<br>' + line([['Autora/Psicóloga', [id.psicologa_responsavel, id.crp ? 'CRP ' + id.crp : ''].filter(Boolean).join(' - ')]]);
+    s += line([['Solicitante', id.solicitante]]) + line([['Finalidade', id.finalidade || 'Avaliação Neuropsicológica.']]);
+    if (id.data_construcao) s += `<p>Laudo construído em ${esc(id.data_construcao)}.</p>`;
+    s += h('DESCRIÇÃO DA DEMANDA:') + para(l.descricao_demanda);
+    s += h('PROCEDIMENTOS:') + '<p>Os instrumentos utilizados para aquisição de dados foram:</p>' + list(l.procedimentos);
+    s += h('TESTES PSICOLÓGICOS E NEUROPSICOLÓGICOS:') + ((l.instrumentos_utilizados || []).map((i, n) =>
+      `<p>${n + 1}. ${esc(i.nome)}${i.referencia ? ` (${esc(i.referencia)})` : ''}.${i.objetivo ? ` Objetivo: ${esc(i.objetivo)}` : ''}</p>`).join('') || para(''));
+    s += h('REFERENCIAL TEÓRICO METODOLÓGICO:') + para(fx.referencial_teorico);
+    s += h('NÚMERO DE ENCONTROS E TEMPO DE DURAÇÃO:') + para(l.numero_encontros);
+    s += h('HISTÓRICO FAMILIAR DE TRANSTORNOS MENTAIS:') + para(l.historico_familiar_transtornos);
+    s += h('MEDICAÇÕES EM USO:') + para(l.medicacoes_em_uso);
+    s += h('ANÁLISE DO INSTRUMENTO E INTERPRETAÇÃO:');
     const testes = l.analise_testes || [];
     if (!testes.length) s += para('');
     for (const t of testes) {
-      s += `<h4>${esc(t.instrumento)}</h4><h5>O que o teste avalia</h5>${para(t.o_que_o_teste_avalia)}`;
-      s += table((t.tabela || {}).colunas, (t.tabela || {}).linhas);
+      s += `<p class="gl-test"><b>${esc(t.instrumento)}.</b> ${esc(t.descricao || '')}</p>`;
+      for (const tb of t.tabelas || []) s += (tb.titulo ? `<h5>${esc(tb.titulo)}</h5>` : '') + table(tb.colunas, tb.linhas);
       const svg = chartSvg(t.grafico);
       if (svg) s += `<div class="gl-chart">${svg}</div>`;
-      for (const [k, lab] of [['resultados_obtidos', 'Resultados obtidos'], ['classificacao_normativa', 'Classificação normativa'],
-        ['impacto_funcional', 'Impacto funcional'], ['integracao_clinica', 'Integração clínica']]) {
-        if (t[k]) s += `<h5>${lab}</h5>${para(t[k])}`;
-      }
+      if (t.base_conceitual) s += `<h5>Base conceitual teórica:</h5>${para(t.base_conceitual)}`;
+      s += `<h5>Interpretação:</h5>${para(t.interpretacao)}`;
     }
-    s += h(9, 'Integração neuropsicológica') + para(l.integracao_neuropsicologica);
-    s += h(10, 'Impressão diagnóstica') + para(imp.texto) + table(['Hipótese', 'DSM-5-TR', 'CID-10', 'Fundamentação'],
+    s += h('CONCLUSÃO E SÍNTESE') + para(l.conclusao_sintese);
+    s += h('Impressão diagnóstica:') + para(imp.texto) + table(['Hipótese', 'DSM-5-TR', 'CID', 'Fundamentação'],
       (imp.hipoteses || []).map((x) => [x.nome, x.codigo_dsm, x.codigo_cid, x.fundamentacao]));
-    s += h(11, 'Conclusão') + para(l.conclusao);
-    s += h(12, 'Recomendações');
-    for (const [k, lab] of [['escolares', 'Escolares'], ['familia', 'Família'], ['equipe_multidisciplinar', 'Equipe multidisciplinar']]) {
-      if ((rec[k] || []).length) s += `<h5>${lab}</h5>${list(rec[k])}`;
+    s += h('Obs.: Importante:') + list([fx.obs_importante].filter(Boolean));
+    s += h('SUGESTÕES DE ENCAMINHAMENTOS:') + (list(l.sugestoes_encaminhamentos) || para(''));
+    if ((rec.familia || []).length || (rec.escolares || []).length) {
+      s += h('RECOMENDAÇÕES:');
+      if ((rec.familia || []).length) s += `<h5>Orientações à Família:</h5>${list(rec.familia)}`;
+      if ((rec.escolares || []).length) s += `<h5>Orientações Escolares:</h5>${list(rec.escolares)}`;
     }
-    s += h(13, 'Parecer técnico') + para(l.parecer_tecnico);
-    s += h(14, 'Observação ética final') + para(l.observacao_etica_final);
-    s += `<div class="gl-sign"><div>__________________________________________</div>` +
+    s += h('À EQUIPE MULTIDISCIPLINAR:') + (fx.equipe_multidisciplinar || []).map((x) => `<p>${esc(x)}</p>`).join('');
+    if (l.local_data) s += `<p class="gl-date">${esc(l.local_data)}</p>`;
+    s += `<div class="gl-sign"><div>________________________________________</div>` +
       `<strong>${esc(id.psicologa_responsavel || '')}</strong>${id.crp ? `<div>CRP ${esc(id.crp)}</div>` : ''}</div>`;
+    s += `<div class="gl-foot">${(fx.rodape || []).map((x, i) => i ? `<div>${esc(x)}</div>` : `<b>${esc(x)}</b>`).join('')}</div>`;
     return s;
   }
 
@@ -202,7 +273,8 @@
 
   // ---------- gerar ----------
   $('#gl_gerar').addEventListener('click', async () => {
-    if (!files.length && !$('#gl_escores').value.trim()) { toast('Envie os arquivos dos testes (ou digite os escores).', true); return; }
+    const nSel = saved.filter(r => sel.has(r.id) && r.test !== 'História de Vida').length;
+    if (!files.length && !nSel && !$('#gl_escores').value.trim()) { toast('Envie os arquivos dos testes, marque testes realizados ou digite os escores.', true); return; }
     if (!$('#gl_nome').value.trim()) { toast('Informe o nome do paciente.', true); return; }
     const btn = $('#gl_gerar'), orig = btn.textContent, t0 = Date.now();
     btn.disabled = true;
@@ -253,12 +325,12 @@
     const w = window.open('', '_blank');
     if (!w) { toast('Permita pop-ups para imprimir.', true); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Laudo Neuropsicológico</title><style>
-      body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#1b2333;margin:2cm;line-height:1.45}
-      p{text-align:justify;margin:0 0 8px} h2{text-align:center;font-size:15pt} h3{color:#2f57b8;text-transform:uppercase;font-size:12pt;margin:18px 0 6px}
-      h4{color:#2f57b8;font-size:11.5pt;margin:14px 0 4px} h5{font-size:11pt;margin:8px 0 2px}
-      table{border-collapse:collapse;width:100%;margin:6px 0 10px;font-size:10pt} th,td{border:1px solid #8a93a6;padding:4px 6px;text-align:left} th{background:#eef2f9}
-      .gl-chart svg{width:100%;max-width:640px} .gl-sign{text-align:center;margin-top:60px}
-      @page{margin:2cm} body{margin:0}</style></head><body>${laudoHtml(laudo)}</body></html>`);
+      body{font-family:'Times New Roman',Times,serif;font-size:12pt;color:#000;line-height:1.5;margin:0}
+      p{text-align:justify;margin:0 0 8px} h2{text-align:center;font-size:14pt;margin:0 0 12px} h3{font-size:12pt;margin:18px 0 6px;page-break-after:avoid}
+      h5{font-size:12pt;margin:10px 0 4px} .gl-id{text-align:left;margin:0 0 2px} ul{margin:0 0 8px 18px;padding:0} li{text-align:justify;margin-bottom:4px}
+      table{border-collapse:collapse;width:100%;margin:6px 0 10px;font-size:11pt} th,td{border:1px solid #000;padding:3px 6px;text-align:left} th{background:#f2f2f2}
+      .gl-chart svg{width:100%;max-width:600px} .gl-date{text-align:right;margin-top:16px} .gl-sign{text-align:center;margin-top:60px}
+      .gl-foot{margin-top:40px;font-size:10pt} @page{margin:2.5cm 3cm}</style></head><body>${laudoHtml(laudo)}</body></html>`);
     w.document.close(); w.focus();
     setTimeout(() => { try { w.print(); } catch {} }, 400);
   });

@@ -27,7 +27,7 @@ from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content
 from . import auto_score
 from .openai_service import generate_laudo_neuro
-from . import auth, payments, store, scales, qplataforma
+from . import auth, payments, store, scales, qplataforma, laudo_modelo
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -372,8 +372,29 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
         groups.append(('escores_digitados.txt', [{'type': 'input_text', 'text':
             '--- Arquivo: escores_digitados.txt ---\n' + str(dados['escores_digitados'])}]))
     items=[it for _, its in groups for it in its]
-    if not items and not str(dados.get('escores_digitados') or '').strip():
-        raise HTTPException(400,'Envie os arquivos dos testes (ou digite os escores).')
+    # Testes realizados (já corrigidos pelo motor e salvos) + História de Vida salva do paciente
+    salvos=[]
+    ids=[str(x) for x in (dados.pop('testes_realizados_ids', None) or [])][:40]
+    if ids and auth.AUTH_ENABLED:
+        recs={r['id']:r for r in await store.list_test_results(user)}
+        for rid in ids:
+            r=recs.get(rid)
+            if not r:
+                continue
+            if r.get('test')==store.HISTORIA_TEST:
+                res=r.get('result') or {}
+                dados['historia_de_vida_salva']={'historia_modelo':res.get('historia_modelo'),'resumo':res.get('resumo'),
+                                                 'historia_de_vida':res.get('historia_de_vida')}
+            elif (r.get('result') or {}).get('tables'):
+                salvos.append({'teste':r['test'],'origem':'Testes realizados (corrigido pelo NeuroScore)',
+                               'escores_brutos_usados':((r.get('inputs') or {}).get('raw_scores') or {}),
+                               'tabelas_corrigidas':auto_score._compact(r['result']['tables'])})
+    if dados.get('tipo_laudo')=='teste_isolado':
+        dados['instrucao_tipo_laudo']=('LAUDO DE TESTE ISOLADO: mesmo modelo, mas a análise, a conclusão e as '
+                                       'recomendações tratam só do(s) instrumento(s) enviado(s); não generalize '
+                                       'para um diagnóstico global — indique que outros instrumentos complementam.')
+    if not items and not salvos and not str(dados.get('escores_digitados') or '').strip():
+        raise HTTPException(400,'Envie os arquivos dos testes, escolha testes realizados ou digite os escores.')
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
         raise HTTPException(402, store.NO_CREDITS.format(need='1'))
     # 1) testes com escores brutos que o NeuroScore conhece: corrige pelo motor (normas das planilhas)
@@ -386,14 +407,16 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
             alertas_correcao = [f'Correção automática indisponível ({type(exc).__name__}); '
                                 'o laudo usou só os escores já corrigidos nos arquivos.']
     dados.pop('paciente_motor', None)
-    if corrigidos:
-        dados['resultados_corrigidos_pelo_sistema'] = corrigidos
+    if corrigidos or salvos:
+        dados['resultados_corrigidos_pelo_sistema'] = salvos + corrigidos
     # 2) laudo
     try:
         laudo=await run_in_threadpool(generate_laudo_neuro, dados, items, anamnese_items)
     except Exception as exc:
         raise HTTPException(502,str(exc))
     laudo['alertas_para_revisao'] = alertas_correcao + list(laudo.get('alertas_para_revisao') or [])
+    laudo['textos_fixos'] = laudo_modelo.textos_fixos((laudo.get('identificacao') or {}).get('nome_paciente')
+                                                      or (dados.get('identificacao') or {}).get('nome'))
     laudo['correcao_automatica'] = [{'teste': c['teste'], 'escores_brutos_usados': c['escores_brutos_usados']}
                                     for c in corrigidos]
     if auth.AUTH_ENABLED:

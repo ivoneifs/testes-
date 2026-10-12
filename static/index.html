@@ -299,6 +299,10 @@
             <label class="field">Idade<input id="gl_idade" type="text" placeholder="automática" /></label>
             <label class="field span-2">Escolaridade / Profissão<input id="gl_escol" type="text" /></label>
             <label class="field">Lateralidade<select id="gl_lat"><option value="">Selecione</option><option>Destro</option><option>Canhoto</option><option>Ambidestro</option></select></label>
+            <label class="field">CPF<input id="gl_cpf" type="text" inputmode="numeric" /></label>
+            <label class="field span-2">Filiação — mãe<input id="gl_mae" type="text" /></label>
+            <label class="field span-2">Filiação — pai<input id="gl_pai" type="text" /></label>
+            <label class="field">Cidade (local do laudo)<input id="gl_cidade" type="text" /></label>
             <label class="field span-2">Psicóloga responsável<input id="gl_psi" type="text" /></label>
             <label class="field">CRP<input id="gl_crp" type="text" /></label>
             <label class="field span-2">Solicitante<input id="gl_solic" type="text" placeholder="Ex.: Neuropediatra, escola, família" /></label>
@@ -320,12 +324,24 @@
               <div id="gl_anamList" class="file-list"></div>
             </div>
             <label class="field">Anamnese (texto, opcional)<textarea id="gl_anamnese" rows="4" placeholder="Gestação e parto, desenvolvimento, linguagem, escola/ocupação, sono e alimentação, comportamento, socialização, autonomia, histórico familiar, medicações"></textarea></label>
+            <label class="field">Histórico familiar de transtornos mentais<input id="gl_famhist" type="text" placeholder="Ex.: família paterna — deficiência intelectual" /></label>
+            <label class="field">Medicações em uso<input id="gl_meds" type="text" placeholder="Ex.: Nenhuma" /></label>
             <label class="field">Observação clínica<textarea id="gl_obs" rows="4" placeholder="Atenção, engajamento, comunicação, contato ocular, regulação emocional, controle inibitório, comportamento motor"></textarea></label>
             <div class="form-grid gl-grid">
               <label class="field">Nº de sessões<input id="gl_sessoes" type="number" min="0" /></label>
               <label class="field">Duração das sessões<input id="gl_duracao" type="text" placeholder="Ex.: 50 min" /></label>
               <label class="field span-2">Outros procedimentos<input id="gl_proc" type="text" placeholder="Ex.: rapport, hora do jogo, entrevista com a escola" /></label>
             </div>
+          </div>
+        </section>
+
+        <section class="card" id="gl_savedCard" hidden>
+          <div class="section-heading"><div><span class="step">✓</span><h2>História de Vida e testes realizados do paciente</h2>
+            <span class="muted">Já salvos no sistema — marque o que entra no laudo. Não precisa enviar arquivo de novo.</span></div></div>
+          <div id="gl_saved" class="gl-saved"></div>
+          <div class="gl-tipo">
+            <label><input type="radio" name="gl_tipo" value="completo" checked> <b>Laudo Neuropsicológico completo</b> <small>(todos os marcados)</small></label>
+            <label><input type="radio" name="gl_tipo" value="teste_isolado"> <b>Laudo de teste isolado</b> <small>(um laudo só dos testes marcados)</small></label>
           </div>
         </section>
 

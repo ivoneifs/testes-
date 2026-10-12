@@ -52,6 +52,12 @@
     </aside>
 
     <main class="main">
+      <div class="trial-banner" id="trialBanner" hidden>
+        <span class="trial-days" id="trialDays">14</span>
+        <div><b id="trialTitle">Modo teste</b><small id="trialSub">dias restantes no seu período de teste gratuito</small></div>
+        <button type="button" class="btn primary" data-goto="planos">Adquirir créditos</button>
+      </div>
+
       <header class="topbar">
         <button type="button" class="icon-btn mobile-only" id="menuBtn" aria-label="Menu">☰</button>
         <div>
@@ -366,7 +372,7 @@
           </div>
           <div class="table-scroll">
             <table class="result-table" id="prosTable">
-              <thead><tr><th>Nome</th><th>E-mail</th><th>CRP</th><th>Papel</th><th>Status</th><th>Plano</th><th>Créditos</th><th></th></tr></thead>
+              <thead><tr><th>Nome</th><th>E-mail</th><th>CRP</th><th>Acesso</th><th>Status</th><th>Plano</th><th>Créditos</th><th></th></tr></thead>
               <tbody id="prosBody"><tr><td colspan="8" class="muted small">Carregando…</td></tr></tbody>
             </table>
           </div>
@@ -437,6 +443,18 @@
         <span>Não substitui julgamento clínico. Todo laudo exige revisão e assinatura profissional.</span>
       </footer>
     </main>
+  </div>
+
+  <div class="blocked" id="blockedScreen" hidden>
+    <div class="blocked-card">
+      <div class="blocked-ico">⏳</div>
+      <h2 id="blockedTitle">Seu período de teste terminou</h2>
+      <p id="blockedText">Os 14 dias de teste gratuito acabaram e o acesso ao sistema foi bloqueado. Adquira um pacote de créditos para liberar sua conta na hora, ou fale com o administrador.</p>
+      <div class="blocked-acts">
+        <button type="button" class="btn primary" id="blockedBuy">Ver pacotes de créditos</button>
+        <button type="button" class="btn ghost" id="blockedLogout">Sair</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -16,10 +16,10 @@
   try { applyTheme(localStorage.getItem(THEME_KEY) || 'system'); } catch { applyTheme('system'); }
 
   // ---------------- Views / navegação ----------------
-  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'geracao', 'videos', 'planos', 'config', 'admin', 'conta'];
+  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'realizados', 'geracao', 'videos', 'planos', 'config', 'admin', 'conta'];
   const TITLES = {
     dashboard: 'Dashboard', pacientes: 'Pacientes', historia: 'História de Vida',
-    laudos: 'Laudos', videos: 'Vídeos dos Testes', geracao: 'Geração de Laudo Neuropsicológico', planos: 'Planos e Recargas', config: 'Configurações',
+    laudos: 'Laudos', realizados: 'Testes Realizados', videos: 'Vídeos dos Testes', geracao: 'Geração de Laudo Neuropsicológico', planos: 'Planos e Recargas', config: 'Configurações',
     admin: 'Administração', conta: 'Minha Conta',
   };
   let currentView = null;
@@ -541,6 +541,81 @@
     }
   });
 
+  // ---------------- Testes realizados (CRUD) ----------------
+  const fmtDT = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  function trSummary(r) {
+    // primeira tabela do resultado: até 4 linhas "rótulo: valor"
+    const t = ((r.result || {}).tables || [])[0]; if (!t) return '';
+    return (t.rows || []).slice(0, 4).map(row => {
+      const v = row.values || []; return v.length > 1 ? `<span>${NS.esc(String(v[0] ?? ''))}: <b>${NS.esc(String(v[1] ?? ''))}</b></span>` : '';
+    }).join('');
+  }
+  async function loadRealizados() {
+    try {
+      const { results = [] } = await NS.api('/api/test-results');
+      state.tr = results;
+      const groups = new Map();
+      for (const r of results) {
+        if (!groups.has(r.patient_key)) groups.set(r.patient_key, { p: r.patient || {}, n: 0, last: r.updated_at });
+        groups.get(r.patient_key).n++;
+      }
+      state.trGroups = groups;
+      const sel = $('#trPatient'), cur = state.trKey && groups.has(state.trKey) ? state.trKey : [...groups.keys()][0];
+      sel.innerHTML = [...groups.entries()].map(([k, g]) =>
+        `<option value="${NS.esc(k)}"${k === cur ? ' selected' : ''}>${NS.esc(g.p.name || '(sem nome)')}${g.p.birth_date ? ' · nasc. ' + g.p.birth_date.split('-').reverse().join('/') : ''} — ${g.n} teste(s)</option>`).join('')
+        || '<option value="">Nenhum teste salvo ainda</option>';
+      state.trKey = cur || null;
+      state.trSel = state.trSel || {};
+      renderRealizados();
+    } catch (e) { $('#trList').innerHTML = `<p class="inline-msg err">${NS.esc(e.message)}</p>`; }
+  }
+  function renderRealizados() {
+    const recs = (state.tr || []).filter(r => r.patient_key === state.trKey);
+    $('#trList').innerHTML = recs.map(r => {
+      const on = state.trSel[r.id] !== false;
+      return `<article class="tr-card${on ? ' on' : ''}">
+        <label class="tr-check" title="Incluir no laudo completo"><input type="checkbox" data-tr-sel="${r.id}"${on ? ' checked' : ''}><span></span></label>
+        <div class="tr-body">
+          <h3>${NS.esc(r.test)}</h3>
+          <div class="muted small">Atualizado em ${fmtDT(r.updated_at)}${r.patient?.application_date ? ' · aplicação ' + r.patient.application_date.split('-').reverse().join('/') : ''}</div>
+          <div class="tr-sum">${trSummary(r)}</div>
+        </div>
+        <div class="row-acts">
+          <button class="btn ghost xs" data-tr-open="${r.id}">Abrir / editar</button>
+          <button class="btn ghost xs danger" data-tr-del="${r.id}">Excluir</button>
+        </div></article>`;
+    }).join('') || `<div class="empty-state">Nenhum teste salvo para este paciente. Corrija um teste em <a href="#laudos">Laudos</a>: ao calcular, ele aparece aqui.</div>`;
+    const n = recs.filter(r => state.trSel[r.id] !== false).length;
+    $('#trFinal').hidden = !recs.length;
+    $('#trFinalInfo').textContent = `${n} de ${recs.length} teste(s) selecionado(s). Gera os laudos por teste e o laudo integrado (consome 1 crédito).`;
+    $('#trLaudoBtn').disabled = !n;
+  }
+  $('#trPatient')?.addEventListener('change', (e) => { state.trKey = e.target.value; renderRealizados(); });
+  $('#trList')?.addEventListener('change', (e) => {
+    const c = e.target.closest('[data-tr-sel]'); if (!c) return;
+    state.trSel[c.dataset.trSel] = c.checked; renderRealizados();
+  });
+  $('#trList')?.addEventListener('click', async (e) => {
+    const o = e.target.closest('[data-tr-open]'), d = e.target.closest('[data-tr-del]');
+    if (o) {
+      const rec = state.tr.find(x => x.id === o.dataset.trOpen); if (!rec) return;
+      showView('laudos');
+      try { await NS.openSavedTest(rec); NS.toast(`${rec.test} aberto. Altere e clique em Calcular para atualizar.`); }
+      catch (err) { NS.toast(err.message, true); }
+    }
+    if (d) {
+      if (!confirm('Excluir este teste salvo?')) return;
+      try { await NS.api('/api/test-results/' + d.dataset.trDel, { method: 'DELETE' }); NS.toast('Teste excluído.'); loadRealizados(); }
+      catch (err) { NS.toast(err.message, true); }
+    }
+  });
+  $('#trLaudoBtn')?.addEventListener('click', () => {
+    const recs = (state.tr || []).filter(r => r.patient_key === state.trKey && state.trSel[r.id] !== false);
+    if (!recs.length) return;
+    showView('laudos');
+    NS.laudoFromSaved(recs);
+  });
+
   // ---------------- Vídeos explicativos ----------------
   function ytId(url) {
     const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
@@ -642,7 +717,7 @@
 
   const VIEW_LOADERS = {
     dashboard: loadDashboard, pacientes: loadPatients, planos: loadPlanos,
-    admin: loadAdmin, conta: fillConta, videos: loadVideos,
+    admin: loadAdmin, conta: fillConta, videos: loadVideos, realizados: loadRealizados,
     geracao: () => window.glOnShow && window.glOnShow(),
   };
 

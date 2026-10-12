@@ -26,6 +26,7 @@
         <a class="nav-item" data-view="pacientes" href="#pacientes"><i>👥</i><span>Pacientes</span></a>
         <a class="nav-item" data-view="historia" href="#historia"><i>📇</i><span>História de Vida</span></a>
         <a class="nav-item" data-view="laudos" href="#laudos"><i>📄</i><span>Laudos</span></a>
+        <a class="nav-item" data-view="realizados" href="#realizados"><i>🗂</i><span>Testes realizados</span></a>
         <a class="nav-item" data-view="geracao" href="#geracao"><i>🧠</i><span>Geração de Laudo</span></a>
         <a class="nav-item" data-view="videos" href="#videos"><i>🎬</i><span>Vídeos</span></a>
         <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
@@ -194,6 +195,7 @@
             <div><span class="step">3</span><h2>Resultados</h2></div>
             <div class="row-acts">
               <span class="badge success">Calculado pela planilha</span>
+              <span class="saved-note" id="savedNote" hidden></span>
               <button type="button" class="btn primary xs" id="archiveBtn">📁 Arquivar teste</button>
             </div>
           </div>
@@ -361,6 +363,26 @@
           <div><h3>Precisa de um plano personalizado?</h3>
             <p class="muted">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
           <a class="btn primary" id="consultorBtn" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
+        </div>
+      </section>
+
+      <!-- ================= TESTES REALIZADOS ================= -->
+      <section class="view" id="view-realizados" hidden>
+        <div class="card">
+          <div class="section-heading">
+            <div><h2>Testes realizados</h2>
+              <span class="muted">Cada teste calculado em Laudos fica salvo aqui, por paciente. Abra para editar, exclua, ou escolha os que entram no laudo completo.</span></div>
+            <a class="btn primary" href="#laudos">+ Corrigir novo teste</a>
+          </div>
+          <div class="form-grid">
+            <label class="field span-2">Paciente<select id="trPatient"></select></label>
+          </div>
+        </div>
+        <div id="trList" class="tr-list"><p class="muted small">Carregando…</p></div>
+        <div class="card tr-final" id="trFinal" hidden>
+          <div><h3>Laudo completo</h3>
+            <span class="muted" id="trFinalInfo">—</span></div>
+          <button type="button" class="btn primary" id="trLaudoBtn">🧠 Gerar laudo completo</button>
         </div>
       </section>
 

@@ -17,7 +17,7 @@ import schedula as sh
 import formulas
 
 from . import xl_compat
-from . import ravlt_sheet, item_sheet
+from . import ravlt_sheet, item_sheet, vineland
 xl_compat.patch()  # coerção Excel de texto->número nos operadores (antes de compilar)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1040,7 +1040,17 @@ class WorkbookEngine:
             # Seletores de tabela normativa que a planilha usa mas a tela não mostrava.
             have={p['cell'] for p in meta['parameters']}|{f['cell'] for f in meta['raw_fields']}
             meta['parameters']=meta['parameters']+[x for x in item_sheet.detect_selectors(rows) if x['cell'] not in have]
-            if canonical==ravlt_sheet.SHEET:
+            if vineland.is_form(canonical):
+                # Vineland-3: itens por número (sem o texto da Pearson); a tela soma com
+                # basal/teto e a planilha recebe só os brutos de cada subdomínio.
+                meta['raw_fields']=vineland.raw_fields()
+                meta['detail_fields']=[]
+                meta['parameters']=vineland.parameters(canonical)
+                meta['extra_inputs']=list(vineland.CRITICOS)
+                meta['vineland']=vineland.layout(canonical)
+                meta['note']=('Vineland-3 — marque 2 / 1 / 0 pelo número do item, lendo o seu protocolo impresso. '
+                              'O sistema aplica basal e teto, soma os brutos e a planilha corrige.')
+            elif canonical==ravlt_sheet.SHEET:
                 # Ficha do RAVLT: a planilha recebe a ordem das palavras, intrusões e
                 # reconhecimento e faz a contagem sozinha (fórmulas inalteradas).
                 meta['answer_sheet']=ravlt_sheet.layout(rows)
@@ -1056,6 +1066,9 @@ class WorkbookEngine:
 
     def build_overrides(self, meta: dict, patient: dict, raw_scores: dict, parameters: dict | None = None):
         sheet=meta['name']
+        if meta.get('vineland'):
+            raw_scores=vineland.split_inputs(raw_scores)
+            parameters=vineland.coerce_params(parameters)
         version=hash(json.dumps([patient,raw_scores,parameters or {}],sort_keys=True,default=str)) & 0x7FFFFFFF
         overrides={'__version__':version}
         def put_sheet(target_sheet, addr, val):

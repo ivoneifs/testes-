@@ -28,7 +28,7 @@ from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content
 from . import auto_score
 from .openai_service import generate_laudo_neuro
-from . import auth, payments, store, scales, qplataforma, laudo_modelo
+from . import auth, payments, store, scales, qplataforma, laudo_modelo, vineland
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -393,7 +393,7 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
                                                  'historia_de_vida':res.get('historia_de_vida')}
             elif (r.get('result') or {}).get('tables'):
                 salvos.append({'teste':r['test'],'origem':'Testes realizados (corrigido pelo NeuroScore)',
-                               'escores_brutos_usados':((r.get('inputs') or {}).get('raw_scores') or {}),
+                               'escores_brutos_usados':vineland.split_inputs((r.get('inputs') or {}).get('raw_scores') or {}),
                                'tabelas_corrigidas':auto_score._compact(r['result']['tables'])})
     if dados.get('tipo_laudo')=='teste_isolado':
         dados['instrucao_tipo_laudo']=('LAUDO DE TESTE ISOLADO: mesmo modelo, mas a análise, a conclusão e as '

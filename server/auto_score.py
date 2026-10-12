@@ -83,7 +83,9 @@ def run(engine, file_groups: list[tuple[str, list[dict]]], patient: dict):
                else engine.score(test, patient, raw, {}))
         return {'teste': test, 'instrumento_no_documento': ins.get('instrumento', ''),
                 'escores_brutos_usados': {f['label']: raw[f['cell']] for f in fields if f['cell'] in raw},
-                'tabelas_corrigidas': _compact(res.get('tables'))}, notes
+                'tabelas_corrigidas': _compact(res.get('tables')),
+                # só para gravar em Testes realizados (retirados antes de ir para a IA)
+                '_raw': raw, '_resultado': res}, notes
 
     resultados = []
     with ThreadPoolExecutor(max_workers=3) as pool:

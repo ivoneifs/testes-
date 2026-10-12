@@ -304,3 +304,8 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   e `dados.tipo_laudo` = `completo` | `teste_isolado`. Geração de Laudo: ao escolher o paciente, preenche CPF/filiação/
   cidade/medicações/histórico familiar do cadastro e lista HV + testes salvos para marcar. Testes realizados:
   "Gerar laudo completo" e "Laudo deste teste" abrem a Geração já preenchida. Teste real: 49 s / 45 s, 1 crédito cada.
+- **Geração de Laudo grava em Testes realizados**: anamnese PDF/foto enviada na Geração passa pelo OCR da História de
+  Vida (`analyze_anamnesis`, em paralelo com o `auto_score`) → registro "História de Vida" + `historia_de_vida_salva`
+  no laudo; testes corrigidos pelo motor (`_raw`/`_resultado` do auto_score) e relatórios já corrigidos (tabelas
+  transcritas em `analise_testes`, `result.externo=true`, sem "Abrir/editar") também são salvos. Resposta:
+  `salvos_em_testes_realizados`. Sem custo extra (só o crédito do laudo). DOC/DOCX de anamnese seguem direto para a IA.

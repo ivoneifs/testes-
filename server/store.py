@@ -355,3 +355,50 @@ async def admin_grant_credits(user: dict, pid: str, delta: int) -> int:
     return int(_scalar(await _service_req('POST', '/rpc/apply_credits', json={
         'p_owner': pid, 'p_delta': int(delta), 'p_reason': 'admin_grant',
     })) or 0)
+
+
+async def admin_delete_plan(user: dict, key: str) -> None:
+    await _require_admin(user)
+    await _req('DELETE', '/plans', user, params={'key': f'eq.{key}'})
+    await log(user, 'admin_delete', 'plan', key)
+
+
+async def admin_set_password(user: dict, pid: str, password: str) -> None:
+    """Define uma nova senha para qualquer usuário (Auth Admin API)."""
+    await _require_admin(user)
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(500, 'Service role não configurado no servidor.')
+    if len(password or '') < 6:
+        raise HTTPException(400, 'A senha precisa ter no mínimo 6 caracteres.')
+    async with httpx.AsyncClient(timeout=15.0) as c:
+        r = await c.put(f'{SUPABASE_URL}/auth/v1/admin/users/{pid}',
+            headers={'apikey': SUPABASE_SERVICE_ROLE_KEY,
+                     'Authorization': f'Bearer {SUPABASE_SERVICE_ROLE_KEY}',
+                     'Content-Type': 'application/json'},
+            json={'password': password})
+    if r.status_code >= 400:
+        raise HTTPException(r.status_code, f'Supabase: {r.text[:300]}')
+    await log(user, 'admin_password', 'profile', pid)
+
+
+# ---------- aparência do site (cores + textos da landing) ----------
+async def get_site() -> dict:
+    """Leitura pública (anon key): a landing e o app aplicam as cores daqui."""
+    if not SUPABASE_URL:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as c:
+            r = await c.get(f'{REST}/site_settings', params={'id': 'eq.site', 'select': 'data'},
+                            headers={'apikey': SUPABASE_ANON_KEY, 'Authorization': f'Bearer {SUPABASE_ANON_KEY}'})
+        rows = r.json() if r.status_code < 400 and r.content else []
+        return (rows[0].get('data') if rows else None) or {}
+    except (httpx.HTTPError, ValueError):
+        return {}
+
+
+async def update_site(user: dict, data: dict) -> dict:
+    await _require_admin(user)
+    rows = await _req('PATCH', '/site_settings', user, params={'id': 'eq.site'},
+                      json={'data': data}, write=True)
+    await log(user, 'admin_update', 'site', 'site')
+    return (rows or [{}])[0].get('data') or data

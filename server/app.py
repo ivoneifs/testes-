@@ -411,6 +411,33 @@ async def admin_professional_create(req: ProfessionalCreate, user: dict = Depend
 async def admin_plan_upsert(key: str, req: PlanUpsert, user: dict = Depends(current_user)):
     return await store.upsert_plan(user, key, req.model_dump())
 
+@app.delete('/api/admin/plans/{key}')
+async def admin_plan_delete(key: str, user: dict = Depends(current_user)):
+    await store.admin_delete_plan(user, key)
+    return {'ok': True}
+
+class PasswordRequest(BaseModel):
+    password: str
+
+@app.post('/api/admin/professionals/{pid}/password')
+async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(current_user)):
+    await store.admin_set_password(user, pid, req.password)
+    return {'ok': True}
+
+@app.put('/api/admin/site')
+async def admin_site_update(req: dict[str, Any], user: dict = Depends(current_user)):
+    return {'site': await store.update_site(user, req)}
+
+# ---------------- Públicas: landing page ----------------
+@app.get('/api/site')
+async def site_get():
+    return {'site': await store.get_site()}
+
+@app.get('/api/public/plans')
+async def public_plans():
+    plans = await store.list_plans(None) if store.SUPABASE_URL else []
+    return {'plans': [p for p in plans if p.get('active')]}
+
 @app.get('/api/plans')
 async def plans_list(user: dict = Depends(current_user)):
     return {'plans': await store.list_plans(user)}
@@ -514,6 +541,14 @@ def _index_html() -> Response:
 
 
 @app.get('/')
+def landing():
+    try:
+        html = (STATIC/'landing.html').read_text(encoding='utf-8')
+    except OSError:
+        return _index_html()
+    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
+
+@app.get('/app')
 def index():
     return _index_html()
 

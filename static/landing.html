@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NeuroScore — Correção e laudos neuropsicológicos com IA</title>
+  <meta name="description" content="Correção automática de mais de 70 instrumentos neuropsicológicos e laudos completos com IA em minutos. Pague só pelo que usar: R$ 20 por laudo." />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" />
+  <style>
+    :root{
+      --primary:#4f46e5; --accent:#f97316; --secondary:#06b6d4; --dark:#0f172a;
+      --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --line:#e2e8f0;
+      --bg:#ffffff; --bg-2:#f8fafc;
+      --primary-soft:color-mix(in srgb,var(--primary) 9%,#fff);
+      --accent-soft:color-mix(in srgb,var(--accent) 12%,#fff);
+      --grad:linear-gradient(120deg,var(--primary),var(--secondary));
+      --r:16px; --shadow:0 1px 2px rgba(15,23,42,.05),0 12px 32px rgba(15,23,42,.08);
+      --display:"Plus Jakarta Sans","Inter",system-ui,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:"Inter","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--bg);
+      font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    img,svg{display:block;max-width:100%}
+    .wrap{width:100%;max-width:1160px;margin:0 auto;padding:0 20px}
+    h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;letter-spacing:-.02em}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--primary);
+      background:var(--primary-soft);border:1px solid color-mix(in srgb,var(--primary) 18%,#fff);padding:6px 12px;border-radius:999px}
+    .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+    /* Botões */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;
+      padding:13px 22px;border-radius:12px;border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s;white-space:nowrap}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-cta{background:var(--accent);color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 35%,transparent)}
+    .btn-cta:hover{box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 45%,transparent)}
+    .btn-primary{background:var(--primary);color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--primary) 30%,transparent)}
+    .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+    .btn-ghost:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+    .btn-sm{padding:9px 16px;font-size:14px;border-radius:10px}
+    .btn-block{width:100%}
+
+    /* Nav */
+    .nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:saturate(1.6) blur(12px);
+      border-bottom:1px solid transparent;transition:border-color .2s}
+    .nav.scrolled{border-bottom-color:var(--line)}
+    .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
+    .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px}
+    .logo-mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:14px;background:var(--grad)}
+    .nav-links{display:flex;gap:28px;font-size:15px;font-weight:500;color:var(--ink-2)}
+    .nav-links a:hover{color:var(--primary)}
+    .nav-acts{display:flex;gap:10px;align-items:center}
+    .menu-btn{display:none;background:none;border:1px solid var(--line);border-radius:10px;width:42px;height:42px;cursor:pointer;font-size:20px}
+
+    /* Hero */
+    .hero{position:relative;overflow:hidden;padding:72px 0 88px;
+      background:radial-gradient(900px 480px at 85% -10%,color-mix(in srgb,var(--secondary) 16%,transparent),transparent 70%),
+                 radial-gradient(800px 500px at 0% 0%,color-mix(in srgb,var(--primary) 12%,transparent),transparent 70%)}
+    .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center}
+    .hero h1{font-size:clamp(34px,5vw,56px);margin:18px 0 18px}
+    .hero p.lead{font-size:clamp(17px,1.6vw,19px);color:var(--ink-2);max-width:540px;margin:0 0 30px}
+    .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
+    .hero-trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:30px;font-size:14px;color:var(--muted)}
+    .hero-trust span{display:flex;align-items:center;gap:7px}
+    .check{width:18px;height:18px;flex:none;border-radius:50%;display:grid;place-items:center;
+      background:color-mix(in srgb,#10b981 15%,#fff);color:#059669;font-size:11px;font-weight:800}
+
+    /* Mockup */
+    .mock{position:relative;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 30px 80px rgba(15,23,42,.14);padding:18px}
+    .mock-bar{display:flex;gap:6px;margin-bottom:14px}
+    .mock-bar i{width:10px;height:10px;border-radius:50%;background:#e2e8f0}
+    .mock-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .mock-head b{font-size:15px}.mock-head small{color:var(--muted);font-size:12px}
+    .pill{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,#10b981 14%,#fff);color:#047857}
+    .mock-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+    .kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+    .kpi small{display:block;font-size:11px;color:var(--muted)}.kpi b{font-size:20px;font-family:var(--display)}
+    .bars{display:flex;flex-direction:column;gap:9px;border:1px solid var(--line);border-radius:12px;padding:14px}
+    .bar-row{display:grid;grid-template-columns:44px 1fr 34px;gap:10px;align-items:center;font-size:12px;color:var(--ink-2)}
+    .bar{height:10px;border-radius:99px;background:var(--bg-2);overflow:hidden}
+    .bar i{display:block;height:100%;border-radius:99px;background:var(--grad)}
+    .float{position:absolute;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+      padding:12px 14px;font-size:13px;display:flex;gap:10px;align-items:center}
+    .float .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+    .float-1{left:-28px;bottom:42px}.float-1 .ico{background:var(--accent-soft)}
+    .float-2{right:-18px;top:-18px}.float-2 .ico{background:var(--primary-soft)}
+    .float small{display:block;color:var(--muted);font-size:11.5px}
+
+    /* Faixa de números */
+    .stats{background:var(--dark);color:#fff}
+    .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:38px 20px}
+    .stat b{display:block;font-family:var(--display);font-size:34px;line-height:1.1}
+    .stat b em{font-style:normal;color:var(--accent)}
+    .stat span{font-size:14px;color:#cbd5e1}
+
+    /* Seções */
+    section.block{padding:96px 0}
+    section.alt{background:var(--bg-2)}
+    .sec-head{text-align:center;max-width:680px;margin:0 auto 52px}
+    .sec-head h2{font-size:clamp(28px,3.4vw,40px);margin:14px 0 12px}
+    .sec-head p{color:var(--ink-2);font-size:17px;margin:0}
+
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    .feat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px;transition:transform .2s,box-shadow .2s,border-color .2s}
+    .feat:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--primary) 25%,var(--line))}
+    .feat .ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;margin-bottom:16px}
+    .feat:nth-child(3n+1) .ico{background:var(--primary-soft)}
+    .feat:nth-child(3n+2) .ico{background:var(--accent-soft)}
+    .feat:nth-child(3n+3) .ico{background:color-mix(in srgb,var(--secondary) 13%,#fff)}
+    .feat h3{font-size:18px;margin-bottom:8px}
+    .feat p{margin:0;color:var(--ink-2);font-size:15px}
+
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;counter-reset:s}
+    .step{position:relative;padding:28px 26px;border-radius:var(--r);background:#fff;border:1px solid var(--line)}
+    .step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:40px;height:40px;border-radius:12px;
+      font-family:var(--display);font-weight:800;color:#fff;background:var(--grad);margin-bottom:16px}
+    .step h3{font-size:18px;margin-bottom:8px}.step p{margin:0;color:var(--ink-2);font-size:15px}
+
+    /* Preços */
+    .price-note{display:inline-flex;gap:8px;align-items:center;margin-top:16px;font-weight:600;color:var(--ink);
+      background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,#fff);padding:8px 14px;border-radius:999px;font-size:14px}
+    .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
+    .price{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:20px;padding:30px 26px}
+    .price.featured{border:2px solid var(--primary);box-shadow:0 24px 60px color-mix(in srgb,var(--primary) 18%,transparent);transform:translateY(-8px)}
+    .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:12px;font-weight:800;
+      letter-spacing:.04em;text-transform:uppercase;padding:5px 14px;border-radius:999px;white-space:nowrap}
+    .price h3{font-size:19px}
+    .price .credits{color:var(--muted);font-size:14px;margin-top:4px}
+    .amount{display:flex;align-items:baseline;gap:6px;margin:20px 0 4px;font-family:var(--display)}
+    .amount small{font-size:18px;font-weight:700;color:var(--ink-2)}
+    .amount b{font-size:46px;line-height:1;font-weight:800}
+    .unit{font-size:13.5px;color:var(--muted);margin-bottom:22px}
+    .price ul{list-style:none;padding:0;margin:0 0 26px;display:flex;flex-direction:column;gap:11px;font-size:15px;color:var(--ink-2)}
+    .price li{display:flex;gap:10px;align-items:flex-start}
+    .price li .check{margin-top:3px}
+    .price .btn{margin-top:auto}
+    .secure{text-align:center;margin-top:30px;color:var(--muted);font-size:14px}
+
+    /* FAQ */
+    .faq{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+    details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 22px}
+    details[open]{border-color:color-mix(in srgb,var(--primary) 30%,var(--line))}
+    summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:600;display:flex;justify-content:space-between;gap:16px}
+    summary::-webkit-details-marker{display:none}
+    summary::after{content:"+";font-size:22px;line-height:1;color:var(--primary);transition:transform .2s}
+    details[open] summary::after{transform:rotate(45deg)}
+    details p{margin:0 0 18px;color:var(--ink-2)}
+
+    /* CTA final */
+    .final{padding:0 0 96px}
+    .final-box{position:relative;overflow:hidden;border-radius:24px;padding:64px 40px;text-align:center;color:#fff;
+      background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 55%,var(--secondary)))}
+    .final-box::after{content:"";position:absolute;inset:auto -80px -120px auto;width:340px;height:340px;border-radius:50%;
+      background:color-mix(in srgb,var(--accent) 45%,transparent);filter:blur(60px);opacity:.6}
+    .final-box h2{font-size:clamp(28px,3.6vw,42px);margin-bottom:14px;position:relative;z-index:1}
+    .final-box p{color:rgba(255,255,255,.88);font-size:18px;margin:0 auto 30px;max-width:560px;position:relative;z-index:1}
+    .final-box .hero-cta{justify-content:center;position:relative;z-index:1}
+    .final-box .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+
+    footer{background:var(--dark);color:#94a3b8;font-size:14px}
+    footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:40px 20px}
+    footer .logo{color:#fff}
+    footer a:hover{color:#fff}
+    .foot-links{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+    .disclaimer{border-top:1px solid rgba(255,255,255,.08);padding:18px 20px;text-align:center;font-size:12.5px}
+
+    .wa{position:fixed;right:20px;bottom:20px;z-index:60;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+      background:#22c55e;color:#fff;box-shadow:0 10px 28px rgba(34,197,94,.45)}
+
+    .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+    .reveal.in{opacity:1;transform:none}
+    @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.btn:hover,.feat:hover{transform:none}}
+
+    @media (max-width:980px){
+      .hero-grid{grid-template-columns:1fr;gap:48px}
+      .features,.prices{grid-template-columns:1fr 1fr}
+      .steps{grid-template-columns:1fr}
+      .stats .wrap{grid-template-columns:1fr 1fr}
+      .float-1{left:-8px}.float-2{right:-6px}
+    }
+    @media (max-width:760px){
+      .nav-links{display:none;position:absolute;top:68px;left:0;right:0;flex-direction:column;gap:0;background:#fff;border-bottom:1px solid var(--line);padding:8px 20px}
+      .nav-links.open{display:flex}
+      .nav-links a{padding:12px 0;border-bottom:1px solid var(--line)}
+      .nav-links a:last-child{border-bottom:0}
+      .menu-btn{display:block}
+      .nav-acts .btn-ghost{display:none}
+      .wrap{padding:0 16px}
+      .hero{padding:48px 0 64px}
+      section.block{padding:72px 0}
+      .features,.prices{grid-template-columns:1fr}
+      .price.featured{transform:none}
+      .mock-kpis{grid-template-columns:repeat(3,1fr)}
+      .float{display:none}
+      .final-box{padding:48px 22px}
+      .hero-cta .btn{flex:1 1 100%}
+    }
+  </style>
+</head>
+<body>
+  <header class="nav" id="nav">
+    <div class="wrap">
+      <a href="#" class="logo"><span class="logo-mark">NS</span>NeuroScore</a>
+      <nav class="nav-links" id="navLinks">
+        <a href="#recursos">Recursos</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#precos">Preços</a>
+        <a href="#faq">Dúvidas</a>
+      </nav>
+      <div class="nav-acts">
+        <a href="/login.html" class="btn btn-ghost btn-sm">Entrar</a>
+        <a href="#precos" class="btn btn-cta btn-sm" data-cta>Começar agora</a>
+        <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="reveal">
+          <span class="eyebrow">✦ Plataforma para neuropsicólogos</span>
+          <h1 id="heroTitle">Laudos neuropsicológicos em minutos, com <span class="grad-text">precisão clínica</span></h1>
+          <p class="lead" id="heroSub">Corrija mais de 70 instrumentos automaticamente, gere gráficos e receba um laudo completo em 14 seções, pronto para revisar e assinar. Mais tempo para o paciente, menos tempo com planilhas.</p>
+          <div class="hero-cta">
+            <a href="#precos" class="btn btn-cta" data-cta>Começar agora →</a>
+            <a href="#como-funciona" class="btn btn-ghost">Ver como funciona</a>
+          </div>
+          <div class="hero-trust">
+            <span><i class="check">✓</i>Sem mensalidade</span>
+            <span><i class="check">✓</i>Pix, cartão ou boleto</span>
+            <span><i class="check">✓</i>Exporta em Word e PDF</span>
+          </div>
+        </div>
+
+        <div class="reveal" aria-hidden="true">
+          <div class="mock">
+            <div class="mock-bar"><i></i><i></i><i></i></div>
+            <div class="mock-head"><div><b>WISC-IV · Índices</b><br><small>Paciente M. A., 9 anos</small></div><span class="pill">Corrigido</span></div>
+            <div class="mock-kpis">
+              <div class="kpi"><small>QI Total</small><b>105</b></div>
+              <div class="kpi"><small>ICV</small><b>110</b></div>
+              <div class="kpi"><small>IOP</small><b>106</b></div>
+            </div>
+            <div class="bars">
+              <div class="bar-row">ICV<span class="bar"><i style="width:73%"></i></span>110</div>
+              <div class="bar-row">IOP<span class="bar"><i style="width:70%"></i></span>106</div>
+              <div class="bar-row">IMO<span class="bar"><i style="width:58%"></i></span>94</div>
+              <div class="bar-row">IVP<span class="bar"><i style="width:67%"></i></span>103</div>
+            </div>
+            <div class="float float-1"><span class="ico">📄</span><div><b>Laudo gerado</b><small>14 seções · .docx</small></div></div>
+            <div class="float float-2"><span class="ico">⚡</span><div><b>Correção automática</b><small>em segundos</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="stats">
+      <div class="wrap">
+        <div class="stat"><b><em>70+</em></b><span>instrumentos corrigidos automaticamente</span></div>
+        <div class="stat"><b>14</b><span>seções no laudo neuropsicológico</span></div>
+        <div class="stat"><b>R$ <em>20</em></b><span>por laudo, sem mensalidade</span></div>
+        <div class="stat"><b>100%</b><span>online, de qualquer computador</span></div>
+      </div>
+    </div>
+
+    <section class="block" id="recursos">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="eyebrow">Recursos</span>
+          <h2>Tudo o que a avaliação precisa, em um só lugar</h2>
+          <p>Da correção do teste ao laudo assinado, sem trocar de ferramenta.</p>
+        </div>
+        <div class="features">
+          <div class="feat reveal"><div class="ico">🧮</div><h3>Correção automática</h3><p>WISC-IV, WASI, RAVLT, Perfil Sensorial 2, ATA, HADS e mais de 70 instrumentos com as normas aplicadas na hora.</p></div>
+          <div class="feat reveal"><div class="ico">🧠</div><h3>Laudo completo com IA</h3><p>Laudo neuropsicológico em 14 seções, escrito a partir dos resultados, da anamnese e da observação clínica.</p></div>
+          <div class="feat reveal"><div class="ico">📊</div><h3>Gráficos prontos</h3><p>Perfis de índices, subtestes e quadrantes gerados automaticamente para cada instrumento.</p></div>
+          <div class="feat reveal"><div class="ico">📁</div><h3>Envie os arquivos</h3><p>Suba PDF, imagem, Word ou Excel dos testes já corrigidos. O sistema lê e organiza tudo para o laudo.</p></div>
+          <div class="feat reveal"><div class="ico">👥</div><h3>Gestão de pacientes</h3><p>Cadastro, histórico de avaliações e história de vida de cada paciente, organizados e fáceis de achar.</p></div>
+          <div class="feat reveal"><div class="ico">🔒</div><h3>Seguro e privado</h3><p>Acesso por login individual e dados separados por profissional. Cada um vê apenas os próprios pacientes.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block alt" id="como-funciona">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="eyebrow">Como funciona</span>
+          <h2>Três passos até o laudo pronto</h2>
+          <p>Simples para começar hoje, sem instalação.</p>
+        </div>
+        <div class="steps">
+          <div class="step reveal"><h3>Escolha seu pacote</h3><p>Compre créditos com Pix, cartão ou boleto. Cada crédito vale um laudo completo e não expira.</p></div>
+          <div class="step reveal"><h3>Lance os resultados</h3><p>Digite os escores brutos ou envie os arquivos dos testes. A correção e os gráficos saem na hora.</p></div>
+          <div class="step reveal"><h3>Revise e assine</h3><p>Receba o laudo estruturado, ajuste o que quiser e exporte em Word ou PDF com o seu cabeçalho.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="precos">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="eyebrow">Preços</span>
+          <h2>Pague só pelo que usar</h2>
+          <p>Sem mensalidade e sem fidelidade. Escolha a quantidade de créditos que combina com a sua rotina.</p>
+          <span class="price-note">💡 Cada crédito = 1 laudo completo = R$ 20,00</span>
+        </div>
+        <div class="prices" id="prices"></div>
+        <p class="secure">🔒 Pagamento seguro pelo Mercado Pago · Pix, cartão de crédito e boleto</p>
+      </div>
+    </section>
+
+    <section class="block alt" id="faq">
+      <div class="wrap">
+        <div class="sec-head reveal">
+          <span class="eyebrow">Dúvidas frequentes</span>
+          <h2>Perguntas e respostas</h2>
+        </div>
+        <div class="faq reveal">
+          <details><summary>Como funcionam os créditos?</summary><p>Cada crédito permite gerar um laudo completo com IA. A correção dos instrumentos, os gráficos e o cadastro de pacientes não consomem créditos.</p></details>
+          <details><summary>Os créditos expiram?</summary><p>Não. Os créditos ficam na sua conta até você usar.</p></details>
+          <details><summary>Quais formas de pagamento são aceitas?</summary><p>Pix, cartão de crédito e boleto, pelo Mercado Pago. Os créditos entram assim que o pagamento é aprovado.</p></details>
+          <details><summary>O laudo sai pronto para entregar?</summary><p>O laudo sai completo e estruturado, mas é uma ferramenta de apoio: todo laudo deve ser revisado e assinado por profissional habilitado.</p></details>
+          <details><summary>Preciso instalar alguma coisa?</summary><p>Não. O NeuroScore funciona no navegador, em qualquer computador com internet.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="final">
+      <div class="wrap">
+        <div class="final-box reveal">
+          <h2>Comece seu próximo laudo hoje</h2>
+          <p>Ganhe horas na semana e entregue laudos mais claros para pacientes e famílias.</p>
+          <div class="hero-cta">
+            <a href="#precos" class="btn btn-cta" data-cta>Começar agora →</a>
+            <a href="/login.html" class="btn btn-ghost">Já tenho conta</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a href="#" class="logo"><span class="logo-mark">NS</span>NeuroScore</a>
+      <div class="foot-links">
+        <a href="#recursos">Recursos</a><a href="#precos">Preços</a><a href="#faq">Dúvidas</a>
+        <a href="/login.html">Entrar</a>
+        <a id="footEmail" href="#" hidden></a>
+      </div>
+    </div>
+    <div class="disclaimer">© <span id="year"></span> NeuroScore · Ferramenta de apoio à correção e redação neuropsicológica. Não substitui o julgamento clínico.</div>
+  </footer>
+
+  <a class="wa" id="waBtn" href="#" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" hidden>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35M12.04 21.5h-.01a9.4 9.4 0 0 1-4.8-1.31l-.34-.2-3.56.93.95-3.47-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.24-9.43 9.44-9.43 2.52 0 4.89.98 6.67 2.77a9.37 9.37 0 0 1 2.76 6.67c0 5.2-4.24 9.43-9.45 9.43m8.04-17.47A11.3 11.3 0 0 0 12.04.7C5.77.7.67 5.8.67 12.06c0 2 .52 3.96 1.52 5.68L.57 23.62l6.02-1.58a11.33 11.33 0 0 0 5.44 1.39h.01c6.26 0 11.36-5.1 11.36-11.37 0-3.04-1.18-5.89-3.32-8.03"/></svg>
+  </a>
+
+  <script>
+  (() => {
+    const $ = (s) => document.querySelector(s);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    $('#year').textContent = new Date().getFullYear();
+
+    // Menu mobile + borda da nav ao rolar
+    $('#menuBtn').addEventListener('click', () => $('#navLinks').classList.toggle('open'));
+    $('#navLinks').addEventListener('click', (e) => { if (e.target.tagName === 'A') $('#navLinks').classList.remove('open'); });
+    const onScroll = () => $('#nav').classList.toggle('scrolled', scrollY > 8);
+    addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+    // Animação de entrada
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    }), { threshold: .12 }) : null;
+    const observe = (root) => root.querySelectorAll('.reveal:not(.in)').forEach(el => io ? io.observe(el) : el.classList.add('in'));
+    observe(document);
+
+    // Pacotes (fallback = valores padrão; o admin edita no sistema)
+    const FALLBACK = [
+      { key: 'inicial', name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
+        features: ['10 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
+      { key: 'profissional', name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
+        features: ['20 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
+      { key: 'premium', name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
+        features: ['30 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
+    ];
+    function renderPlans(plans) {
+      const box = $('#prices');
+      box.style.gridTemplateColumns = plans.length && plans.length < 3 ? `repeat(${plans.length},minmax(0,360px))` : '';
+      box.style.justifyContent = 'center';
+      box.innerHTML = plans.map(p => {
+        const [reais, cents] = brl(p.amount_cents).split(',');
+        const unit = p.credits ? brl(Math.round(p.amount_cents / p.credits)) : '';
+        return `<div class="price reveal${p.featured ? ' featured' : ''}">
+          ${p.featured ? '<span class="badge">Mais escolhido</span>' : ''}
+          <h3>${esc(p.name)}</h3>
+          <div class="credits">${p.credits} créditos · ${p.credits} laudos</div>
+          <div class="amount"><small>R$</small><b>${reais}</b><small>,${cents}</small></div>
+          <div class="unit">${unit ? `R$ ${unit} por laudo · pagamento único` : 'pagamento único'}</div>
+          <ul>${(p.features || []).map(f => `<li><i class="check">✓</i>${esc(f)}</li>`).join('')}</ul>
+          <a class="btn ${p.featured ? 'btn-cta' : 'btn-primary'} btn-block" href="/login.html?next=planos">Comprar ${p.credits} créditos</a>
+        </div>`;
+      }).join('');
+      observe(box);
+    }
+    renderPlans(FALLBACK);
+    fetch('/api/public/plans').then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.plans && d.plans.length) renderPlans(d.plans); }).catch(() => {});
+
+    // Aparência definida pelo administrador
+    fetch('/api/site').then(r => r.ok ? r.json() : null).then(d => {
+      const s = (d && d.site) || {};
+      const c = s.colors || {}, root = document.documentElement.style;
+      for (const k of ['primary', 'accent', 'secondary', 'dark']) if (/^#[0-9a-f]{3,8}$/i.test(c[k] || '')) root.setProperty('--' + k, c[k]);
+      if (c.primary) document.querySelector('meta[name=theme-color]').content = c.primary;
+      if (s.hero_title) $('#heroTitle').textContent = s.hero_title;
+      if (s.hero_subtitle) $('#heroSub').textContent = s.hero_subtitle;
+      if (s.cta_text) document.querySelectorAll('[data-cta]').forEach(a => { a.textContent = s.cta_text; });
+      if (s.whatsapp) { const w = $('#waBtn'); w.href = 'https://wa.me/' + s.whatsapp.replace(/\D/g, ''); w.hidden = false; }
+      if (s.email) { const e = $('#footEmail'); e.href = 'mailto:' + s.email; e.textContent = s.email; e.hidden = false; }
+    }).catch(() => {});
+  })();
+  </script>
+</body>
+</html>

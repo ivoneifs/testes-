@@ -830,10 +830,28 @@ els.testReportBtn.addEventListener('click',async()=>{
   if(!state.result)return; els.testReportBtn.disabled=true;els.testReportBtn.textContent='Gerando…';
   try{const rep=await api('/api/ai/test-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),score_result:state.result,history:state.anamnesis})});state.testReports=state.testReports.filter(x=>x.teste!==rep.teste);state.testReports.push(rep);els.testReportOutput.innerHTML=renderStructured(rep);renderArchive();toast('Laudo do teste gerado.');}catch(e){toast(e.message,true);}finally{els.testReportBtn.disabled=false;els.testReportBtn.textContent='Gerar laudo deste teste';}
 });
+// Modelo de História de Vida da profissional: História da Doença Atual + 6 tópicos.
+const HV_MODEL=[['historia_doenca_atual','HISTÓRIA DE DOENÇA ATUAL'],['periodo_gestacional','Período Gestacional'],
+  ['desenvolvimento_global','Desenvolvimento Global'],['alimentacao_sono','Alimentação e Sono'],
+  ['historico_familiar_social','Histórico Familiar e Social'],['autonomia_comportamento','Autonomia e Comportamento'],
+  ['historico_escolar','Histórico Escolar']];
+function hvModelHtml(m){
+  const [first,...rest]=HV_MODEL;
+  return `<h3>${first[1]}:</h3><p>${esc(m[first[0]]||'')}</p><h3>HISTÓRIA DE VIDA:</h3>`+
+    rest.map(([k,t])=>`<p><b>• ${t}:</b><br>${esc(m[k]||'')}</p>`).join('');
+}
+function hvModelText(m){
+  const [first,...rest]=HV_MODEL;
+  return `${first[1]}:\n${m[first[0]]||''}\n\nHISTÓRIA DE VIDA:\n\n`+rest.map(([k,t])=>`- ${t}:\n${m[k]||''}`).join('\n\n');
+}
 function hvHtml(rep){
   if(!rep) return '';
-  const {transcricao,identificacao,...rest}=rep;
-  let h=renderStructured(rest);
+  const {transcricao,identificacao,historia_modelo,...rest}=rep;
+  let h='';
+  if(historia_modelo){
+    h+=`<div class="hv-model"><div class="hv-model-bar"><span class="badge ai">Modelo de História de Vida</span><button type="button" class="btn ghost xs" data-hv-copy>Copiar texto</button></div><div class="hv-model-doc">${hvModelHtml(historia_modelo)}</div></div>`;
+    h+=`<details class="ai-block hv-more"><summary><h4>Detalhes da organização (resumo, linha do tempo, lacunas)</h4></summary>${renderStructured(rest)}</details>`;
+  } else h+=renderStructured(rest);
   if(Array.isArray(transcricao)&&transcricao.length) h+=`<details class="ai-block hv-ocr"><summary><h4>Transcrição (OCR) — ${transcricao.length} página(s)</h4></summary>${transcricao.map(t=>`<div class="hv-page"><b>${esc(t.documento||'')}${t.pagina?' · pág. '+esc(t.pagina):''}</b><pre>${esc(t.texto||'')}</pre></div>`).join('')}</details>`;
   return h;
 }
@@ -848,6 +866,14 @@ function applyAnamnesis(res){
   anamnesisAlert(msg,'done');toast('História de vida organizada.');
   els.anamnesisOutput.scrollIntoView({behavior:'smooth',block:'start'});
 }
+document.addEventListener('click',async e=>{
+  if(!e.target.closest('[data-hv-copy]')) return;
+  const m=state.anamnesis&&state.anamnesis.historia_modelo; if(!m) return;
+  const html=`<div style="font-family:'Times New Roman';font-size:12pt;text-align:justify">${hvModelHtml(m)}</div>`, txt=hvModelText(m);
+  try{ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})]); }
+  catch{ try{ await navigator.clipboard.writeText(txt); }catch{ toast('Não foi possível copiar.',true); return; } }
+  toast('História de vida copiada — cole no Word.');
+});
 function anamnesisAlert(msg,kind='info'){
   els.anamnesisAlert.textContent=msg; els.anamnesisAlert.hidden=false;
   els.anamnesisAlert.className='alert '+(kind==='error'?'error':'success')+(kind==='done'?' done':'');

@@ -30,6 +30,33 @@ TEST_REPORT_SCHEMA = {
     'additionalProperties': False,
 }
 
+# Modelo de História de Vida da profissional (Google Doc 1VtUoR5…): História da Doença Atual +
+# História de Vida em 6 tópicos. Mesma ordem/títulos na tela, no .docx e em Testes realizados.
+HV_MODEL_KEYS = ('historia_doenca_atual', 'periodo_gestacional', 'desenvolvimento_global', 'alimentacao_sono',
+                 'historico_familiar_social', 'autonomia_comportamento', 'historico_escolar')
+HV_MODEL_GUIDE = (
+    'MODELO OBRIGATÓRIO em historia_modelo (texto corrido, terceira pessoa, linguagem técnica de laudo, '
+    '"o(a) paciente", "a genitora relata", um parágrafo por campo):\n'
+    '- historia_doenca_atual: quem solicitou a avaliação (e especialidade) e a hipótese diagnóstica; queixas principais '
+    'relatadas pelo informante; quando e como os sintomas se tornaram evidentes; comportamentos observados atualmente; medicação em uso.\n'
+    '- periodo_gestacional: planejamento, pré-natal, estado emocional da mãe, intercorrências/medicações/substâncias, '
+    'tipo de parto, idade gestacional, complicações, medidas ao nascer (tamanho e peso), aleitamento.\n'
+    '- desenvolvimento_global: marcos neuropsicomotores (sustentar a cabeça, sentar, andar), linguagem (primeiras palavras, '
+    'frases, trocas na fala), controle esfincteriano, enurese, regressão.\n'
+    '- alimentacao_sono: mastigação, seletividade, impulsividade ao comer, mamadeira; padrão de sono, agitação, bruxismo; '
+    'hábitos de manipulação e tiques (roer unhas, morder gola, mexer pernas etc.).\n'
+    '- historico_familiar_social: composição familiar e quem mora na casa, situação conjugal dos pais e relação parental, '
+    'histórico familiar (alcoolismo, deficiência mental, tratamento psiquiátrico — lado paterno/materno), sociabilidade, '
+    'relação com adultos e pares, interesses e brincadeiras.\n'
+    '- autonomia_comportamento: independência nas atividades de vida diária (banho, vestir, higiene, dinheiro, compras, '
+    'rotina, horas) e onde precisa de supervisão; comportamento em casa e na escola, obediência, oposição, frustração; tempo de tela.\n'
+    '- historico_escolar: início da escolarização, escola e série atual, apoio, gosto pela escola/estudo, dificuldades '
+    '(pedagógicas, comportamentais, leitura, escrita, cálculo), organização, dificuldades escolares dos pais.\n'
+    'Use só o que foi informado. NÃO enumere dentro dos tópicos o que deixou de ser informado (isso vai só em lacunas); '
+    'um tópico sem nenhuma informação recebe apenas "Não informado na anamnese.". '
+    'Não invente dados, não conclua diagnóstico.'
+)
+
 ANAMNESIS_SCHEMA = {
     'type': 'object',
     'properties': {
@@ -53,6 +80,12 @@ ANAMNESIS_SCHEMA = {
                 'data_nascimento': {'type': 'string'},
             },
             'required': ['nome','data_nascimento'],
+            'additionalProperties': False,
+        },
+        'historia_modelo': {
+            'type': 'object',
+            'properties': {k: {'type': 'string'} for k in HV_MODEL_KEYS},
+            'required': list(HV_MODEL_KEYS),
             'additionalProperties': False,
         },
         'resumo': {'type': 'string'},
@@ -86,7 +119,7 @@ ANAMNESIS_SCHEMA = {
         'lacunas': {'type': 'array', 'items': {'type': 'string'}},
         'observacoes_legibilidade': {'type': 'array', 'items': {'type': 'string'}},
     },
-    'required': ['transcricao','identificacao','resumo','historia_de_vida','secoes','linha_do_tempo','lacunas','observacoes_legibilidade'],
+    'required': ['transcricao','identificacao','historia_modelo','resumo','historia_de_vida','secoes','linha_do_tempo','lacunas','observacoes_legibilidade'],
     'additionalProperties': False,
 }
 
@@ -236,7 +269,7 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
             'preenchidos, caixas marcadas ([X] / [ ]), tabelas (uma linha por linha da tabela, colunas separadas por " | ") '
             'e anotações nas margens. Não resuma, não corrija a grafia e não pule nada. Palavra duvidosa: escreva a melhor '
             'leitura seguida de [?]; trecho ilegível: [ilegível]. Datas e números exatamente como escritos. '
-            'DEPOIS, a partir da transcrição, organize a história de vida do paciente. '
+            'DEPOIS, a partir da transcrição, organize a história de vida do paciente. '+HV_MODEL_GUIDE+' '
             'Preserve fatos, datas e incertezas. Se a escrita manuscrita estiver ilegível, indique isso em observacoes_legibilidade. '
             'Quando algo não estiver informado, registre como lacuna em vez de inferir. '
             'Em identificacao, copie o nome do paciente e a data de nascimento (AAAA-MM-DD) como estão no documento; vazio se não constar.'
@@ -282,7 +315,7 @@ def analyze_anamnesis_form(texto: str, patient: dict):
     content=[{'type':'input_text','text':(
         'Respostas marcadas pelo profissional no formulário "Anamnese Infantojuvenil" '
         '(uma por linha, "pergunta: resposta"; o que não foi marcado não aparece). '
-        'Organize a história de vida do paciente a partir delas. Itens não respondidos que são relevantes '
+        'Organize a história de vida do paciente a partir delas. '+HV_MODEL_GUIDE+' Itens não respondidos que são relevantes '
         'para a avaliação neuropsicológica vão em lacunas. Em observacoes_legibilidade, use lista vazia.\n'
         'Dados cadastrais: '+json.dumps(patient,ensure_ascii=False,default=str)+'\n\nRESPOSTAS:\n'+texto)}]
     instructions=(

@@ -940,3 +940,13 @@ h1,h2,h3{font-family:var(--display)}
 .anam-yn .anam-chip{min-width:62px}
 .anam-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin:12px 0}
 @media (max-width:640px){.anam-grid{grid-template-columns:1fr}.anam-chip{min-height:40px}.anam-actions .btn{flex:1 1 100%}}
+
+/* História de Vida no modelo da profissional */
+.hv-model{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:14px 0}
+.hv-model-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.hv-model-doc{padding:16px 20px;font-family:'Times New Roman',Times,serif;font-size:1.02rem;line-height:1.55;text-align:justify;color:var(--ink,#0f172a)}
+.hv-model-doc h3{font-size:1rem;font-weight:700;margin:14px 0 6px;font-family:inherit}
+.hv-model-doc h3:first-child{margin-top:0}
+.hv-model-doc p{margin:0 0 12px}
+.hv-more summary{cursor:pointer;list-style:none}.hv-more summary h4{display:inline}
+@media (max-width:640px){.hv-model-doc{padding:12px 14px}}

@@ -922,6 +922,15 @@ def landing():
         return _index_html()
     return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
 
+@app.get('/apresentacao')
+def apresentacao():
+    # peça publicitária (link próprio para anúncios); cai na landing se o arquivo faltar
+    try:
+        html = (STATIC/'lp.html').read_text(encoding='utf-8')
+    except OSError:
+        return landing()
+    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
+
 @app.get('/app')
 def index():
     return _index_html()

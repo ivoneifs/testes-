@@ -155,7 +155,7 @@
   }
 
   // ---------- arquivos ----------
-  const OK_EXT = /\.(pdf|jpe?g|png|webp|docx?|xlsx?)$/i;
+  const OK_EXT = /\.(pdf|jpe?g|png|webp|docx?|xlsx?|csv|pptx|txt|json)$/i;  // = file_content.ACCEPTED_EXT
   const pills = (arr) => arr.map((f, i) =>
       `<div class="file-pill"><span>${esc(f.name)}</span><small>${(f.size / 1024 / 1024).toFixed(1)} MB</small>` +
       `<button type="button" class="btn ghost xs" data-rm="${i}" title="Remover">×</button></div>`).join('');
@@ -173,7 +173,7 @@
     renderFiles();
   }
   $('#gl_files').addEventListener('change', (e) => addFiles(files, e.target, OK_EXT));
-  $('#gl_anamFiles').addEventListener('change', (e) => addFiles(anamFiles, e.target, /\.(pdf|jpe?g|png|webp|docx?)$/i));
+  $('#gl_anamFiles').addEventListener('change', (e) => addFiles(anamFiles, e.target, OK_EXT));
   for (const [id, arr] of [['#gl_fileList', files], ['#gl_anamList', anamFiles]]) {
     $(id).addEventListener('click', (e) => {
       const i = e.target.dataset.rm;

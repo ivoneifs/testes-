@@ -967,3 +967,24 @@ h1,h2,h3{font-family:var(--display)}
 .gl-saved-item span{display:flex;flex-direction:column}.gl-saved-item small{color:var(--muted,#64748b);font-size:.78rem}
 .gl-tipo{display:flex;flex-wrap:wrap;gap:10px 22px}.gl-tipo label{display:flex;gap:6px;align-items:baseline;cursor:pointer}
 .gl-tipo small{color:var(--muted,#64748b)}
+
+/* Vineland-3: itens só pelo número */
+.vin .vin-sec{padding-bottom:10px}
+.vin .raw-section-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vin-sum{font-size:13px;color:var(--ink-2)}
+.vin-sum b{font-size:16px;color:var(--primary)}
+.vin-status{padding:0 14px 8px}
+.vin-warn{color:#b45309;margin-top:4px}
+.vin-age{padding:2px 0}
+.vin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:6px;padding:0 10px}
+.vin-item{display:grid;grid-template-columns:30px 1fr auto;gap:6px;align-items:center;padding:5px 6px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface)}
+.vin-n{font-weight:800;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.vin-seg button{min-height:32px;padding:0}
+.vin-est{min-height:32px;padding:0 7px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink-3,var(--ink-2));font-size:11px;font-weight:700;cursor:pointer}
+.vin-est.on{background:#f59e0b;border-color:transparent;color:#fff}
+.vin-item.vin-start{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-ring)}
+.vin-item.vin-start .vin-n::before{content:"▶ ";color:var(--primary)}
+.vin-item.vin-cred2{opacity:.55;background:color-mix(in srgb,#10b981 10%,var(--surface))}
+.vin-item.vin-cred0{opacity:.45}
+.vin-crit .vin-item{grid-template-columns:30px 1fr}
+@media(max-width:700px){.vin-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}

@@ -309,3 +309,18 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   no laudo; testes corrigidos pelo motor (`_raw`/`_resultado` do auto_score) e relatórios já corrigidos (tabelas
   transcritas em `analise_testes`, `result.externo=true`, sem "Abrir/editar") também são salvos. Resposta:
   `salvos_em_testes_realizados`. Sem custo extra (só o crédito do laudo). DOC/DOCX de anamnese seguem direto para a IA.
+
+## Sessão 2026-10-12 (Vineland-3)
+
+- **Vineland-3 item a item SÓ pelo número** (`server/vineland.py`): abas `Vin_3_Ext_Ent` (Entrevista Extensivo) e
+  `Vin_3_Ext_Pais` (Compreensivo Pais/Cuidadores). O texto das perguntas é da Pearson e **não entra no app**: o
+  profissional lê o protocolo impresso e toca 2/1/0 (+ Est) no número do item. Do protocolo só a estrutura: nº de
+  itens por subdomínio (rec 39, exp 49, esc 38, pes 55, dom 30, cmd 58, rin 43, bri 36, enf 33, cmg 43, cmf 34;
+  mal-adaptativo A 13, B 11; 20 críticos) e o item inicial por idade de cada forma.
+- A tela (`vinHtml`/`vinCalc`/`vinSync` em app.js) aplica basal (4 seguidos com 2 → anteriores = 2; usa o mais alto)
+  e teto (4 seguidos com 0 → seguintes = 0), avisa sem basal/sem teto, e grava o bruto em H19/H22/H25/H29/H32/H35/
+  H39/H42/H45/H49/H50 (+ H109/H113 mal-adaptativo; críticos 1/2 em M109…M116). A planilha corrige (v-escala, idade
+  equivalente, crescimento, domínios, CCA, HMOT). Respostas por item vão como `vin:<sub>:<n>` (e `…e` = Est) só para
+  reabrir em Testes realizados; `build_overrides` descarta essas chaves.
+- `L54` (intervalo de confiança 85/90/95) virou parâmetro (padrão 95): **sem ele a planilha não calcula domínios/CCA**.
+  `R3` = respondente. self_test 68/0.

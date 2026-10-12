@@ -160,17 +160,20 @@ window.NS = { api, toast, state, esc, get sb(){return state.sb;} };
 window.loadEvaluation = (ev)=>loadEvaluation(ev);
 // Instrumentos com "formas" (uma entrada na lista, seletor de forma dentro do teste).
 const TEST_GROUPS=[{label:'Perfil Sensorial 2',prefix:'Perfil Sensorial 2 - ',chart:'sensory_profile'}];
+// Nomes de exibição de abas com nome técnico na planilha.
+const TEST_LABELS={'Vin_3_Ext_Ent':'Vineland-3 · Entrevista (item a item)','Vin_3_Ext_Pais':'Vineland-3 · Pais/Cuidadores (item a item)'};
+function testLabel(name){return TEST_LABELS[name]||name;}
 function testGroupOf(name){return TEST_GROUPS.find(g=>name===g.label||name.startsWith(g.prefix));}
 function renderTestList(){
   const q=els.search.value.trim().toLowerCase();
   const seen=new Set(); const items=[];
   for(const t of state.tests){
     const g=testGroupOf(t.name);
-    const disp=g?g.label:t.name, chart=g?g.chart:(t.chart_type||'');
+    const disp=g?g.label:t.name, chart=g?g.chart:(t.chart_type||''), shown=testLabel(disp);
     if(g){ if(seen.has(g.label))continue; seen.add(g.label); }
-    if(!disp.toLowerCase().includes(q)) continue;
+    if(!disp.toLowerCase().includes(q) && !shown.toLowerCase().includes(q)) continue;
     const active=g?(state.meta?.name||'').startsWith(g.prefix):state.meta?.name===t.name;
-    items.push(`<button class="test-item ${active?'active':''}" data-test="${esc(disp)}"><span>${esc(disp)}</span><small>${esc(chart)}</small></button>`);
+    items.push(`<button class="test-item ${active?'active':''}" data-test="${esc(disp)}"><span>${esc(shown)}</span><small>${esc(chart)}</small></button>`);
   }
   els.list.innerHTML=items.join('');
   els.list.querySelectorAll('.test-item').forEach(b=>b.addEventListener('click',()=>selectTest(b.dataset.test)));
@@ -199,7 +202,7 @@ async function selectTest(name){
   }else{
     $('#psFormRow').hidden=true;
   }
-  els.title.textContent=g?g.label:full; els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
+  els.title.textContent=g?g.label:testLabel(full); els.raw.innerHTML=''; $('#testLoading').hidden=false; $('#testLoading').textContent='Preparando campos e fórmulas…'; els.calc.disabled=true;
   try{
     state.meta=await api(`/api/tests/${encodeURIComponent(full)}`); state.result=null; renderTestList(); renderInputs(); renderArchive();
     $('#sidebar').classList.remove('open');
@@ -260,6 +263,11 @@ function renderInputs(){
     els.raw.innerHTML=protocolHtml(m.item_protocol)
       +(rest.trim()?`<details class="ravlt-manual"><summary>Ou digite só os pontos brutos / outros campos da planilha (opcional)</summary>${rest}</details>`:'');
     protoSetInformant(0);
+  }
+  if(m.vineland){
+    els.raw.innerHTML=vinHtml(m.vineland)
+      +`<details class="ravlt-manual"><summary>Ou digite só os pontos brutos de cada subdomínio (opcional)</summary>${els.raw.innerHTML}</details>`;
+    vinSync();
   }
   if(m.answer_sheet){
     els.raw.innerHTML=ravltSheetHtml(m.answer_sheet)
@@ -325,6 +333,121 @@ els.raw.addEventListener('click',e=>{
   const seg=b.parentElement, inp=seg.parentElement.querySelector(`[data-inf-cell="${seg.dataset.infRow}"]`);
   inp.value=inp.value===b.dataset.pset?'':b.dataset.pset; protoSync();
 });
+
+// ---------- Vineland-3: itens só pelo número (o texto é do protocolo impresso) ----------
+// Cada toque grava 2/1/0 em vin:<sub>:<n> (e "Est" em vin:<sub>:<n>e). A tela aplica
+// basal (4 seguidos com 2) e teto (4 seguidos com 0), soma e grava o bruto na célula
+// do subdomínio; quem corrige é a planilha.
+const VIN_P='vin:';
+function vinAge(){
+  const b=$('#birthDate').value, a=$('#applicationDate').value; if(!b||!a) return null;
+  const B=new Date(b+'T00:00'), A=new Date(a+'T00:00'); let y=A.getFullYear()-B.getFullYear();
+  if(A.getMonth()<B.getMonth()||(A.getMonth()===B.getMonth()&&A.getDate()<B.getDate())) y--;
+  return y>=0?y:null;
+}
+function vinStart(sd,age){let it=1;for(const [a,i] of sd.inicio){if(age!==null&&age>=a)it=i;}return it;}
+function vinItemHtml(key,n){
+  const id=`${VIN_P}${key}:${n}`;
+  return `<div class="vin-item" data-vin-item="${n}"><span class="vin-n">${n}</span>`
+    +`<div class="score-seg vin-seg">${[2,1,0].map(v=>`<button type="button" data-vset="${v}">${v}</button>`).join('')}</div>`
+    +`<button type="button" class="vin-est" data-vest title="Pontuação estimada">Est</button>`
+    +`<input type="hidden" data-raw="${esc(id)}" data-text data-vin-val><input type="hidden" data-raw="${esc(id)}e" data-text data-vin-e></div>`;
+}
+function vinHtml(v){
+  const sub=v.subdominios.map(sd=>`<section class="raw-section vin-sec" data-vin="${esc(sd.key)}" data-cell="${esc(sd.cell)}" data-n="${sd.itens}">
+      <div class="raw-section-title"><span>${esc(sd.nome)} <small class="muted">· ${esc(sd.dominio)} · ${sd.itens} itens</small></span>
+        <span class="vin-sum">Bruto: <b data-vin-raw>—</b></span></div>
+      <div class="vin-status muted small" data-vin-status></div>
+      <div class="vin-grid">${Array.from({length:sd.itens},(_,i)=>vinItemHtml(sd.key,i+1)).join('')}</div></section>`).join('');
+  const mal=v.mal_adaptativo.map(md=>`<section class="raw-section vin-sec vin-mal" data-vin="${esc(md.key)}" data-cell="${esc(md.cell)}" data-n="${md.itens}" data-all="1">
+      <div class="raw-section-title"><span>${esc(md.nome)} <small class="muted">· ${md.itens} itens · a partir de 3 anos · todos os itens</small></span>
+        <span class="vin-sum">Bruto: <b data-vin-raw>—</b></span></div>
+      <div class="vin-status muted small" data-vin-status></div>
+      <div class="vin-grid">${Array.from({length:md.itens},(_,i)=>vinItemHtml(md.key,i+1)).join('')}</div></section>`).join('');
+  const crit=`<section class="raw-section vin-sec vin-crit"><div class="raw-section-title"><span>Itens críticos <small class="muted">· 20 itens · 2 / 1 / 0 (não somam)</small></span></div>
+      <div class="vin-grid">${v.criticos.map((c,i)=>`<div class="vin-item"><span class="vin-n">${i+1}</span><div class="score-seg vin-seg">${[2,1,0].map(x=>
+        `<button type="button" data-vcrit="${x}">${x}</button>`).join('')}</div><input type="hidden" data-raw="${esc(c)}" data-vin-crit></div>`).join('')}</div></section>`;
+  return `<section class="proto vin"><div class="ravlt-head"><b>Vineland-3 — ${esc(v.titulo)}</b>
+    <span class="muted small">Leia cada pergunta no seu protocolo impresso e toque 2 / 1 / 0 no número do item (toque de novo para limpar). ${esc(v.regra)} Comece no item destacado para a idade.</span></div>
+    <div class="vin-age muted small" data-vin-age></div>${sub}${mal}${crit}</section>`;
+}
+function vinCalc(vals,all){
+  // vals[1..n] = null | 0 | 1 | 2. Devolve {raw, basal, teto, warn[]}
+  const n=vals.length-1, warn=[];
+  const answered=[]; for(let i=1;i<=n;i++) if(vals[i]!==null) answered.push(i);
+  if(!answered.length) return {raw:null,warn};
+  if(all){ let raw=0; for(let i=1;i<=n;i++) raw+=vals[i]||0; const b=n-answered.length; if(b) warn.push(`${b} em branco (contam 0)`); return {raw,warn}; }
+  const run=(i,v)=>i+3<=n&&[0,1,2,3].every(k=>vals[i+k]===v);
+  let teto=null; for(let i=1;i<=n;i++) if(run(i,0)){teto=i;break;}
+  const lim=teto===null?n:teto-1;
+  let basal=null; for(let i=1;i+3<=lim;i++) if(run(i,2)) basal=i;
+  const lo=basal!==null?basal:1, hi=teto!==null?teto+3:n;
+  if(basal===null && answered[0]>1) warn.push(`sem basal: aplique os itens anteriores ao ${answered[0]} até ter 4 seguidos com 2`);
+  if(teto===null && answered[answered.length-1]<n) warn.push(`sem teto: continue até ter 4 seguidos com 0`);
+  let raw=0, blank=0;
+  for(let i=1;i<=n;i++){
+    if(i<lo) raw+=2; else if(i>hi) raw+=0;
+    else if(vals[i]===null) blank++; else raw+=vals[i];
+  }
+  if(blank && !warn.length) warn.push(`${blank} item(ns) em branco entre basal e teto (contam 0)`);
+  return {raw,basal,teto,lo,hi,warn};
+}
+function vinSync(){
+  const v=state.meta&&state.meta.vineland; if(!v) return;
+  const age=vinAge(), ageEl=els.raw.querySelector('[data-vin-age]');
+  if(ageEl) ageEl.textContent=age===null?'Informe nascimento e data de aplicação para destacar o item inicial de cada subdomínio.':`Idade: ${age} ano(s) — item inicial destacado em cada subdomínio.`;
+  els.raw.querySelectorAll('.vin-sec[data-vin]').forEach(sec=>{
+    const key=sec.dataset.vin, n=Number(sec.dataset.n), all=sec.dataset.all==='1';
+    const sd=v.subdominios.find(x=>x.key===key);
+    const vals=[null]; let est=0;
+    sec.querySelectorAll('.vin-item').forEach(it=>{
+      const iv=it.querySelector('[data-vin-val]'), ie=it.querySelector('[data-vin-e]');
+      const val=iv.value===''?null:Number(iv.value); vals.push(val);
+      it.querySelectorAll('[data-vset]').forEach(b=>b.classList.toggle('on',val!==null&&Number(b.dataset.vset)===val));
+      const e=ie.value==='1'; it.querySelector('[data-vest]').classList.toggle('on',e); if(e&&val!==null) est++;
+    });
+    const start=sd?vinStart(sd,age):1;
+    const r=vinCalc(vals,all);
+    sec.querySelectorAll('.vin-item').forEach(it=>{
+      const i=Number(it.dataset.vinItem);
+      it.classList.toggle('vin-start',!all&&age!==null&&i===start);
+      it.classList.toggle('vin-cred2',r.raw!==null&&!all&&r.lo!==undefined&&i<r.lo&&vals[i]===null);
+      it.classList.toggle('vin-cred0',r.raw!==null&&!all&&r.hi!==undefined&&i>r.hi&&vals[i]===null);
+    });
+    const rawIn=els.raw.querySelector(`[data-raw="${sec.dataset.cell}"]:not([data-vin-val])`);
+    if(rawIn){
+      if(r.raw!==null){ rawIn.value=r.raw; rawIn.dataset.vinAuto='1'; }
+      else if(rawIn.dataset.vinAuto==='1'){ rawIn.value=''; delete rawIn.dataset.vinAuto; }
+    }
+    sec.querySelector('[data-vin-raw]').textContent=r.raw===null?(rawIn&&rawIn.value!==''?rawIn.value+' (digitado)':'—'):r.raw;
+    const st=[];
+    if(sd&&age!==null&&age<sd.idade_min) st.push(`aplica-se a partir de ${sd.idade_min} anos`);
+    if(!all&&age!==null) st.push(`início no item ${start}`);
+    if(r.basal) st.push(`basal no item ${r.basal} (anteriores = 2)`);
+    if(r.teto) st.push(`teto no item ${r.teto+3} (seguintes = 0)`);
+    const answered=vals.filter(x=>x!==null).length;
+    if(est&&answered) st.push(`Est: ${est} (${Math.round(100*est/answered)}% dos respondidos)`);
+    const stEl=sec.querySelector('[data-vin-status]');
+    stEl.innerHTML=st.map(esc).join(' · ')+(r.warn.length?`<div class="vin-warn">⚠ ${r.warn.map(esc).join(' · ')}</div>`:'');
+  });
+  els.raw.querySelectorAll('[data-vin-crit]').forEach(inp=>{
+    inp.parentElement.querySelectorAll('[data-vcrit]').forEach(b=>b.classList.toggle('on',inp.value!==''&&Number(b.dataset.vcrit)===Number(inp.value)
+      ||(inp.value===''&&inp.dataset.zero==='1'&&b.dataset.vcrit==='0')));
+  });
+}
+els.raw.addEventListener('click',e=>{
+  const b=e.target.closest('[data-vset],[data-vest],[data-vcrit]'); if(!b||!state.meta?.vineland) return;
+  const it=b.closest('.vin-item');
+  if('vset' in b.dataset){ const iv=it.querySelector('[data-vin-val]'); iv.value=iv.value===b.dataset.vset?'':b.dataset.vset; }
+  else if('vest' in b.dataset){ const ie=it.querySelector('[data-vin-e]'); ie.value=ie.value==='1'?'':'1'; }
+  else { // itens críticos: a planilha recebe 1 ou 2; 0 fica em branco (só marca na tela)
+    const inp=it.querySelector('[data-vin-crit]'), v=b.dataset.vcrit;
+    const cur=inp.value!==''?inp.value:(inp.dataset.zero==='1'?'0':'');
+    const nxt=cur===v?'':v; inp.value=nxt==='0'?'':nxt; inp.dataset.zero=nxt==='0'?'1':'';
+  }
+  vinSync();
+});
+['birthDate','applicationDate'].forEach(id=>$(`#${id}`).addEventListener('change',()=>{ if(state.meta?.vineland) vinSync(); }));
 
 // ---------- Ficha do RAVLT (igual à folha de respostas) ----------
 // Cada toque numa palavra grava a ORDEM de evocação na célula da planilha; a
@@ -412,6 +535,7 @@ function collectRaw(){
   const out={};
   document.querySelectorAll('[data-raw]').forEach(i=>{
     if(i.dataset.calc==='1' && i.dataset.touched!=='1') return; // deixa a planilha calcular
+    if(i.value==='' && i.dataset.raw.startsWith(VIN_P)) return; // item do Vineland em branco
     out[i.dataset.raw]=i.value===''?'':('text' in i.dataset?i.value:Number(i.value));
   });
   return out;
@@ -425,6 +549,8 @@ els.clear.addEventListener('click',()=>{
   els.raw.querySelectorAll('[data-rv-intr]').forEach(i=>{i.value='';});
   protoSync();
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+  els.raw.querySelectorAll('[data-vin-crit]').forEach(i=>{i.dataset.zero='';});
+  vinSync();
 });
 
 // Mostra nos campos calculados o valor que a planilha obteve — sem apagar o que a
@@ -1060,7 +1186,7 @@ async function openSavedTest(rec){
   const params=(rec.inputs||{}).parameters||{};
   els.params.querySelectorAll('[data-param]').forEach(i=>{ if(params[i.dataset.param]!==undefined) i.value=params[i.dataset.param]; });
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
-  protoSync();
+  protoSync(); vinSync();
   if(rec.result && rec.result.tables){ state.result=rec.result; renderResults(rec.result); fillAutoFields(rec.result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); }
 }
 // Reabre uma História de Vida salva (leitura da anamnese) na aba História de Vida.

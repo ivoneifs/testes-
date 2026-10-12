@@ -599,7 +599,7 @@
       return `<article class="tr-card${on ? ' on' : ''}${r.test === HV ? ' hv' : ''}">
         <label class="tr-check" title="Incluir no laudo completo"><input type="checkbox" data-tr-sel="${r.id}"${on ? ' checked' : ''}><span></span></label>
         <div class="tr-body">
-          <h3>${NS.esc(r.test)}</h3>
+          <h3>${NS.esc(NS.testLabel ? NS.testLabel(r.test) : r.test)}</h3>
           <div class="muted small">Atualizado em ${fmtDT(r.updated_at)}${r.patient?.application_date ? ' · aplicação ' + r.patient.application_date.split('-').reverse().join('/') : ''}</div>
           <div class="tr-sum">${trSummary(r)}</div>
         </div>

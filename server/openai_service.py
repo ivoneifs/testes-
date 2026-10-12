@@ -272,6 +272,28 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
                     timeout=300.0)
 
 
+ANAMNESIS_FORM_SCHEMA = {**ANAMNESIS_SCHEMA,
+    'properties': {k: v for k, v in ANAMNESIS_SCHEMA['properties'].items() if k not in ('transcricao', 'identificacao')},
+    'required': [k for k in ANAMNESIS_SCHEMA['required'] if k not in ('transcricao', 'identificacao')]}
+
+
+def analyze_anamnesis_form(texto: str, patient: dict):
+    """Anamnese preenchida por marcação (formulário do app) → história de vida."""
+    content=[{'type':'input_text','text':(
+        'Respostas marcadas pelo profissional no formulário "Anamnese Infantojuvenil" '
+        '(uma por linha, "pergunta: resposta"; o que não foi marcado não aparece). '
+        'Organize a história de vida do paciente a partir delas. Itens não respondidos que são relevantes '
+        'para a avaliação neuropsicológica vão em lacunas. Em observacoes_legibilidade, use lista vazia.\n'
+        'Dados cadastrais: '+json.dumps(patient,ensure_ascii=False,default=str)+'\n\nRESPOSTAS:\n'+texto)}]
+    instructions=(
+        'Atue como assistente de organização de anamnese neuropsicológica. '
+        'Use somente as respostas marcadas e os dados cadastrais. Não crie diagnóstico, não preencha lacunas por suposição '
+        'e não transforme queixa em fato confirmado. Escreva em português, em texto corrido técnico e humanizado, '
+        'organizado cronologicamente quando possível, para revisão profissional.'
+    )
+    return _request([{'role':'user','content':content}], 'anamnesis_form_history', ANAMNESIS_FORM_SCHEMA, instructions)
+
+
 LAUDO_MODEL_SCHEMA = {
     'type': 'object',
     'properties': {

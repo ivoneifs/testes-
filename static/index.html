@@ -121,21 +121,37 @@
       <section class="view" id="view-historia" hidden>
         <div class="card ai-card">
           <div class="section-heading"><div><h2>História de Vida</h2>
-            <span class="muted">Envie a anamnese (PDF/imagem) e a IA organiza a história clínica.</span></div>
+            <span class="muted">Envie a anamnese (PDF/foto) ou preencha marcando — a IA organiza a história clínica.</span></div>
             <span class="badge ai">OpenAI</span></div>
           <p class="ai-config-note" id="aiConfigNote" hidden>IA não configurada no servidor.</p>
           <div class="hv-patient">
-            <label>Paciente<input id="hvName" type="text" placeholder="Nome (se vazio, é lido da anamnese)" autocomplete="off" /></label>
+            <label>Paciente cadastrado<select id="hvPick"><option value="">— novo paciente —</option></select></label>
+            <label>Nome<input id="hvName" type="text" placeholder="Nome (no upload, se vazio, é lido da anamnese)" autocomplete="off" /></label>
             <label>Nascimento<input id="hvBirth" type="date" /></label>
           </div>
-          <label class="upload-zone" id="uploadZone">
-            <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
-            <span class="upload-icon">⇧</span><strong>Selecionar anamnese</strong>
-            <small>PDF, JPG, PNG</small>
-          </label>
-          <div id="fileList" class="file-list"></div>
+          <div class="hv-modes" role="tablist">
+            <button type="button" class="hv-mode on" data-hv-mode="upload" role="tab">📎 Enviar anamnese <small>PDF ou foto (OCR)</small></button>
+            <button type="button" class="hv-mode" data-hv-mode="form" role="tab">☑️ Preencher anamnese <small>só marcando, sem escrever</small></button>
+          </div>
+          <div id="hvPanelUpload">
+            <label class="upload-zone" id="uploadZone">
+              <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
+              <span class="upload-icon">⇧</span><strong>Selecionar anamnese</strong>
+              <small>PDF, JPG, PNG</small>
+            </label>
+            <div id="fileList" class="file-list"></div>
+            <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
+          </div>
+          <div id="hvPanelForm" hidden>
+            <div class="anam-head"><b>Anamnese Infantojuvenil</b><span class="muted small" id="anamProg"></span></div>
+            <div id="anamForm" class="anam-form"></div>
+            <div class="anam-actions">
+              <button type="button" class="btn ghost" id="anamClear">Limpar</button>
+              <button type="button" class="btn ghost" id="anamSave">Salvar no paciente</button>
+              <button type="button" class="btn ai-btn" id="anamGen">Salvar e gerar história (0,5 crédito)</button>
+            </div>
+          </div>
           <div class="alert success" id="anamnesisAlert" hidden></div>
-          <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
           <div class="ai-output" id="anamnesisOutput"></div>
         </div>
       </section>
@@ -555,5 +571,6 @@
   <script src="/assets/app.js" defer></script>
   <script src="/assets/shell.js" defer></script>
   <script src="/assets/laudo.js" defer></script>
+  <script src="/assets/anamnese.js" defer></script>
 </body>
 </html>

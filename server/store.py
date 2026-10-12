@@ -203,7 +203,7 @@ async def list_patients(user: dict) -> list[dict]:
 
 
 async def save_patient(user: dict, data: dict, pid: str | None = None) -> dict:
-    body = {k: data.get(k) for k in ('name', 'birth_date', 'sex', 'education', 'notes')}
+    body = {k: data.get(k) for k in ('name', 'birth_date', 'sex', 'education', 'notes', 'dados', 'anamnese')}
     body = {k: v for k, v in body.items() if v is not None}
     if not body.get('name') and not pid:
         raise HTTPException(400, 'Nome do paciente é obrigatório.')

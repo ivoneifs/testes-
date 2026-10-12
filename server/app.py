@@ -21,7 +21,7 @@ ROOT=Path(__file__).resolve().parents[1]
 load_dotenv(ROOT/'.env')
 
 from .workbook_engine import WorkbookEngine
-from .openai_service import (analyze_anamnesis, analyze_laudo_model, extract_external_instrument,
+from .openai_service import (analyze_anamnesis, analyze_anamnesis_form, analyze_laudo_model, extract_external_instrument,
                              generate_integrated_report, generate_test_report)
 from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content
@@ -114,6 +114,8 @@ class PatientRequest(BaseModel):
     sex: str|None=None
     education: str|None=None
     notes: str|None=None
+    dados: dict[str,Any]|None=None
+    anamnese: dict[str,Any]|None=None
 
 
 async def active_user(user: dict = Depends(current_user)) -> dict:
@@ -231,6 +233,35 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
             rec=await store.save_test_result(user,{'patient':p,'patient_id':patient_id or None,'test':store.HISTORIA_TEST,
                                                   'inputs':{'arquivos':[n for n,_,_ in parsed]},'result':rep})
             rep={**rep,'_registro':{'id':rec.get('id'),'patient':p}}
+        except Exception as exc:
+            rep={**rep,'_registro':{'erro':str(getattr(exc,'detail',exc))}}
+    return rep
+
+class AnamnesisFormRequest(BaseModel):
+    patient: dict[str,Any]=Field(default_factory=dict)
+    patient_id: str|None=None
+    respostas: dict[str,Any]=Field(default_factory=dict)   # id do campo → valor marcado
+    texto: str                                              # respostas já legíveis (rótulo: valor)
+
+@app.post('/api/ai/anamnesis-form')
+async def ai_anamnesis_form(req: AnamnesisFormRequest, user: dict = Depends(active_user)):
+    """Anamnese preenchida por marcação → história de vida organizada (0,5 crédito)."""
+    texto=req.texto.strip()[:30000]
+    if len(texto)<20:
+        raise HTTPException(400,'Marque as respostas da anamnese antes de gerar a história.')
+    if auth.AUTH_ENABLED and not await store.can_spend(user, store.COST_HISTORIA):
+        raise HTTPException(402, store.NO_CREDITS.format(need='0,5'))
+    try:
+        rep=await run_in_threadpool(analyze_anamnesis_form,texto,req.patient)
+    except Exception as exc:
+        raise HTTPException(502,str(exc))
+    rep={'transcricao':[{'documento':'Anamnese Infantojuvenil (formulário)','pagina':'1','texto':texto}],**rep}
+    if auth.AUTH_ENABLED:
+        await store.spend_credits(user, store.COST_HISTORIA, 'historia')
+        try:
+            rec=await store.save_test_result(user,{'patient':req.patient,'patient_id':req.patient_id,'test':store.HISTORIA_TEST,
+                                                  'inputs':{'formulario':req.respostas},'result':rep})
+            rep={**rep,'_registro':{'id':rec.get('id'),'patient':req.patient}}
         except Exception as exc:
             rep={**rep,'_registro':{'erro':str(getattr(exc,'detail',exc))}}
     return rep
@@ -633,7 +664,7 @@ def _index_html() -> Response:
         html = (STATIC/'index.html').read_text(encoding='utf-8')
     except OSError:
         raise HTTPException(500, 'index.html ausente')
-    for asset in ('app.js', 'shell.js', 'laudo.js', 'styles.css'):
+    for asset in ('app.js', 'shell.js', 'laudo.js', 'anamnese.js', 'styles.css'):
         h = _asset_hash(asset)
         if h:
             html = html.replace(f'/assets/{asset}"', f'/assets/{asset}?v={h}"')

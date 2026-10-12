@@ -914,3 +914,29 @@ h1,h2,h3{font-family:var(--display)}
 .hv-ocr summary h4{display:inline}
 .hv-page{margin-top:10px}
 .hv-page pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:.88rem;background:var(--surface-2,#f6f7fb);border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:10px 12px;margin:6px 0 0;max-height:420px;overflow:auto}
+
+/* História de Vida: escolha upload × preenchimento + formulário de marcação */
+.hv-patient{grid-template-columns:1fr 1fr 170px}
+@media (max-width:760px){.hv-patient{grid-template-columns:1fr}}
+.hv-modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 16px}
+.hv-mode{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;
+  background:var(--surface);color:var(--ink-2);font-weight:700;font-size:.95rem;cursor:pointer;text-align:left}
+.hv-mode small{font-weight:400;color:var(--muted,#64748b);font-size:.8rem}
+.hv-mode.on{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--surface));color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
+@media (max-width:520px){.hv-modes{grid-template-columns:1fr}}
+.anam-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.anam-sec{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--surface)}
+.anam-sec>summary{cursor:pointer;padding:12px 14px;font-weight:700;color:var(--ink,#0f172a)}
+.anam-count{font-weight:500;color:var(--primary);font-size:.85rem}
+.anam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px;padding:4px 14px 14px}
+.anam-q{display:flex;flex-direction:column;gap:6px;font-size:.88rem;color:var(--ink-2)}
+.anam-q i{font-style:normal;color:var(--muted,#94a3b8);font-size:.78rem}
+.anam-multi{grid-column:1/-1}
+.anam-chips{display:flex;flex-wrap:wrap;gap:6px}
+.anam-chip{min-height:34px;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-2);
+  font-size:.85rem;cursor:pointer;transition:all .12s}
+.anam-chip:hover{border-color:var(--primary);color:var(--primary)}
+.anam-chip.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 3px 10px var(--primary-ring)}
+.anam-yn .anam-chip{min-width:62px}
+.anam-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin:12px 0}
+@media (max-width:640px){.anam-grid{grid-template-columns:1fr}.anam-chip{min-height:40px}.anam-actions .btn{flex:1 1 100%}}

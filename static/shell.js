@@ -490,15 +490,16 @@
       .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
     const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
     const pend = $('#prosPending');
-    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando liberação`; }
+    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação`; }
     $('#prosBody').innerHTML = rows.map(p => `<tr>
-      <td>${NS.esc(p.full_name || '—')}</td><td>${NS.esc(p.email || '—')}</td>
+      <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
-      <td><span class="pill${p.status === 'suspended' ? ' pill--off' : p.status === 'pending' ? ' pill--trial' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : p.status === 'pending' ? 'Aguardando liberação' : 'Ativo'}</span></td>
+      <td><span class="pill${p.status === 'suspended' || p.status === 'rejected' ? ' pill--off' : p.status === 'pending' ? ' pill--trial' : ' pill--ok'}">${{ suspended: 'Suspenso', pending: 'Aguardando aprovação', rejected: 'Recusado' }[p.status] || 'Ativo'}</span></td>
       <td>${NS.esc(p.plan || '—')}</td><td>${p.role === 'admin' ? '∞' : fmtCred(p.credits)}</td>
       <td class="row-acts">
-        ${p.status === 'pending' ? `<button class="btn primary xs" data-approve-pro="${p.id}" title="Libera com 14 dias de teste">✓ Liberar</button>` : ''}
+        ${p.status === 'pending' || p.status === 'rejected' ? `<button class="btn primary xs" data-approve-pro="${p.id}" title="Aprova com 14 dias de teste">✓ Aprovar</button>` : ''}
+        ${p.status === 'pending' ? `<button class="btn ghost xs danger" data-reject-pro="${p.id}" title="Recusa o cadastro (a pessoa vê o aviso ao entrar)">✕ Recusar</button>` : ''}
         <button class="btn ghost xs" data-grant-pro="${p.id}">+ créditos</button>
         <button class="btn ghost xs" data-edit-pro="${p.id}">Editar</button>
         <button class="btn ghost xs" data-pw-pro="${p.id}">Senha</button>
@@ -516,9 +517,18 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'active', access: 'trial', trial_days: 14 }),
         });
-        NS.toast(`${p.full_name || p.email} liberado(a): teste de 14 dias. Para Pro ou outro prazo, use Editar.`);
+        NS.toast(`${p.full_name || p.email} aprovado(a): teste de 14 dias. Para Pro ou outro prazo, use Editar.`);
         loadAdmin();
       } catch (err) { t.disabled = false; NS.toast(err.message, true); }
+      return;
+    }
+    if (t.dataset.rejectPro) {
+      const p = state.pros.find(x => x.id === t.dataset.rejectPro); if (!p) return;
+      if (!confirm(`Recusar o cadastro de ${p.full_name || p.email}? A pessoa verá "Cadastro não aprovado" ao entrar. Dá para aprovar depois.`)) return;
+      try {
+        await NS.api('/api/admin/professionals/' + p.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'rejected' }) });
+        NS.toast('Cadastro recusado.'); loadAdmin();
+      } catch (err) { NS.toast(err.message, true); }
       return;
     }
     if (t.dataset.grantPro) {
@@ -560,8 +570,9 @@
         <label class="field">CRP<input id="f_crp" value="${NS.esc(p.professional_id || '')}"></label>
         ${ACCESS_FIELDS(accessOf(p).key, accessOf(p).key === 'trial' ? accessOf(p).left : 14)}
         <label class="field">Status<select id="f_status">
-          <option value="active"${p.status !== 'suspended' && p.status !== 'pending' ? ' selected' : ''}>Ativo (liberado)</option>
-          <option value="pending"${p.status === 'pending' ? ' selected' : ''}>Aguardando liberação</option>
+          <option value="active"${!['suspended', 'pending', 'rejected'].includes(p.status) ? ' selected' : ''}>Ativo (aprovado)</option>
+          <option value="pending"${p.status === 'pending' ? ' selected' : ''}>Aguardando aprovação</option>
+          <option value="rejected"${p.status === 'rejected' ? ' selected' : ''}>Recusado</option>
           <option value="suspended"${p.status === 'suspended' ? ' selected' : ''}>Suspenso</option></select></label>
         <label class="field">Plano<input id="f_plan" value="${NS.esc(p.plan || '')}"></label>
         <label class="field">Créditos<input id="f_credits" type="number" step="0.5" value="${p.credits ?? 0}"></label>`,
@@ -852,6 +863,11 @@
     if (acc.blocked === 'pending') {
       $('#blockedTitle').textContent = 'Cadastro recebido! 🎉';
       $('#blockedText').textContent = 'Sua conta foi criada e está aguardando a liberação do administrador. Assim que for liberada, você entra com 14 dias de teste e 3 créditos grátis. Quer agilizar? Avise pelo WhatsApp.';
+      $('#blockedBuy').hidden = true;
+    }
+    if (acc.blocked === 'rejected') {
+      $('#blockedTitle').textContent = 'Cadastro não aprovado';
+      $('#blockedText').textContent = 'O administrador não aprovou este cadastro. Se achar que é um engano, fale com a gente pelo WhatsApp.';
       $('#blockedBuy').hidden = true;
     }
     const wa = $('#blockedWa');

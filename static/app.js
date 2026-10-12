@@ -117,7 +117,7 @@ async function api(url, options={}){
   const r=await fetch(url,opt); let data; try{data=await r.json();}catch{data={detail:await r.text()};}
   if(r.status===401 && state.authEnabled){ location.replace('/login.html'); throw new Error('Sessão expirada.'); }
   if(r.status===402){ setTimeout(()=>{ try{ window.showView ? window.showView('planos') : (location.hash='#planos'); }catch{} },1200); }
-  if(r.status===403 && /^(trial_expired|suspended|pending)/.test(data.detail||'')){ window.NS?.onBlocked?.(data.detail.split(':')[0]); }
+  if(r.status===403 && /^(trial_expired|suspended|pending|rejected)/.test(data.detail||'')){ window.NS?.onBlocked?.(data.detail.split(':')[0]); }
   if(!r.ok) throw new Error(data.detail || `HTTP ${r.status}`); return data;
 }
 

@@ -86,6 +86,8 @@ class ProfessionalUpdate(BaseModel):
     status: str|None=None
     plan: str|None=None
     credits: int|None=None
+    access: str|None=None        # 'admin' | 'pro' | 'trial'
+    trial_days: int|None=None
 
 class ProfessionalCreate(BaseModel):
     email: str
@@ -94,6 +96,8 @@ class ProfessionalCreate(BaseModel):
     professional_id: str|None=None
     role: str|None='professional'
     credits: int|None=0
+    access: str|None=None        # 'admin' | 'pro' | 'trial'
+    trial_days: int|None=None
 
 class PlanUpsert(BaseModel):
     name: str|None=None
@@ -112,6 +116,18 @@ class PatientRequest(BaseModel):
     notes: str|None=None
 
 
+async def active_user(user: dict = Depends(current_user)) -> dict:
+    """Usuário logado E com acesso liberado (teste não expirado, conta não suspensa)."""
+    if user.get('anon'):
+        return user
+    st = store.access_state(await store.get_profile(user))
+    if st['blocked'] == 'trial_expired':
+        raise HTTPException(403, 'trial_expired: seu período de teste terminou. Adquira créditos para continuar.')
+    if st['blocked'] == 'suspended':
+        raise HTTPException(403, 'suspended: sua conta está suspensa. Fale com o administrador.')
+    return user
+
+
 def _slug(text: str) -> str:
     text=unicodedata.normalize('NFKD',text or '').encode('ascii','ignore').decode()
     text=re.sub(r'[^A-Za-z0-9]+','_',text).strip('_').lower()
@@ -128,11 +144,11 @@ def config():
     return auth.public_config()
 
 @app.get('/api/tests')
-def tests(user: dict = Depends(current_user)):
+def tests(user: dict = Depends(active_user)):
     return {'tests':engine.catalog() + scales.catalog_entries()}
 
 @app.get('/api/tests/{test_name}')
-def test_meta(test_name: str, user: dict = Depends(current_user)):
+def test_meta(test_name: str, user: dict = Depends(active_user)):
     name=unquote(test_name)
     if scales.is_scale(name):
         return scales.meta(name)
@@ -144,7 +160,7 @@ def test_meta(test_name: str, user: dict = Depends(current_user)):
         raise HTTPException(500,f'Falha ao preparar o teste: {type(exc).__name__}: {exc}')
 
 @app.post('/api/score')
-def score(req: ScoreRequest, user: dict = Depends(current_user)):
+def score(req: ScoreRequest, user: dict = Depends(active_user)):
     if scales.is_scale(req.test):
         return scales.score(req.test,req.patient,req.raw_scores,req.parameters)
     try:
@@ -157,7 +173,7 @@ def score(req: ScoreRequest, user: dict = Depends(current_user)):
         raise HTTPException(500,f'Erro de correção: {type(exc).__name__}: {exc}')
 
 @app.post('/api/ai/test-report')
-def ai_test_report(req: TestReportRequest, user: dict = Depends(current_user)):
+def ai_test_report(req: TestReportRequest, user: dict = Depends(active_user)):
     try:
         return generate_test_report(req.patient,req.score_result,req.history)
     except Exception as exc:
@@ -165,7 +181,7 @@ def ai_test_report(req: TestReportRequest, user: dict = Depends(current_user)):
 
 @app.post('/api/ai/anamnesis')
 async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=File(...),
-                       user: dict = Depends(current_user)):
+                       user: dict = Depends(active_user)):
     try:
         patient=json.loads(patient_json or '{}')
     except json.JSONDecodeError:
@@ -189,7 +205,7 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
         raise HTTPException(502,str(exc))
 
 @app.post('/api/ai/laudo-model')
-async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends(current_user)):
+async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends(active_user)):
     parsed=[]
     total=0
     allowed_ext=('.pdf','.doc','.docx','.txt','.md','.rtf','.odt')
@@ -213,7 +229,7 @@ async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends
 
 @app.post('/api/ai/external-instrument')
 async def ai_external_instrument(nome: str=Form(''), files: list[UploadFile]=File(...),
-                                 user: dict = Depends(current_user)):
+                                 user: dict = Depends(active_user)):
     parsed=[]
     total=0
     for f in files:
@@ -235,7 +251,7 @@ async def ai_external_instrument(nome: str=Form(''), files: list[UploadFile]=Fil
         raise HTTPException(502,str(exc))
 
 @app.post('/api/ai/integrated-report')
-async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_user)):
+async def ai_integrated(req: IntegratedRequest, user: dict = Depends(active_user)):
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
         raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
     try:
@@ -257,7 +273,7 @@ async def ai_integrated(req: IntegratedRequest, user: dict = Depends(current_use
 @app.post('/api/ai/laudo-neuro')
 async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=File(default=[]),
                          anamnese_files: list[UploadFile]=File(default=[]),
-                         user: dict = Depends(current_user)):
+                         user: dict = Depends(active_user)):
     try:
         dados=json.loads(dados_json or '{}')
     except json.JSONDecodeError:
@@ -332,7 +348,7 @@ class LaudoNeuroDocxRequest(BaseModel):
     charts: list[dict[str,Any]]=Field(default_factory=list)
 
 @app.post('/api/laudo/neuro-docx')
-def laudo_neuro_docx(req: LaudoNeuroDocxRequest, user: dict = Depends(current_user)):
+def laudo_neuro_docx(req: LaudoNeuroDocxRequest, user: dict = Depends(active_user)):
     try:
         data=build_laudo_neuro_docx(req.laudo,req.charts)
     except Exception as exc:
@@ -346,7 +362,7 @@ def laudo_neuro_docx(req: LaudoNeuroDocxRequest, user: dict = Depends(current_us
     )
 
 @app.post('/api/laudo/integrated-docx')
-def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(current_user)):
+def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(active_user)):
     if not req.report:
         raise HTTPException(400,'Gere o laudo integrado antes de exportar.')
     try:
@@ -362,57 +378,59 @@ def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(curre
 
 # ---------------- Avaliações salvas (Supabase) ----------------
 @app.get('/api/evaluations')
-async def evaluations_list(patient: str | None = None, user: dict = Depends(current_user)):
+async def evaluations_list(patient: str | None = None, user: dict = Depends(active_user)):
     return {'evaluations': await store.list_evaluations(user, patient)}
 
 @app.get('/api/evaluations/{eval_id}')
-async def evaluations_get(eval_id: str, user: dict = Depends(current_user)):
+async def evaluations_get(eval_id: str, user: dict = Depends(active_user)):
     return await store.get_evaluation(user, eval_id)
 
 @app.post('/api/evaluations')
-async def evaluations_create(req: EvaluationRequest, user: dict = Depends(current_user)):
+async def evaluations_create(req: EvaluationRequest, user: dict = Depends(active_user)):
     return await store.save_evaluation(user, req.model_dump())
 
 @app.put('/api/evaluations/{eval_id}')
-async def evaluations_update(eval_id: str, req: EvaluationRequest, user: dict = Depends(current_user)):
+async def evaluations_update(eval_id: str, req: EvaluationRequest, user: dict = Depends(active_user)):
     return await store.save_evaluation(user, req.model_dump(), eval_id)
 
 @app.delete('/api/evaluations/{eval_id}')
-async def evaluations_delete(eval_id: str, user: dict = Depends(current_user)):
+async def evaluations_delete(eval_id: str, user: dict = Depends(active_user)):
     await store.delete_evaluation(user, eval_id)
     return {'ok': True}
 
 @app.get('/api/profile')
 async def profile_get(user: dict = Depends(current_user)):
-    return await store.get_profile(user)
+    # Liberado mesmo com o teste expirado: o app usa para mostrar o bloqueio e o contador.
+    p = await store.get_profile(user)
+    return {**p, 'access': store.access_state(p)}
 
 @app.put('/api/profile')
-async def profile_put(req: ProfileRequest, user: dict = Depends(current_user)):
+async def profile_put(req: ProfileRequest, user: dict = Depends(active_user)):
     return await store.save_profile(user, {k: v for k, v in req.model_dump().items() if v is not None})
 
 @app.get('/api/audit')
-async def audit_get(user: dict = Depends(current_user)):
+async def audit_get(user: dict = Depends(active_user)):
     return {'audit': await store.list_audit(user)}
 
 @app.get('/api/dashboard')
-async def dashboard_get(user: dict = Depends(current_user)):
+async def dashboard_get(user: dict = Depends(active_user)):
     return await store.dashboard_summary(user)
 
 # ---------------- Administração: profissionais + planos ----------------
 @app.get('/api/admin/professionals')
-async def admin_professionals(user: dict = Depends(current_user)):
+async def admin_professionals(user: dict = Depends(active_user)):
     return {'professionals': await store.list_professionals(user)}
 
 @app.post('/api/admin/professionals')
-async def admin_professional_create(req: ProfessionalCreate, user: dict = Depends(current_user)):
+async def admin_professional_create(req: ProfessionalCreate, user: dict = Depends(active_user)):
     return await store.admin_create_professional(user, req.model_dump())
 
 @app.put('/api/admin/plans/{key}')
-async def admin_plan_upsert(key: str, req: PlanUpsert, user: dict = Depends(current_user)):
+async def admin_plan_upsert(key: str, req: PlanUpsert, user: dict = Depends(active_user)):
     return await store.upsert_plan(user, key, req.model_dump())
 
 @app.delete('/api/admin/plans/{key}')
-async def admin_plan_delete(key: str, user: dict = Depends(current_user)):
+async def admin_plan_delete(key: str, user: dict = Depends(active_user)):
     await store.admin_delete_plan(user, key)
     return {'ok': True}
 
@@ -420,12 +438,12 @@ class PasswordRequest(BaseModel):
     password: str
 
 @app.post('/api/admin/professionals/{pid}/password')
-async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(current_user)):
+async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(active_user)):
     await store.admin_set_password(user, pid, req.password)
     return {'ok': True}
 
 @app.put('/api/admin/site')
-async def admin_site_update(req: dict[str, Any], user: dict = Depends(current_user)):
+async def admin_site_update(req: dict[str, Any], user: dict = Depends(active_user)):
     return {'site': await store.update_site(user, req)}
 
 # ---------------- Públicas: landing page ----------------
@@ -443,11 +461,11 @@ async def plans_list(user: dict = Depends(current_user)):
     return {'plans': await store.list_plans(user)}
 
 @app.put('/api/admin/professionals/{pid}')
-async def admin_professional_update(pid: str, req: ProfessionalUpdate, user: dict = Depends(current_user)):
+async def admin_professional_update(pid: str, req: ProfessionalUpdate, user: dict = Depends(active_user)):
     return await store.admin_update_professional(user, pid, req.model_dump())
 
 @app.delete('/api/admin/professionals/{pid}')
-async def admin_professional_delete(pid: str, user: dict = Depends(current_user)):
+async def admin_professional_delete(pid: str, user: dict = Depends(active_user)):
     await store.admin_delete_professional(user, pid)
     return {'ok': True}
 
@@ -455,24 +473,24 @@ class GrantRequest(BaseModel):
     delta: int
 
 @app.post('/api/admin/professionals/{pid}/credits')
-async def admin_grant(pid: str, req: GrantRequest, user: dict = Depends(current_user)):
+async def admin_grant(pid: str, req: GrantRequest, user: dict = Depends(active_user)):
     return {'balance': await store.admin_grant_credits(user, pid, req.delta)}
 
 # ---------------- Pacientes ----------------
 @app.get('/api/patients')
-async def patients_list(user: dict = Depends(current_user)):
+async def patients_list(user: dict = Depends(active_user)):
     return {'patients': await store.list_patients(user)}
 
 @app.post('/api/patients')
-async def patients_create(req: PatientRequest, user: dict = Depends(current_user)):
+async def patients_create(req: PatientRequest, user: dict = Depends(active_user)):
     return await store.save_patient(user, req.model_dump())
 
 @app.put('/api/patients/{pid}')
-async def patients_update(pid: str, req: PatientRequest, user: dict = Depends(current_user)):
+async def patients_update(pid: str, req: PatientRequest, user: dict = Depends(active_user)):
     return await store.save_patient(user, req.model_dump(), pid)
 
 @app.delete('/api/patients/{pid}')
-async def patients_delete(pid: str, user: dict = Depends(current_user)):
+async def patients_delete(pid: str, user: dict = Depends(active_user)):
     await store.delete_patient(user, pid)
     return {'ok': True}
 

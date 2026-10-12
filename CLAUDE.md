@@ -121,6 +121,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **0006** `evaluations.external_results` (jsonb) — instrumentos corrigidos fora do sistema
 - **0007** trigger `t_profiles_protect`: só admin (ou security definer/service_role) altera role/status/plan/credits
 - **0008** `site_settings` (linha única `id='site'`, `data` jsonb: cores + textos da landing; leitura pública, escrita só admin) + pacotes 10/20/30 créditos a R$ 20/crédito
+- **0009** `profiles.trial_ends_at` (acesso de teste); cadastro novo = teste de 14 dias; só admin altera o prazo
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
 
@@ -246,3 +247,6 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **Admin**: aparência do site (`PUT /api/admin/site`, lida em `GET /api/site`; cores aplicadas na landing e no app),
   trocar senha de qualquer usuário (`POST /api/admin/professionals/{id}/password`, Auth Admin API),
   criar/excluir pacotes (`DELETE /api/admin/plans/{key}`).
+- **Acesso (trial)**: o admin escolhe Pro / Teste (N dias) / Administrador. `active_user` (app.py) bloqueia com 403
+  `trial_expired`/`suspended`; ficam liberados só `/api/profile`, `/api/plans`, `/api/credits`, `/api/checkout`.
+  Front: faixa com contador de dias e tela de bloqueio. Comprar créditos (webhook MP) zera o `trial_ends_at` → vira Pro.

@@ -5,12 +5,16 @@ garantem que cada profissional só enxerga os próprios dados.
 """
 from __future__ import annotations
 
+import math
+from datetime import datetime, timedelta, timezone
+
 import httpx
 from fastapi import HTTPException
 
 from .auth import AUTH_ENABLED, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL
 
 REST = f'{SUPABASE_URL}/rest/v1' if SUPABASE_URL else ''
+TRIAL_DAYS = 14
 
 
 def _headers(user: dict, *, write: bool = False) -> dict:
@@ -113,7 +117,7 @@ async def _require_admin(user: dict) -> None:
 
 
 # ---------- administração: profissionais ----------
-_PRO_FIELDS = 'id,full_name,email,professional_id,role,status,plan,credits,created_at,updated_at'
+_PRO_FIELDS = 'id,full_name,email,professional_id,role,status,plan,credits,trial_ends_at,created_at,updated_at'
 _PRO_EDITABLE = ('full_name', 'professional_id', 'role', 'status', 'plan', 'credits')
 
 
@@ -124,9 +128,47 @@ async def list_professionals(user: dict) -> list[dict]:
     }) or []
 
 
+def _access_patch(data: dict) -> dict:
+    """Tipo de acesso escolhido pelo admin → campos do perfil.
+
+    admin → role admin · pro → profissional sem prazo · trial → profissional
+    com acesso até hoje + trial_days (padrão 14).
+    """
+    access = data.get('access')
+    if access == 'admin':
+        return {'role': 'admin', 'trial_ends_at': None}
+    if access == 'pro':
+        return {'role': 'professional', 'trial_ends_at': None}
+    if access == 'trial':
+        days = data.get('trial_days')
+        days = TRIAL_DAYS if days is None else max(0, int(days))
+        ends = datetime.now(timezone.utc) + timedelta(days=days)
+        return {'role': 'professional', 'trial_ends_at': ends.isoformat()}
+    return {}
+
+
+def access_state(profile: dict) -> dict:
+    """{'trial': bool, 'trial_days_left': int|None, 'blocked': str|None} para o perfil."""
+    out = {'trial': False, 'trial_days_left': None, 'blocked': None}
+    if profile.get('role') == 'admin':
+        return out
+    if profile.get('status') == 'suspended':
+        out['blocked'] = 'suspended'
+    ends = profile.get('trial_ends_at')
+    if ends:
+        end = datetime.fromisoformat(str(ends).replace('Z', '+00:00'))
+        secs = (end - datetime.now(timezone.utc)).total_seconds()
+        out['trial'] = True
+        out['trial_days_left'] = max(0, math.ceil(secs / 86400))
+        if secs <= 0:
+            out['blocked'] = out['blocked'] or 'trial_expired'
+    return out
+
+
 async def admin_update_professional(user: dict, pid: str, data: dict) -> dict:
     await _require_admin(user)
     body = {k: data[k] for k in _PRO_EDITABLE if data.get(k) is not None}
+    body.update(_access_patch(data))
     if not body:
         raise HTTPException(400, 'Nada para atualizar.')
     rows = await _req('PATCH', '/profiles', user, params={'id': f'eq.{pid}'}, json=body, write=True)
@@ -294,7 +336,7 @@ async def admin_create_professional(user: dict, data: dict) -> dict:
     if r.status_code >= 400:
         raise HTTPException(r.status_code, f'Supabase: {r.text[:300]}')
     uid = r.json().get('id')
-    patch = {}
+    patch = _access_patch(data) if data.get('access') else {}
     for k in ('professional_id', 'role', 'status', 'plan'):
         if data.get(k):
             patch[k] = data[k]
@@ -347,6 +389,9 @@ async def fulfill_payment(payment_id: str) -> dict:
         'p_owner': order['owner'], 'p_delta': order['credits'],
         'p_reason': 'purchase', 'p_ref': str(payment_id),
     })
+    # quem compra deixa de ser conta de teste
+    await _service_req('PATCH', '/profiles', params={'id': f'eq.{order["owner"]}'},
+                       json={'trial_ends_at': None})
     return {'ok': True, 'credits': order['credits']}
 
 

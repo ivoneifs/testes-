@@ -28,6 +28,13 @@
     name = String(name || '').split('?')[0];
     if (!VIEWS.includes(name)) name = 'dashboard';
     if (name === 'admin' && state.profile?.role !== 'admin') name = 'dashboard';
+    // Teste expirado: só Planos (para comprar) e Conta; o resto fica atrás da tela de bloqueio.
+    if (state.blocked) {
+      const canBuy = state.blocked === 'trial_expired';
+      const free = canBuy ? ['planos', 'conta'] : [];
+      $('#blockedScreen').hidden = free.includes(name);
+      if (!free.includes(name)) return;
+    }
     currentView = name;
     VIEWS.forEach(v => { const el = $('#view-' + v); if (el) el.hidden = v !== name; });
     $$('#nav .nav-item').forEach(a => a.classList.toggle('active', a.dataset.view === name));
@@ -111,7 +118,7 @@
   function refreshIdentity() {
     const p = state.profile || {};
     const roleEl = $('#userRole');
-    if (roleEl) { roleEl.textContent = p.role === 'admin' ? 'Administrador' : 'Profissional'; roleEl.hidden = false; }
+    if (roleEl) { roleEl.textContent = p.role === 'admin' ? 'Administrador' : (p.trial_ends_at ? 'Teste' : 'Pro'); roleEl.hidden = false; }
     $('#userEmail').textContent = p.full_name || p.email || state.user?.email || '';
     $('#navAdmin').hidden = p.role !== 'admin';
     const cc = $('#creditCard');
@@ -374,8 +381,7 @@
       <label class="field">Senha inicial<input id="f_pw" type="text" placeholder="mín. 6 caracteres"></label>
       <label class="field">Nome<input id="f_fn"></label>
       <label class="field">CRP<input id="f_crp"></label>
-      <label class="field">Papel<select id="f_role">
-        <option value="professional">Profissional</option><option value="admin">Administrador</option></select></label>
+      ${ACCESS_FIELDS('trial', 14)}
       <label class="field">Créditos iniciais<input id="f_credits" type="number" value="0"></label>`,
       async () => {
         await NS.api('/api/admin/professionals', {
@@ -383,7 +389,7 @@
           body: JSON.stringify({
             email: $('#f_email').value.trim(), password: $('#f_pw').value,
             full_name: $('#f_fn').value.trim(), professional_id: $('#f_crp').value.trim(),
-            role: $('#f_role').value, credits: Number($('#f_credits').value) || 0,
+            credits: Number($('#f_credits').value) || 0, ...accessPayload(),
           }),
         });
         loadAdmin();
@@ -422,6 +428,29 @@
         loadAdmin();
       });
   });
+  function accessOf(p) {
+    if (p.role === 'admin') return { key: 'admin', label: 'Admin', cls: ' pill--admin' };
+    if (!p.trial_ends_at) return { key: 'pro', label: 'Pro', cls: ' pill--ok' };
+    const left = Math.ceil((new Date(p.trial_ends_at) - Date.now()) / 86400000);
+    return left > 0
+      ? { key: 'trial', left, label: `Teste · ${left} dia${left === 1 ? '' : 's'}`, cls: ' pill--trial' }
+      : { key: 'trial', left: 0, label: 'Teste expirado', cls: ' pill--off' };
+  }
+  const ACCESS_FIELDS = (cur = 'trial', days = 14) => `
+      <label class="field">Tipo de acesso<select id="f_access">
+        <option value="pro"${cur === 'pro' ? ' selected' : ''}>Pro (acesso completo)</option>
+        <option value="trial"${cur === 'trial' ? ' selected' : ''}>Teste (trial)</option>
+        <option value="admin"${cur === 'admin' ? ' selected' : ''}>Administrador</option></select></label>
+      <label class="field" id="f_days_row"${cur === 'trial' ? '' : ' hidden'}>Dias de teste (a partir de hoje)<input id="f_days" type="number" min="0" value="${days}"></label>`;
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'f_access') $('#f_days_row').hidden = e.target.value !== 'trial';
+  });
+  const accessPayload = () => {
+    const access = $('#f_access').value;
+    return access === 'trial'
+      ? { access, trial_days: Math.max(0, parseInt($('#f_days').value, 10) || 0) }
+      : { access };
+  };
   function renderPros() {
     const q = ($('#proSearch').value || '').toLowerCase();
     const rows = (state.pros || []).filter(p =>
@@ -429,7 +458,7 @@
     $('#prosBody').innerHTML = rows.map(p => `<tr>
       <td>${NS.esc(p.full_name || '—')}</td><td>${NS.esc(p.email || '—')}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
-      <td><span class="pill${p.role === 'admin' ? ' pill--admin' : ''}">${p.role === 'admin' ? 'Admin' : 'Profissional'}</span></td>
+      <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
       <td><span class="pill${p.status === 'suspended' ? ' pill--off' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : 'Ativo'}</span></td>
       <td>${NS.esc(p.plan || '—')}</td><td>${p.credits ?? 0}</td>
       <td class="row-acts">
@@ -479,9 +508,7 @@
       openEdit('Editar profissional', `
         <label class="field span-2">Nome<input id="f_fn" value="${NS.esc(p.full_name || '')}"></label>
         <label class="field">CRP<input id="f_crp" value="${NS.esc(p.professional_id || '')}"></label>
-        <label class="field">Papel<select id="f_role">
-          <option value="professional"${p.role !== 'admin' ? ' selected' : ''}>Profissional</option>
-          <option value="admin"${p.role === 'admin' ? ' selected' : ''}>Administrador</option></select></label>
+        ${ACCESS_FIELDS(accessOf(p).key, accessOf(p).key === 'trial' ? accessOf(p).left : 14)}
         <label class="field">Status<select id="f_status">
           <option value="active"${p.status !== 'suspended' ? ' selected' : ''}>Ativo</option>
           <option value="suspended"${p.status === 'suspended' ? ' selected' : ''}>Suspenso</option></select></label>
@@ -492,7 +519,7 @@
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               full_name: $('#f_fn').value.trim(), professional_id: $('#f_crp').value.trim(),
-              role: $('#f_role').value, status: $('#f_status').value,
+              status: $('#f_status').value, ...accessPayload(),
               plan: $('#f_plan').value.trim() || null, credits: Number($('#f_credits').value) || 0,
             }),
           });
@@ -548,6 +575,31 @@
   }
   fetch('/api/site').then(r => r.json()).then(({ site }) => { state.site = site || {}; applySiteColors(state.site); }).catch(() => {});
 
+  // ---------------- Acesso: modo teste (trial) e bloqueio ----------------
+  function applyAccess(acc) {
+    acc = acc || {};
+    state.blocked = acc.blocked || null;
+    const banner = $('#trialBanner');
+    if (acc.trial && !acc.blocked) {
+      const d = acc.trial_days_left ?? 0;
+      $('#trialDays').textContent = d;
+      $('#trialTitle').textContent = d <= 1 ? 'Último dia do seu teste gratuito' : `Modo teste: faltam ${d} dias`;
+      $('#trialSub').textContent = 'Ao fim do período o acesso é bloqueado. Adquira créditos para continuar sem interrupção.';
+      banner.classList.toggle('urgent', d <= 3);
+      banner.hidden = false;
+    } else banner.hidden = true;
+    if (acc.blocked === 'suspended') {
+      $('#blockedTitle').textContent = 'Conta suspensa';
+      $('#blockedText').textContent = 'Seu acesso foi suspenso pelo administrador. Entre em contato para reativar.';
+      $('#blockedBuy').hidden = true;
+    }
+    if (acc.blocked) $('#blockedScreen').hidden = false;
+  }
+  window.NS = window.NS || {};
+  window.NS.onBlocked = (kind) => { applyAccess({ blocked: kind }); };
+  $('#blockedBuy')?.addEventListener('click', () => showView('planos'));
+  $('#blockedLogout')?.addEventListener('click', () => $('#logoutBtn')?.click());
+
   // ---------------- Boot (chamado por app.js após auth) ----------------
   window.onSessionReady = async function () {
     // sem login: mostra tudo menos admin
@@ -562,8 +614,9 @@
         $('#prefEmail').checked = !!prefs.notify_email;
         $('#prefTasks').checked = !!prefs.notify_tasks;
         refreshIdentity();
+        applyAccess(p.access);
       } catch (e) { console.error(e); }
-      NS.api('/api/patients').then(({ patients = [] }) => { state.patients = patients; }).catch(() => {});
+      if (!state.blocked) NS.api('/api/patients').then(({ patients = [] }) => { state.patients = patients; }).catch(() => {});
     }
     // retorno do Mercado Pago
     const m = location.hash.match(/pago=([^&]+)/);

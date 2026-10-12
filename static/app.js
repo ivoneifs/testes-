@@ -837,6 +837,17 @@ function hvHtml(rep){
   if(Array.isArray(transcricao)&&transcricao.length) h+=`<details class="ai-block hv-ocr"><summary><h4>Transcrição (OCR) — ${transcricao.length} página(s)</h4></summary>${transcricao.map(t=>`<div class="hv-page"><b>${esc(t.documento||'')}${t.pagina?' · pág. '+esc(t.pagina):''}</b><pre>${esc(t.texto||'')}</pre></div>`).join('')}</details>`;
   return h;
 }
+// Resultado da História de Vida (upload/OCR ou formulário) → tela, estado e aviso de Testes realizados.
+function applyAnamnesis(res){
+  const {_registro:reg,...rep}=res;
+  state.anamnesis=rep;try{ window.afterLaudo && window.afterLaudo(); }catch{}
+  els.anamnesisOutput.innerHTML=hvHtml(rep);els.integratedBtn.disabled=false;
+  let msg='História de vida organizada com sucesso.';
+  if(reg&&reg.id){const p=reg.patient||{};if(!$('#patientName').value.trim()&&p.name)$('#patientName').value=p.name;if(!$('#birthDate').value&&p.birth_date){$('#birthDate').value=p.birth_date;updateAge();}syncHv();msg+=` Salva em Testes realizados (${p.name||'sem nome'}).`;}
+  else if(reg&&reg.erro) toast('História organizada, mas não foi salva em Testes realizados: '+reg.erro,true);
+  anamnesisAlert(msg,'done');toast('História de vida organizada.');
+  els.anamnesisOutput.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function anamnesisAlert(msg,kind='info'){
   els.anamnesisAlert.textContent=msg; els.anamnesisAlert.hidden=false;
   els.anamnesisAlert.className='alert '+(kind==='error'?'error':'success')+(kind==='done'?' done':'');
@@ -850,11 +861,7 @@ els.files.addEventListener('change',()=>{
 });
 els.analyzeBtn.addEventListener('click',async()=>{
   const fs=[...els.files.files];if(!fs.length)return;els.analyzeBtn.disabled=true;els.analyzeBtn.textContent='Lendo documentos (OCR)… pode levar 1–3 min';
-  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));const pid=currentPatientId();if(pid)fd.append('patient_id',pid);fs.forEach(f=>fd.append('files',f));const {_registro:reg,...rep}=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;try{ window.afterLaudo && window.afterLaudo(); }catch{}els.anamnesisOutput.innerHTML=hvHtml(rep);els.integratedBtn.disabled=false;
-    let msg='Anamnese carregada — história de vida organizada com sucesso.';
-    if(reg&&reg.id){const p=reg.patient||{};if(!$('#patientName').value.trim()&&p.name)$('#patientName').value=p.name;if(!$('#birthDate').value&&p.birth_date){$('#birthDate').value=p.birth_date;updateAge();}syncHv();msg+=` Salva em Testes realizados (${p.name||'sem nome'}).`;}
-    else if(reg&&reg.erro) toast('História organizada, mas não foi salva em Testes realizados: '+reg.erro,true);
-    anamnesisAlert(msg,'done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
+  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));const pid=currentPatientId();if(pid)fd.append('patient_id',pid);fs.forEach(f=>fd.append('files',f));applyAnamnesis(await api('/api/ai/anamnesis',{method:'POST',body:fd}));}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
 });
 // ---------- Modelo de formatação do laudo ----------
 function modelAlert(msg,kind='info'){
@@ -1035,6 +1042,7 @@ function openSavedHistoria(rec){
   setPatientFields(rec.patient||{});
   state.anamnesis=rec.result||null;
   els.anamnesisOutput.innerHTML=hvHtml(state.anamnesis);
+  const form=(rec.inputs||{}).formulario; if(form&&window.NS.anamForm) window.NS.anamForm.load(form,rec.patient_id);
   anamnesisAlert(`História de vida salva de ${rec.patient?.name||'paciente sem nome'} — entra no laudo completo.`,'done');
   els.integratedBtn.disabled=!state.openaiConfigured;
 }
@@ -1051,7 +1059,7 @@ function laudoFromSaved(recs){
   els.integratedBtn.click();
 }
 window.NS=window.NS||{};
-Object.assign(window.NS,{openSavedTest,openSavedHistoria,laudoFromSaved});
+Object.assign(window.NS,{openSavedTest,openSavedHistoria,laudoFromSaved,applyAnamnesis,setPatientFields,anamnesisAlert});
 
 // ---------- Avaliações salvas (nuvem, por profissional) ----------
 function currentPatientId(){

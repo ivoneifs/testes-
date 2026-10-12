@@ -196,6 +196,7 @@
         <td>${NS.esc(p.sex || '—')}</td><td>${NS.esc(p.education || '—')}</td>
         <td>${cnt[p.id] ? `<button class="btn ghost xs" data-evals-pat="${p.id}">${cnt[p.id]} laudo(s)</button>` : '<span class="muted">—</span>'}</td>
         <td class="row-acts">
+          <button class="btn ghost xs" data-anam-pat="${p.id}" title="Anamnese (História de Vida)">${(p.anamnese || {}).atualizado_em ? '📇 Anamnese ✓' : '📇 Anamnese'}</button>
           <button class="btn ghost xs" data-use="${p.id}">Usar</button>
           <button class="btn ghost xs" data-edit-pat="${p.id}">Editar</button>
           <button class="btn ghost xs danger" data-del-pat="${p.id}">Excluir</button>
@@ -220,6 +221,13 @@
   $('#patientsBody')?.addEventListener('click', async (e) => {
     const t = e.target;
     if (t.dataset.editPat) return patientForm(state.patients.find(p => p.id === t.dataset.editPat));
+    if (t.dataset.anamPat) {
+      const p = state.patients.find(x => x.id === t.dataset.anamPat); if (!p) return;
+      showView('historia');
+      NS.anamForm?.load({ ...((p.anamnese || {}).respostas || {}), ...Object.fromEntries(Object.entries(p.dados || {}).map(([k, v]) => ['d_' + k, v])), d_sexo: (p.dados || {}).sexo || p.sex || '' }, p.id);
+      NS.setPatientFields({ name: p.name, birth_date: p.birth_date, sex: p.sex, education: p.education, application_date: $('#applicationDate')?.value });
+      return;
+    }
     if (t.dataset.use) {
       const p = state.patients.find(x => x.id === t.dataset.use); if (!p) return;
       $('#patientName').value = p.name || ''; $('#birthDate').value = p.birth_date || '';
@@ -233,6 +241,11 @@
       catch (err) { NS.toast(err.message, true); }
     }
   });
+  // identificação da ficha de anamnese (patients.dados) — a mesma da aba História de Vida
+  const PAT_DADOS = [['responsavel', 'Responsável', 1], ['mae', 'Nome da mãe', 1], ['pai', 'Nome do pai', 1],
+    ['cpf', 'CPF'], ['telefone', 'Fone'], ['naturalidade', 'Naturalidade'], ['lateralidade', 'Lateralidade'],
+    ['endereco', 'Endereço', 1], ['cidade', 'Cidade'], ['solicitante', 'Solicitante'], ['especialidade', 'Especialidade'],
+    ['hipotese', 'Hipótese diagnóstica', 1]];
   function patientForm(p) {
     p = p || {};
     openEdit(p.id ? 'Editar paciente' : 'Novo paciente', `
@@ -242,12 +255,15 @@
         <option${p.sex === 'Feminino' ? ' selected' : ''}>Feminino</option>
         <option${p.sex === 'Masculino' ? ' selected' : ''}>Masculino</option></select></label>
       <label class="field span-2">Escolaridade<input id="f_edu" value="${NS.esc(p.education || '')}"></label>
+      ${PAT_DADOS.map(([k, l, span]) => `<label class="field${span ? ' span-2' : ''}">${l}<input data-dado="${k}" value="${NS.esc((p.dados || {})[k] || '')}"></label>`).join('')}
       <label class="field span-2">Notas<textarea id="f_notes" rows="2">${NS.esc(p.notes || '')}</textarea></label>`,
       async () => {
+        const dados = { ...(p.dados || {}) };
+        document.querySelectorAll('#editBody [data-dado]').forEach(i => { dados[i.dataset.dado] = i.value.trim(); });
         const body = {
           name: $('#f_name').value.trim(), birth_date: $('#f_birth').value || null,
           sex: $('#f_sex').value || null, education: $('#f_edu').value.trim() || null,
-          notes: $('#f_notes').value.trim() || null,
+          notes: $('#f_notes').value.trim() || null, dados,
         };
         if (!body.name) throw new Error('Informe o nome.');
         const url = p.id ? '/api/patients/' + p.id : '/api/patients';

@@ -124,6 +124,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **0009** `profiles.trial_ends_at` (acesso de teste); cadastro novo = teste de 14 dias; só admin altera o prazo
 - **0011** cadastro novo ganha 3 créditos grátis (`credit_ledger.reason='trial_bonus'`)
 - **0012** tabela `videos` (links de vídeos explicativos; leitura: logados, escrita: admin) — aba `#videos`
+- **0014** `patients.dados` (identificação da ficha: responsável, CPF, mãe, pai, fone, cidade, solicitante, hipótese…) e `patients.anamnese` (`{respostas, atualizado_em}`)
 - **0010** créditos fracionados (`numeric(12,2)`); `spend_credits(p_amount, p_reason, p_ref)` (mesmo motivo+ref no mesmo dia = grátis); textos dos pacotes
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
@@ -279,3 +280,10 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   `transcricao` (OCR literal por página, feito ANTES de organizar) — a tela mostra no fim, recolhida. Fotos passam por
   `server/ocr_prep.py` (Pillow: EXIF, ~2048 px, autocontraste) e vão com `detail: high`. Na aba Testes realizados:
   Abrir → aba História; selecionada no laudo completo → vira `state.anamnesis`. Teste real: 12 s, 0,5 crédito.
+- **Anamnese por marcação** (aba História de Vida → "☑️ Preencher anamnese"; o outro modo é "📎 Enviar anamnese" = OCR):
+  `static/anamnese.js` = ficha **Anamnese Infantojuvenil** da usuária (Google Doc 1goC8KxL…) em chips Sim/Não/opções,
+  campos de texto só opcionais. "Paciente cadastrado" (`#hvPick`) puxa nome/nascimento/sexo/escolaridade + `dados` +
+  respostas salvas. "Salvar no paciente" grava `patients.dados`/`patients.anamnese` (cria o paciente se não existir);
+  "Salvar e gerar história" → `POST /api/ai/anamnesis-form` (`{patient, patient_id, respostas, texto}`, 0,5 crédito;
+  schema sem transcricao/identificacao; o texto marcado vira a "transcrição") → Testes realizados com `inputs.formulario`
+  (Abrir reabre o formulário). Pacientes: botão "📇 Anamnese" e os campos de `dados` no modal. Teste real: 23 s.

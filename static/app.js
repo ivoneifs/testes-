@@ -232,14 +232,22 @@ function renderInputs(){
       const lab=(item && /·/.test(f.label))?esc(f.label.replace(/^[^·]*·\s*/,'')):esc(f.label);
       const rg=Array.isArray(f.range)?f.range:(item?[0,5]:null);
       const ph=calc?'auto':(rg?`${rg[0]}–${rg[1]}`:'PB');
-      return `<div class="raw-field${calc?' raw-field--auto':''}">`
-        +`<label>${lab} <span class="cell-ref">${esc(f.cell)}</span></label>`
+      // Itens com poucas opções (Perfil Sensorial 0–5, escalas 0–2/0–3): botões de toque que
+      // só preenchem o mesmo campo numérico — a correção continua lendo o input.
+      const chips=item && rg && rg[1]-rg[0]<=6 && Number.isInteger(rg[0]) && Number.isInteger(rg[1]);
+      const seg=chips?`<div class="score-seg" role="group" aria-label="${lab}">`
+        +Array.from({length:rg[1]-rg[0]+1},(_,k)=>rg[0]+k).map(v=>`<button type="button" data-set="${v}">${v}</button>`).join('')
+        +`</div>`:'';
+      return `<div class="raw-field${calc?' raw-field--auto':''}${chips?' raw-field--chips':''}">`
+        +`<label>${lab} <span class="cell-ref">${esc(f.cell)}</span></label>`+seg
         +`<input data-raw="${esc(f.cell)}"${calc?' data-calc="1"':''} inputmode="decimal" type="number" step="any"`
         +`${rg?` min="${rg[0]}" max="${rg[1]}"`:''} value="${prefill}" placeholder="${ph}"`
         +`${calc?' title="A planilha calcula este campo sozinha. Digite um valor para sobrepor."':''} /></div>`;
     }).join('');
-    return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}</div><div class="raw-grid">${cells}</div></section>`;
+    const prog=bySection?` <span class="sec-prog" data-prog>0/${g.length}</span>`:'';
+    return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}${prog}</div><div class="raw-grid">${cells}</div></section>`;
   }).join('');
+  els.raw.querySelectorAll('.raw-section').forEach(syncSection);
   const params=m.parameters||[]; els.paramsPanel.hidden=!params.length;
   const keepParam=m.input_mode!=='itens';
   els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${keepParam?esc(p.current??''):''}" /></label>`).join('');
@@ -248,6 +256,26 @@ function renderInputs(){
 // Campos [data-calc] (somas/índices/totais com fórmula) são calculados pela
 // planilha por padrão e só são enviados quando a pessoa digita um valor (override).
 // Ao digitar, o campo é marcado com data-touched; ao esvaziar, volta a ser automático.
+// Botões de toque dos itens: marcam o valor no input (e desmarcam se tocar de novo).
+function syncChips(input){
+  const seg=input.parentElement.querySelector('.score-seg'); if(!seg) return;
+  seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',input.value!=='' && Number(b.dataset.set)===Number(input.value)));
+}
+function syncSection(sec){
+  const p=sec.querySelector('[data-prog]'); if(!p) return;
+  const ins=[...sec.querySelectorAll('[data-raw]')], n=ins.filter(i=>i.value!=='').length;
+  p.textContent=`${n}/${ins.length}`; p.classList.toggle('done',n===ins.length);
+}
+els.raw.addEventListener('click',e=>{
+  const b=e.target.closest('[data-set]'); if(!b) return;
+  const input=b.closest('.raw-field').querySelector('[data-raw]');
+  input.value=input.value!=='' && Number(input.value)===Number(b.dataset.set)?'':b.dataset.set;
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+});
+els.raw.addEventListener('input',e=>{
+  const t=e.target; if(!t||!t.dataset||!('raw' in t.dataset)) return;
+  syncChips(t); const sec=t.closest('.raw-section'); if(sec) syncSection(sec);
+});
 els.raw.addEventListener('input',e=>{
   const t=e.target; if(!t||!t.dataset||!('calc' in t.dataset)) return;
   if(t.value==='') delete t.dataset.touched; else t.dataset.touched='1';
@@ -261,7 +289,10 @@ function collectRaw(){
   return out;
 }
 function collectParams(){const out={};document.querySelectorAll('[data-param]').forEach(i=>out[i.dataset.param]=i.value);return out;}
-els.clear.addEventListener('click',()=>document.querySelectorAll('[data-raw]').forEach(i=>{i.value='';delete i.dataset.touched;}));
+els.clear.addEventListener('click',()=>{
+  document.querySelectorAll('[data-raw]').forEach(i=>{i.value='';delete i.dataset.touched;syncChips(i);});
+  els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+});
 
 // Mostra nos campos calculados o valor que a planilha obteve — sem apagar o que a
 // pessoa digitou (campos com data-touched são preservados).

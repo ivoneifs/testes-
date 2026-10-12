@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
-  <meta name="theme-color" content="#131d2f" />
+  <meta name="theme-color" content="#4f46e5" />
   <meta name="description" content="NeuroScore — plataforma de correção neuropsicológica automática, história de vida e laudos com apoio de IA." />
   <title>NeuroScore</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233157d5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" />
   <link rel="stylesheet" href="/assets/styles.css" />
 </head>
 <body>
@@ -74,11 +74,19 @@
 
       <!-- ================= DASHBOARD ================= -->
       <section class="view" id="view-dashboard" hidden>
+        <div class="welcome">
+          <div><h2 id="welcomeTitle">Bem-vindo ao NeuroScore</h2>
+            <p>Corrija testes, organize a história de vida e gere laudos completos com IA, tudo em um só lugar.</p></div>
+          <div class="welcome-acts">
+            <a class="btn" href="#laudos">Corrigir um teste</a>
+            <a class="btn cta" href="#geracao">Gerar laudo</a>
+          </div>
+        </div>
         <div class="kpi-grid">
-          <div class="kpi"><span class="kpi-label">Avaliações salvas</span><strong id="kpiEvals">—</strong></div>
-          <div class="kpi"><span class="kpi-label">Pacientes</span><strong id="kpiPatients">—</strong></div>
-          <div class="kpi"><span class="kpi-label">Créditos de laudo</span><strong id="kpiCredits">—</strong></div>
-          <div class="kpi"><span class="kpi-label">Instrumentos</span><strong id="kpiTests">62</strong></div>
+          <div class="kpi"><i class="kpi-ico">📋</i><span class="kpi-label">Avaliações salvas</span><strong id="kpiEvals">—</strong></div>
+          <div class="kpi"><i class="kpi-ico">👥</i><span class="kpi-label">Pacientes</span><strong id="kpiPatients">—</strong></div>
+          <div class="kpi"><i class="kpi-ico">⚡</i><span class="kpi-label">Créditos disponíveis</span><strong id="kpiCredits">—</strong></div>
+          <div class="kpi"><i class="kpi-ico">🧠</i><span class="kpi-label">Instrumentos</span><strong id="kpiTests">62</strong></div>
         </div>
         <div class="dash-grid">
           <div class="card"><h3>Avaliações por mês</h3><div id="dashByMonth"><p class="muted small">Carregando…</p></div></div>
@@ -337,7 +345,7 @@
         <div class="card planos-custom">
           <div><h3>Precisa de um plano personalizado?</h3>
             <p class="muted">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
-          <a class="btn primary" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
+          <a class="btn primary" id="consultorBtn" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
         </div>
       </section>
 

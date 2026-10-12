@@ -637,3 +637,138 @@ textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ri
 .blocked-acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 @media (max-width:600px){.trial-banner{flex-wrap:wrap}.trial-banner .btn{width:100%}}
 .credit-card--empty{background:linear-gradient(150deg,#e2574c,#b3261e)!important}
+
+/* ============================================================
+   Tema comercial — mesma identidade da landing page.
+   Só aparência: nenhuma classe usada pelo JS foi renomeada.
+   As cores vêm do admin (Aparência do Site) via --primary,
+   --cta (destaque), --brand-2 (secundária) e --dark (barra lateral).
+   ============================================================ */
+:root{
+  --primary:#4f46e5;
+  --primary-ink:#4338ca;
+  --primary-soft:#eef0ff;
+  --primary-ring:rgba(79,70,229,.18);
+  --accent:#7c3aed; --accent-soft:#f3edff;
+  --cta:#f97316; --brand-2:#06b6d4; --dark:#0f172a;
+  --grad:linear-gradient(120deg,var(--primary),var(--brand-2));
+  --bg:#f4f6fb; --surface-2:#f7f8fc;
+  --ink:#0f172a; --ink-2:#334155; --muted:#64748b;
+  --line:#e6e9f2; --line-2:#eef1f7;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.04);
+  --shadow-md:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.06);
+  --shadow-lg:0 20px 50px rgba(15,23,42,.16);
+  --r-sm:10px; --r:14px; --r-lg:18px;
+  --display:"Plus Jakarta Sans","Inter",system-ui,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0b1120; --surface:#121a2b; --surface-2:#172033;
+  --ink:#e8ecf4; --ink-2:#b9c2d4; --muted:#8a94a9;
+  --line:#243049; --line-2:#1d273b;
+  --primary-soft:#1f2350; --accent-soft:#261c45;
+}
+body{background:
+  radial-gradient(900px 380px at 100% -80px,color-mix(in srgb,var(--brand-2) 10%,transparent),transparent 70%),
+  radial-gradient(900px 420px at 30% -160px,color-mix(in srgb,var(--primary) 10%,transparent),transparent 70%),
+  var(--bg);background-attachment:fixed}
+h1,h2,h3{font-family:var(--display)}
+
+/* Barra lateral */
+.sidebar{background:linear-gradient(190deg,color-mix(in srgb,var(--dark) 88%,var(--primary)) 0%,var(--dark) 55%);border-right:0}
+.brand{padding-bottom:22px}
+.brand-mark{background:var(--grad);border-radius:12px;box-shadow:0 10px 26px color-mix(in srgb,var(--primary) 45%,transparent)}
+.brand strong{font-family:var(--display);font-size:17px;font-weight:800}
+.nav{gap:4px}
+.nav-item{position:relative;border-radius:12px;padding:11px 14px;color:#cbd5e1;font-weight:500}
+.nav-item i{opacity:.9}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:var(--grad);color:#fff;font-weight:700;
+  box-shadow:0 10px 24px color-mix(in srgb,var(--primary) 40%,transparent)}
+.credit-card{background:var(--grad);border-radius:16px;box-shadow:0 12px 30px color-mix(in srgb,var(--primary) 40%,transparent)}
+.credit-card strong{font-family:var(--display);font-size:34px}
+.cc-btn{background:var(--cta);box-shadow:0 6px 16px color-mix(in srgb,var(--cta) 45%,transparent)}
+.cc-btn:hover{background:color-mix(in srgb,var(--cta) 88%,#000)}
+
+/* Topo */
+.topbar{padding:4px 0 6px}
+.eyebrow{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.topbar h1{font-size:30px;font-weight:800;letter-spacing:-.025em}
+
+/* Botões */
+.btn{border-radius:11px;font-size:13px;padding:10px 16px}
+.btn.primary{--_bg:var(--grad);--_fg:#fff;border:0;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--primary) 30%,transparent)}
+.btn.primary:hover{--_bg:var(--grad);filter:brightness(1.06);box-shadow:0 12px 26px color-mix(in srgb,var(--primary) 38%,transparent)}
+.btn.ai-btn{--_bg:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--primary)));--_fg:#fff;--_bd:transparent;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 30%,transparent)}
+.btn.ai-btn:hover{--_bg:linear-gradient(120deg,var(--accent),color-mix(in srgb,var(--accent) 60%,var(--primary)));filter:brightness(1.07)}
+.btn.ghost{--_bg:var(--surface);--_fg:var(--ink-2)}
+.btn.ghost:hover{--_bg:var(--surface-2)}
+[data-buy],.trial-banner .btn.primary,.blocked-card .btn.primary{--_bg:var(--cta)!important;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--cta) 35%,transparent)!important}
+
+/* Cards e formulários */
+.card,.chart-card,.result-table-card{border-color:var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-md)}
+.card{padding:22px 24px}
+.patient-card,.input-card,.ai-card{padding:24px 26px}
+.section-heading h2{font-size:18px;font-weight:800}
+.step{background:var(--grad);color:#fff;border-radius:9px}
+.field{color:var(--ink-2)}
+.field input,.field select,textarea,.instrument-search{border-radius:11px}
+.badge.ai{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 22%,transparent)}
+.upload-zone{border-color:color-mix(in srgb,var(--accent) 35%,transparent);border-radius:14px;padding:26px 16px}
+.upload-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;margin:0 auto 4px;
+  color:#fff;background:linear-gradient(120deg,var(--accent),var(--primary))}
+.result-table th{background:var(--primary-soft);color:var(--primary-ink)}
+:root[data-theme="dark"] .result-table th{background:#1c2340;color:#c7d0ff}
+.result-table-title{font-family:var(--display);font-size:13.5px}
+
+/* Dashboard */
+.kpi-grid{gap:18px}
+.kpi{position:relative;overflow:hidden;padding:20px 22px 20px 82px;border-radius:var(--r-lg);box-shadow:var(--shadow-md);min-height:96px}
+.kpi::after{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--_c,var(--primary))}
+.kpi-ico{position:absolute;left:20px;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:13px;
+  display:grid;place-items:center;font-size:21px;font-style:normal;color:#fff;
+  background:var(--_c,var(--primary));box-shadow:0 8px 18px color-mix(in srgb,var(--_c,var(--primary)) 35%,transparent)}
+.kpi strong{font-family:var(--display);font-size:30px;font-weight:800;margin-top:2px}
+.kpi:nth-child(1){--_c:var(--primary)}
+.kpi:nth-child(2){--_c:var(--brand-2)}
+.kpi:nth-child(3){--_c:var(--cta)}
+.kpi:nth-child(4){--_c:#10b981}
+.minibar-track{height:10px}
+.minibar-fill{background:var(--grad)}
+.welcome{position:relative;overflow:hidden;border-radius:22px;padding:26px 28px;color:#fff;
+  background:linear-gradient(125deg,var(--primary),color-mix(in srgb,var(--primary) 50%,var(--brand-2)));
+  box-shadow:0 18px 40px color-mix(in srgb,var(--primary) 28%,transparent);
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.welcome::after{content:"";position:absolute;right:-60px;bottom:-110px;width:280px;height:280px;border-radius:50%;
+  background:color-mix(in srgb,var(--cta) 55%,transparent);filter:blur(60px);opacity:.55;pointer-events:none}
+.welcome h2{font-size:22px;font-weight:800;margin-bottom:4px;position:relative;z-index:1}
+.welcome p{margin:0;opacity:.9;position:relative;z-index:1;max-width:560px}
+.welcome-acts{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.welcome .btn{--_bg:#fff;--_fg:var(--primary-ink);border:0}
+.welcome .btn.cta{--_bg:var(--cta);--_fg:#fff}
+
+/* Planos */
+.planos-grid{gap:22px}
+.plano{border-radius:20px;padding:28px 24px;box-shadow:var(--shadow-md)}
+.plano--feat{border:2px solid var(--primary);box-shadow:0 22px 50px color-mix(in srgb,var(--primary) 18%,transparent);transform:translateY(-6px)}
+.plano-tag{background:var(--cta);left:50%;transform:translateX(-50%);padding:4px 14px;white-space:nowrap}
+.plano h3{font-size:18px;font-weight:800}
+.plano-price{font-family:var(--display);font-size:34px;letter-spacing:-.02em}
+.plano-laudos{color:var(--primary)}
+.plano li::before{color:#10b981}
+.planos-custom{background:linear-gradient(120deg,var(--primary-soft),color-mix(in srgb,var(--brand-2) 9%,var(--surface)))}
+
+/* Selos e alertas */
+.pill{border-radius:999px;padding:3px 9px}
+.pill--admin{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.seg-btn.active,.switch:checked{background:var(--primary)}
+.trial-banner{border-radius:16px;padding:14px 18px}
+.toast{border-radius:12px;background:var(--dark)}
+.modal-card{border-radius:20px}
+.app-foot{border-top-color:var(--line)}
+
+@media(max-width:900px){.plano--feat{transform:none}}
+@media(max-width:600px){.kpi{padding-left:76px}.topbar h1{font-size:24px}.welcome{padding:22px}}
+@media print{body{background:#fff}.welcome{display:none!important}}

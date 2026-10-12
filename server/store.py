@@ -506,6 +506,9 @@ async def admin_delete_video(user: dict, vid: str) -> None:
 
 
 # ---------- testes realizados (um por paciente + teste) ----------
+HISTORIA_TEST = 'História de Vida'
+
+
 def patient_key(p: dict) -> str:
     import unicodedata
     name = unicodedata.normalize('NFKD', str(p.get('name') or '')).encode('ascii', 'ignore').decode()

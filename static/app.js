@@ -104,6 +104,12 @@ function updateAge(){
   $('#ageChip').textContent=`Idade: ${y}a ${m}m ${d}d`;
 }
 ['birthDate','applicationDate'].forEach(id=>$(`#${id}`).addEventListener('change',updateAge));
+// História de Vida usa o mesmo paciente do corretor (campos espelhados)
+function syncHv(){const n=$('#hvName'),b=$('#hvBirth');if(n)n.value=$('#patientName').value;if(b)b.value=$('#birthDate').value;}
+[['hvName','patientName'],['hvBirth','birthDate']].forEach(([a,b])=>{
+  $(`#${a}`)?.addEventListener('input',()=>{$(`#${b}`).value=$(`#${a}`).value;if(b==='birthDate')updateAge();});
+  $(`#${b}`)?.addEventListener('input',syncHv); $(`#${b}`)?.addEventListener('change',syncHv);
+});
 
 async function api(url, options={}){
   const opt={...options, headers:{...(options.headers||{})}};
@@ -824,6 +830,13 @@ els.testReportBtn.addEventListener('click',async()=>{
   if(!state.result)return; els.testReportBtn.disabled=true;els.testReportBtn.textContent='Gerando…';
   try{const rep=await api('/api/ai/test-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({patient:patient(),score_result:state.result,history:state.anamnesis})});state.testReports=state.testReports.filter(x=>x.teste!==rep.teste);state.testReports.push(rep);els.testReportOutput.innerHTML=renderStructured(rep);renderArchive();toast('Laudo do teste gerado.');}catch(e){toast(e.message,true);}finally{els.testReportBtn.disabled=false;els.testReportBtn.textContent='Gerar laudo deste teste';}
 });
+function hvHtml(rep){
+  if(!rep) return '';
+  const {transcricao,identificacao,...rest}=rep;
+  let h=renderStructured(rest);
+  if(Array.isArray(transcricao)&&transcricao.length) h+=`<details class="ai-block hv-ocr"><summary><h4>Transcrição (OCR) — ${transcricao.length} página(s)</h4></summary>${transcricao.map(t=>`<div class="hv-page"><b>${esc(t.documento||'')}${t.pagina?' · pág. '+esc(t.pagina):''}</b><pre>${esc(t.texto||'')}</pre></div>`).join('')}</details>`;
+  return h;
+}
 function anamnesisAlert(msg,kind='info'){
   els.anamnesisAlert.textContent=msg; els.anamnesisAlert.hidden=false;
   els.anamnesisAlert.className='alert '+(kind==='error'?'error':'success')+(kind==='done'?' done':'');
@@ -836,8 +849,12 @@ els.files.addEventListener('change',()=>{
   else els.anamnesisAlert.hidden=true;
 });
 els.analyzeBtn.addEventListener('click',async()=>{
-  const fs=[...els.files.files];if(!fs.length)return;els.analyzeBtn.disabled=true;els.analyzeBtn.textContent='Lendo documentos…';
-  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));fs.forEach(f=>fd.append('files',f));const rep=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;try{ window.afterLaudo && window.afterLaudo(); }catch{}els.anamnesisOutput.innerHTML=renderStructured(rep);els.integratedBtn.disabled=false;anamnesisAlert('Anamnese carregada — história de vida organizada com sucesso.','done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
+  const fs=[...els.files.files];if(!fs.length)return;els.analyzeBtn.disabled=true;els.analyzeBtn.textContent='Lendo documentos (OCR)… pode levar 1–3 min';
+  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));const pid=currentPatientId();if(pid)fd.append('patient_id',pid);fs.forEach(f=>fd.append('files',f));const {_registro:reg,...rep}=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;try{ window.afterLaudo && window.afterLaudo(); }catch{}els.anamnesisOutput.innerHTML=hvHtml(rep);els.integratedBtn.disabled=false;
+    let msg='Anamnese carregada — história de vida organizada com sucesso.';
+    if(reg&&reg.id){const p=reg.patient||{};if(!$('#patientName').value.trim()&&p.name)$('#patientName').value=p.name;if(!$('#birthDate').value&&p.birth_date){$('#birthDate').value=p.birth_date;updateAge();}syncHv();msg+=` Salva em Testes realizados (${p.name||'sem nome'}).`;}
+    else if(reg&&reg.erro) toast('História organizada, mas não foi salva em Testes realizados: '+reg.erro,true);
+    anamnesisAlert(msg,'done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
 });
 // ---------- Modelo de formatação do laudo ----------
 function modelAlert(msg,kind='info'){
@@ -991,7 +1008,7 @@ async function saveTestResult(result,p){
 function setPatientFields(p){
   $('#patientName').value=p.name||''; $('#birthDate').value=p.birth_date||'';
   $('#applicationDate').value=p.application_date||''; $('#sex').value=p.sex||'';
-  $('#education').value=p.education||''; updateAge();
+  $('#education').value=p.education||''; updateAge(); syncHv();
 }
 // Reabre um teste salvo no corretor, com as entradas preenchidas, para editar e recalcular.
 async function openSavedTest(rec){
@@ -1013,18 +1030,28 @@ async function openSavedTest(rec){
   protoSync();
   if(rec.result && rec.result.tables){ state.result=rec.result; renderResults(rec.result); fillAutoFields(rec.result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); }
 }
+// Reabre uma História de Vida salva (leitura da anamnese) na aba História de Vida.
+function openSavedHistoria(rec){
+  setPatientFields(rec.patient||{});
+  state.anamnesis=rec.result||null;
+  els.anamnesisOutput.innerHTML=hvHtml(state.anamnesis);
+  anamnesisAlert(`História de vida salva de ${rec.patient?.name||'paciente sem nome'} — entra no laudo completo.`,'done');
+  els.integratedBtn.disabled=!state.openaiConfigured;
+}
 // Monta a Avaliação Completa com os testes escolhidos e gera o laudo integrado.
 function laudoFromSaved(recs){
   if(!recs.length) return;
   setPatientFields(recs[0].patient||{});
-  state.results=recs.map(r=>r.result).filter(r=>r&&r.tables);
+  const hv=recs.find(r=>r.test==='História de Vida');
+  if(hv){state.anamnesis=hv.result||null;els.anamnesisOutput.innerHTML=hvHtml(state.anamnesis);}
+  state.results=recs.filter(r=>r.test!=='História de Vida').map(r=>r.result).filter(r=>r&&r.tables);
   state.testReports=[]; state.integrated=null; state.evalId=null;
   renderArchive();
   els.integratedBtn.scrollIntoView({behavior:'smooth',block:'center'});
   els.integratedBtn.click();
 }
 window.NS=window.NS||{};
-Object.assign(window.NS,{openSavedTest,laudoFromSaved});
+Object.assign(window.NS,{openSavedTest,openSavedHistoria,laudoFromSaved});
 
 // ---------- Avaliações salvas (nuvem, por profissional) ----------
 function currentPatientId(){
@@ -1090,7 +1117,7 @@ function loadEvaluation(ev){
   state.laudoModel=ev.laudo_model||null; state.evalId=ev.id;
   state.externalTests=Array.isArray(ev.external_results)?ev.external_results.map(x=>({...x})):[];
   renderExternal();
-  if(state.anamnesis){ els.anamnesisOutput.innerHTML=renderStructured(state.anamnesis); }
+  if(state.anamnesis){ els.anamnesisOutput.innerHTML=hvHtml(state.anamnesis); }
   if(state.laudoModel){ els.modelOutput.innerHTML=renderStructured(state.laudoModel); }
   if(state.integrated){
     els.integratedOutput.innerHTML=renderStructured(state.integrated);

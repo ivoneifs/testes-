@@ -273,3 +273,9 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   BRIEF-2 também (leitura ambígua). ETDAH-2: itens × PB digitado = tabela final idêntica.
 - `detect_selectors()`: seletores de tabela normativa/amostra das abas (ex.: ETDAH-2 Q3 "Amostra Geral") viram
   parâmetros com lista; valor inicial = o salvo na planilha (nada muda até escolher). Antes o ETDAH-2 saía sem percentil.
+- **História de Vida → Testes realizados + OCR de alta performance**: `/api/ai/anamnesis` grava a leitura como
+  registro `test='História de Vida'` (`store.HISTORIA_TEST`) do paciente; nome/nascimento vêm da tela (campos
+  `#hvName/#hvBirth` espelham o corretor) ou, se vazios, do campo `identificacao` lido do documento. O schema ganhou
+  `transcricao` (OCR literal por página, feito ANTES de organizar) — a tela mostra no fim, recolhida. Fotos passam por
+  `server/ocr_prep.py` (Pillow: EXIF, ~2048 px, autocontraste) e vão com `detail: high`. Na aba Testes realizados:
+  Abrir → aba História; selecionada no laudo completo → vira `state.anamnesis`. Teste real: 12 s, 0,5 crédito.

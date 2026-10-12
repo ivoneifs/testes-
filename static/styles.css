@@ -903,3 +903,14 @@ h1,h2,h3{font-family:var(--display)}
 .proto-seg{min-width:260px}
 .proto-seg button{min-width:40px}
 @media(max-width:700px){.proto-item{grid-template-columns:1fr}.proto-seg{min-width:0}}
+
+/* História de Vida: identificação do paciente (espelha os campos do corretor) */
+.hv-patient{display:grid;grid-template-columns:1fr 180px;gap:12px;margin:4px 0 14px}
+.hv-patient label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;font-weight:600;color:var(--muted,#64748b)}
+.hv-patient input{font-weight:400}
+@media (max-width:640px){.hv-patient{grid-template-columns:1fr}}
+.tr-card.hv h3::before{content:'📇 ';}
+.hv-ocr summary{cursor:pointer;list-style:none}
+.hv-ocr summary h4{display:inline}
+.hv-page{margin-top:10px}
+.hv-page pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:.88rem;background:var(--surface-2,#f6f7fb);border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:10px 12px;margin:6px 0 0;max-height:420px;overflow:auto}

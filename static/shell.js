@@ -543,7 +543,13 @@
 
   // ---------------- Testes realizados (CRUD) ----------------
   const fmtDT = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const HV = 'História de Vida';
   function trSummary(r) {
+    if (r.test === HV) {
+      const t = String((r.result || {}).resumo || '').trim();
+      const files = ((r.inputs || {}).arquivos || []).length;
+      return `<span>${NS.esc(t.length > 220 ? t.slice(0, 220) + '…' : t)}</span>${files ? `<span>Anamnese: <b>${files} arquivo(s)</b></span>` : ''}`;
+    }
     // primeira tabela do resultado: até 4 linhas "rótulo: valor"
     const t = ((r.result || {}).tables || [])[0]; if (!t) return '';
     return (t.rows || []).slice(0, 4).map(row => {
@@ -573,7 +579,7 @@
     const recs = (state.tr || []).filter(r => r.patient_key === state.trKey);
     $('#trList').innerHTML = recs.map(r => {
       const on = state.trSel[r.id] !== false;
-      return `<article class="tr-card${on ? ' on' : ''}">
+      return `<article class="tr-card${on ? ' on' : ''}${r.test === HV ? ' hv' : ''}">
         <label class="tr-check" title="Incluir no laudo completo"><input type="checkbox" data-tr-sel="${r.id}"${on ? ' checked' : ''}><span></span></label>
         <div class="tr-body">
           <h3>${NS.esc(r.test)}</h3>
@@ -584,7 +590,7 @@
           <button class="btn ghost xs" data-tr-open="${r.id}">Abrir / editar</button>
           <button class="btn ghost xs danger" data-tr-del="${r.id}">Excluir</button>
         </div></article>`;
-    }).join('') || `<div class="empty-state">Nenhum teste salvo para este paciente. Corrija um teste em <a href="#laudos">Laudos</a>: ao calcular, ele aparece aqui.</div>`;
+    }).join('') || `<div class="empty-state">Nenhum teste salvo para este paciente. Corrija um teste em <a href="#laudos">Laudos</a> ou leia a anamnese em <a href="#historia">História de Vida</a>: ele aparece aqui.</div>`;
     const n = recs.filter(r => state.trSel[r.id] !== false).length;
     $('#trFinal').hidden = !recs.length;
     $('#trFinalInfo').textContent = `${n} de ${recs.length} teste(s) selecionado(s). Gera os laudos por teste e o laudo integrado (consome 1 crédito).`;
@@ -599,6 +605,7 @@
     const o = e.target.closest('[data-tr-open]'), d = e.target.closest('[data-tr-del]');
     if (o) {
       const rec = state.tr.find(x => x.id === o.dataset.trOpen); if (!rec) return;
+      if (rec.test === HV) { showView('historia'); NS.openSavedHistoria(rec); return; }
       showView('laudos');
       try { await NS.openSavedTest(rec); NS.toast(`${rec.test} aberto. Altere e clique em Calcular para atualizar.`); }
       catch (err) { NS.toast(err.message, true); }

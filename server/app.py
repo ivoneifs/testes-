@@ -193,7 +193,7 @@ def ai_test_report(req: TestReportRequest, user: dict = Depends(active_user)):
         raise HTTPException(502,str(exc))
 
 @app.post('/api/ai/anamnesis')
-async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=File(...),
+async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=File(...), patient_id: str|None=Form(None),
                        user: dict = Depends(active_user)):
     try:
         patient=json.loads(patient_json or '{}')
@@ -220,6 +220,19 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
         raise HTTPException(502,str(exc))
     if auth.AUTH_ENABLED:
         await store.spend_credits(user, store.COST_HISTORIA, 'historia')
+        # entra em "Testes realizados" do paciente (nome/nascimento lidos da anamnese se faltarem)
+        ident=rep.get('identificacao') or {}
+        p={**patient}
+        if not str(p.get('name') or '').strip() and ident.get('nome'):
+            p['name']=ident['nome'].strip()
+        if not p.get('birth_date') and re.fullmatch(r'\d{4}-\d{2}-\d{2}',str(ident.get('data_nascimento') or '')):
+            p['birth_date']=ident['data_nascimento']
+        try:
+            rec=await store.save_test_result(user,{'patient':p,'patient_id':patient_id or None,'test':store.HISTORIA_TEST,
+                                                  'inputs':{'arquivos':[n for n,_,_ in parsed]},'result':rep})
+            rep={**rep,'_registro':{'id':rec.get('id'),'patient':p}}
+        except Exception as exc:
+            rep={**rep,'_registro':{'erro':str(getattr(exc,'detail',exc))}}
     return rep
 
 @app.post('/api/ai/laudo-model')

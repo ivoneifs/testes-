@@ -636,3 +636,4 @@ textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ri
 .blocked-card p{margin:0 0 22px;color:var(--ink-2)}
 .blocked-acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 @media (max-width:600px){.trial-banner{flex-wrap:wrap}.trial-banner .btn{width:100%}}
+.credit-card--empty{background:linear-gradient(150deg,#e2574c,#b3261e)!important}

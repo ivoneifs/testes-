@@ -115,6 +115,8 @@
     finally { $('#pwBtn').disabled = false; }
   });
 
+  const fmtCred = (n) => Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  NS.fmtCred = fmtCred;
   function refreshIdentity() {
     const p = state.profile || {};
     const roleEl = $('#userRole');
@@ -123,9 +125,13 @@
     $('#navAdmin').hidden = p.role !== 'admin';
     const cc = $('#creditCard');
     if (cc) {
-      $('#creditBalance').textContent = p.credits ?? 0;
+      $('#creditBalance').textContent = fmtCred(p.credits);
       cc.hidden = p.role === 'admin';           // admin não usa créditos
+      cc.classList.toggle('credit-card--empty', p.role !== 'admin' && Number(p.credits || 0) < 0.5);
     }
+    // saldo zerado: avisa que os serviços pagos estão bloqueados
+    const out = p.role !== 'admin' && state.authEnabled && Number(p.credits || 0) < 0.5 && !state.blocked;
+    $('#creditsBanner').hidden = !out;
   }
 
   // ---------------- Dashboard ----------------
@@ -147,7 +153,7 @@
       ]);
       $('#kpiEvals').textContent = sum.evaluations ?? evaluations.length;
       $('#kpiPatients').textContent = sum.patients ?? (state.patients || []).length;
-      $('#kpiCredits').textContent = state.profile?.credits ?? 0;
+      $('#kpiCredits').textContent = state.profile?.role === 'admin' ? '∞' : fmtCred(state.profile?.credits);
       $('#kpiTests').textContent = state.tests?.length ?? 62;
       const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
       const fmtM = (m) => { const [y, mo] = m.split('-'); return `${MES[+mo - 1]}/${y.slice(2)}`; };
@@ -260,7 +266,7 @@
           ${p.featured ? '<span class="plano-tag">Mais vendido</span>' : ''}
           <h3>${NS.esc(p.name)}</h3>
           <div class="plano-price">R$ ${brl(p.amount_cents)}<span>/ pacote</span></div>
-          <div class="plano-laudos">${p.credits} Laudos</div>
+          <div class="plano-laudos">${p.credits} créditos · R$ ${brl(Math.round(p.amount_cents / (p.credits || 1)))} cada</div>
           <ul>${(p.features || []).map(i => `<li>${NS.esc(i)}</li>`).join('')}</ul>
           <button class="btn primary" data-buy="${NS.esc(p.key)}">Comprar agora</button>
         </div>`).join('') || '<p class="muted">Nenhum pacote disponível.</p>';
@@ -352,7 +358,7 @@
     openEdit('Novo pacote', `
       <label class="field">Código (sem espaços)<input id="f_key" placeholder="pack40"></label>
       <label class="field">Nome<input id="f_name" placeholder="Pack 40 créditos"></label>
-      <label class="field">Créditos (laudos)<input id="f_credits" type="number" value="10"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="0.5" value="10"></label>
       <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="200.00"></label>
       <label class="field">Ordem<input id="f_sort" type="number" value="${(state.plans || []).length + 1}"></label>
       <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4"></textarea></label>
@@ -365,7 +371,7 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: $('#f_name').value.trim() || key,
-            credits: Number($('#f_credits').value) || 0,
+            credits: parseFloat($('#f_credits').value) || 0,
             amount_cents: Math.round(parseFloat($('#f_price').value) * 100) || 0,
             sort: Number($('#f_sort').value) || 0,
             features: $('#f_feat').value.split('\n').map(s => s.trim()).filter(Boolean),
@@ -382,14 +388,14 @@
       <label class="field">Nome<input id="f_fn"></label>
       <label class="field">CRP<input id="f_crp"></label>
       ${ACCESS_FIELDS('trial', 14)}
-      <label class="field">Créditos iniciais<input id="f_credits" type="number" value="0"></label>`,
+      <label class="field">Créditos iniciais<input id="f_credits" type="number" step="0.5" value="0"></label>`,
       async () => {
         await NS.api('/api/admin/professionals', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: $('#f_email').value.trim(), password: $('#f_pw').value,
             full_name: $('#f_fn').value.trim(), professional_id: $('#f_crp').value.trim(),
-            credits: Number($('#f_credits').value) || 0, ...accessPayload(),
+            credits: parseFloat($('#f_credits').value) || 0, ...accessPayload(),
           }),
         });
         loadAdmin();
@@ -407,7 +413,7 @@
     const p = (state.plans || []).find(x => x.key === b.dataset.editPlan); if (!p) return;
     openEdit('Editar ' + p.name, `
       <label class="field span-2">Nome<input id="f_name" value="${NS.esc(p.name)}"></label>
-      <label class="field">Créditos (laudos)<input id="f_credits" type="number" value="${p.credits}"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="0.5" value="${p.credits}"></label>
       <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="${(p.amount_cents / 100).toFixed(2)}"></label>
       <label class="field">Ordem<input id="f_sort" type="number" value="${p.sort ?? 0}"></label>
       <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4">${NS.esc((p.features || []).join('\n'))}</textarea></label>
@@ -418,7 +424,7 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: $('#f_name').value.trim(),
-            credits: Number($('#f_credits').value) || 0,
+            credits: parseFloat($('#f_credits').value) || 0,
             amount_cents: Math.round(parseFloat($('#f_price').value) * 100) || 0,
             features: $('#f_feat').value.split('\n').map(s => s.trim()).filter(Boolean),
             featured: $('#f_featured').checked, active: $('#f_active').checked,
@@ -460,7 +466,7 @@
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
       <td><span class="pill${p.status === 'suspended' ? ' pill--off' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : 'Ativo'}</span></td>
-      <td>${NS.esc(p.plan || '—')}</td><td>${p.credits ?? 0}</td>
+      <td>${NS.esc(p.plan || '—')}</td><td>${p.role === 'admin' ? '∞' : fmtCred(p.credits)}</td>
       <td class="row-acts">
         <button class="btn ghost xs" data-grant-pro="${p.id}">+ créditos</button>
         <button class="btn ghost xs" data-edit-pro="${p.id}">Editar</button>
@@ -475,13 +481,13 @@
       const p = state.pros.find(x => x.id === t.dataset.grantPro); if (!p) return;
       const v = prompt(`Créditos para ${p.full_name || p.email} (use número negativo para debitar):`, '20');
       if (v === null) return;
-      const n = parseInt(v, 10);
-      if (!Number.isInteger(n) || n === 0) { NS.toast('Valor inválido.', true); return; }
+      const n = parseFloat(String(v).replace(',', '.'));
+      if (!Number.isFinite(n) || n === 0) { NS.toast('Valor inválido.', true); return; }
       try {
         const { balance } = await NS.api('/api/admin/professionals/' + p.id + '/credits', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ delta: n }),
         });
-        NS.toast(`Saldo de ${p.full_name || p.email}: ${balance} créditos.`);
+        NS.toast(`Saldo de ${p.full_name || p.email}: ${fmtCred(balance)} créditos.`);
         loadAdmin();
         if (p.id === state.profile?.id) refreshCredits();
       } catch (err) { NS.toast(err.message, true); }
@@ -513,14 +519,14 @@
           <option value="active"${p.status !== 'suspended' ? ' selected' : ''}>Ativo</option>
           <option value="suspended"${p.status === 'suspended' ? ' selected' : ''}>Suspenso</option></select></label>
         <label class="field">Plano<input id="f_plan" value="${NS.esc(p.plan || '')}"></label>
-        <label class="field">Créditos<input id="f_credits" type="number" value="${p.credits ?? 0}"></label>`,
+        <label class="field">Créditos<input id="f_credits" type="number" step="0.5" value="${p.credits ?? 0}"></label>`,
         async () => {
           await NS.api('/api/admin/professionals/' + p.id, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               full_name: $('#f_fn').value.trim(), professional_id: $('#f_crp').value.trim(),
               status: $('#f_status').value, ...accessPayload(),
-              plan: $('#f_plan').value.trim() || null, credits: Number($('#f_credits').value) || 0,
+              plan: $('#f_plan').value.trim() || null, credits: parseFloat($('#f_credits').value) || 0,
             }),
           });
           loadAdmin();

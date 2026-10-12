@@ -36,7 +36,7 @@
       <div class="credit-card" id="creditCard" hidden>
         <div class="cc-top"><span>⚡</span><span>Saldo atual</span></div>
         <strong id="creditBalance">0</strong>
-        <span class="cc-sub">Créditos disponíveis para uso</span>
+        <span class="cc-sub">Créditos disponíveis · teste ou laudo = 1 · História de Vida = 0,5</span>
         <button type="button" class="cc-btn" data-goto="planos">Comprar mais</button>
       </div>
       <a class="nav-item nav-danger" id="logoutBtn" href="#"><i>⇥</i><span>Sair</span></a>
@@ -52,6 +52,11 @@
     </aside>
 
     <main class="main">
+      <div class="trial-banner urgent" id="creditsBanner" hidden>
+        <span class="trial-days">0</span>
+        <div><b>Seus créditos acabaram</b><small>Correção de testes, História de Vida e laudos ficam bloqueados até a próxima compra.</small></div>
+        <button type="button" class="btn primary" data-goto="planos">Comprar créditos</button>
+      </div>
       <div class="trial-banner" id="trialBanner" hidden>
         <span class="trial-days" id="trialDays">14</span>
         <div><b id="trialTitle">Modo teste</b><small id="trialSub">dias restantes no seu período de teste gratuito</small></div>

@@ -110,6 +110,7 @@ async function api(url, options={}){
   if(state.token) opt.headers['Authorization']=`Bearer ${state.token}`;
   const r=await fetch(url,opt); let data; try{data=await r.json();}catch{data={detail:await r.text()};}
   if(r.status===401 && state.authEnabled){ location.replace('/login.html'); throw new Error('Sessão expirada.'); }
+  if(r.status===402){ setTimeout(()=>{ try{ window.showView ? window.showView('planos') : (location.hash='#planos'); }catch{} },1200); }
   if(r.status===403 && /^(trial_expired|suspended)/.test(data.detail||'')){ window.NS?.onBlocked?.(data.detail.split(':')[0]); }
   if(!r.ok) throw new Error(data.detail || `HTTP ${r.status}`); return data;
 }
@@ -282,6 +283,7 @@ els.calc.addEventListener('click',async()=>{
   try{
     const result=await api('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:state.meta.name,patient:p,raw_scores:collectRaw(),parameters:collectParams()})});
     state.result=result;
+    try{ window.afterLaudo && window.afterLaudo(); }catch{}
     renderResults(result); fillAutoFields(result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); toast('Resultados recalculados. Clique em "Arquivar teste" para incluí-lo na Avaliação Completa.');
     els.results.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){toast(e.message,true);}finally{els.calc.disabled=false;els.calc.textContent='Calcular resultados';}
@@ -676,7 +678,7 @@ els.files.addEventListener('change',()=>{
 });
 els.analyzeBtn.addEventListener('click',async()=>{
   const fs=[...els.files.files];if(!fs.length)return;els.analyzeBtn.disabled=true;els.analyzeBtn.textContent='Lendo documentos…';
-  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));fs.forEach(f=>fd.append('files',f));const rep=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;els.anamnesisOutput.innerHTML=renderStructured(rep);els.integratedBtn.disabled=false;anamnesisAlert('Anamnese carregada — história de vida organizada com sucesso.','done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
+  try{const fd=new FormData();fd.append('patient_json',JSON.stringify(patient()));fs.forEach(f=>fd.append('files',f));const rep=await api('/api/ai/anamnesis',{method:'POST',body:fd});state.anamnesis=rep;try{ window.afterLaudo && window.afterLaudo(); }catch{}els.anamnesisOutput.innerHTML=renderStructured(rep);els.integratedBtn.disabled=false;anamnesisAlert('Anamnese carregada — história de vida organizada com sucesso.','done');toast('História de vida organizada.');}catch(e){anamnesisAlert('Falha ao analisar a anamnese. Verifique os arquivos e tente novamente.','error');toast(e.message,true);}finally{els.analyzeBtn.disabled=false;els.analyzeBtn.textContent='Analisar e gerar história';}
 });
 // ---------- Modelo de formatação do laudo ----------
 function modelAlert(msg,kind='info'){

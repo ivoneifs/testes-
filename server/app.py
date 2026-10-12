@@ -85,7 +85,7 @@ class ProfessionalUpdate(BaseModel):
     role: str|None=None
     status: str|None=None
     plan: str|None=None
-    credits: int|None=None
+    credits: float|None=None
     access: str|None=None        # 'admin' | 'pro' | 'trial'
     trial_days: int|None=None
 
@@ -95,13 +95,13 @@ class ProfessionalCreate(BaseModel):
     full_name: str|None=None
     professional_id: str|None=None
     role: str|None='professional'
-    credits: int|None=0
+    credits: float|None=0
     access: str|None=None        # 'admin' | 'pro' | 'trial'
     trial_days: int|None=None
 
 class PlanUpsert(BaseModel):
     name: str|None=None
-    credits: int|None=None
+    credits: float|None=None
     amount_cents: int|None=None
     features: list[str]|None=None
     featured: bool|None=None
@@ -159,18 +159,31 @@ def test_meta(test_name: str, user: dict = Depends(active_user)):
     except Exception as exc:
         raise HTTPException(500,f'Falha ao preparar o teste: {type(exc).__name__}: {exc}')
 
+def _score_ref(req: ScoreRequest) -> str:
+    """Identifica "o mesmo teste do mesmo paciente" (recalcular no mesmo dia não cobra de novo)."""
+    p=req.patient or {}
+    who=_slug(str(p.get('name') or ''))+'|'+str(p.get('birth_date') or '')
+    return f'{req.test}|{who}'[:300]
+
 @app.post('/api/score')
-def score(req: ScoreRequest, user: dict = Depends(active_user)):
-    if scales.is_scale(req.test):
-        return scales.score(req.test,req.patient,req.raw_scores,req.parameters)
+async def score(req: ScoreRequest, user: dict = Depends(active_user)):
+    # Cobra depois de corrigir: recalcular o mesmo teste no mesmo dia é grátis,
+    # e quem decide isso é o spend_credits (402 se faltar saldo).
+    charge=auth.AUTH_ENABLED
     try:
-        return engine.score(req.test,req.patient,req.raw_scores,req.parameters)
+        if scales.is_scale(req.test):
+            result=scales.score(req.test,req.patient,req.raw_scores,req.parameters)
+        else:
+            result=await run_in_threadpool(engine.score,req.test,req.patient,req.raw_scores,req.parameters)
     except KeyError as exc:
         raise HTTPException(404,str(exc))
     except ValueError as exc:
         raise HTTPException(400,str(exc))
     except Exception as exc:
         raise HTTPException(500,f'Erro de correção: {type(exc).__name__}: {exc}')
+    if charge:
+        result['credits_balance']=await store.spend_credits(user, store.COST_TESTE, 'teste', _score_ref(req))
+    return result
 
 @app.post('/api/ai/test-report')
 def ai_test_report(req: TestReportRequest, user: dict = Depends(active_user)):
@@ -199,10 +212,15 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
         parsed.append((f.filename or 'arquivo',mime,data))
     if total>45*1024*1024:
         raise HTTPException(413,'Total de anexos acima de 45 MB')
+    if auth.AUTH_ENABLED and not await store.can_spend(user, store.COST_HISTORIA):
+        raise HTTPException(402, store.NO_CREDITS.format(need='0,5'))
     try:
-        return analyze_anamnesis(parsed,patient)
+        rep=await run_in_threadpool(analyze_anamnesis,parsed,patient)
     except Exception as exc:
         raise HTTPException(502,str(exc))
+    if auth.AUTH_ENABLED:
+        await store.spend_credits(user, store.COST_HISTORIA, 'historia')
+    return rep
 
 @app.post('/api/ai/laudo-model')
 async def ai_laudo_model(files: list[UploadFile]=File(...), user: dict = Depends(active_user)):
@@ -253,7 +271,7 @@ async def ai_external_instrument(nome: str=Form(''), files: list[UploadFile]=Fil
 @app.post('/api/ai/integrated-report')
 async def ai_integrated(req: IntegratedRequest, user: dict = Depends(active_user)):
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
-        raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+        raise HTTPException(402, store.NO_CREDITS.format(need='1'))
     try:
         report = await run_in_threadpool(
             generate_integrated_report, req.patient, req.anamnesis,
@@ -313,7 +331,7 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
     if not items and not str(dados.get('escores_digitados') or '').strip():
         raise HTTPException(400,'Envie os arquivos dos testes (ou digite os escores).')
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
-        raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+        raise HTTPException(402, store.NO_CREDITS.format(need='1'))
     # 1) testes com escores brutos que o NeuroScore conhece: corrige pelo motor (normas das planilhas)
     alertas_correcao, corrigidos = [], []
     if groups:
@@ -470,7 +488,7 @@ async def admin_professional_delete(pid: str, user: dict = Depends(active_user))
     return {'ok': True}
 
 class GrantRequest(BaseModel):
-    delta: int
+    delta: float
 
 @app.post('/api/admin/professionals/{pid}/credits')
 async def admin_grant(pid: str, req: GrantRequest, user: dict = Depends(active_user)):

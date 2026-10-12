@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NeuroScore — Correção e laudos neuropsicológicos com IA</title>
-  <meta name="description" content="Correção automática de mais de 70 instrumentos neuropsicológicos e laudos completos com IA em minutos. Pague só pelo que usar: R$ 20 por laudo." />
+  <meta name="description" content="Correção automática de mais de 70 instrumentos neuropsicológicos e laudos completos com IA em minutos. Pague só pelo que usar: R$ 20 por crédito." />
   <meta name="theme-color" content="#4f46e5" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -264,7 +264,7 @@
       <div class="wrap">
         <div class="stat"><b><em>70+</em></b><span>instrumentos corrigidos automaticamente</span></div>
         <div class="stat"><b>14</b><span>seções no laudo neuropsicológico</span></div>
-        <div class="stat"><b>R$ <em>20</em></b><span>por laudo, sem mensalidade</span></div>
+        <div class="stat"><b>R$ <em>20</em></b><span>por crédito, sem mensalidade</span></div>
         <div class="stat"><b>100%</b><span>online, de qualquer computador</span></div>
       </div>
     </div>
@@ -295,7 +295,7 @@
           <p>Simples para começar hoje, sem instalação.</p>
         </div>
         <div class="steps">
-          <div class="step reveal"><h3>Escolha seu pacote</h3><p>Compre créditos com Pix, cartão ou boleto. Cada crédito vale um laudo completo e não expira.</p></div>
+          <div class="step reveal"><h3>Escolha seu pacote</h3><p>Compre créditos com Pix, cartão ou boleto. Cada teste corrigido ou laudo usa 1 crédito, e os créditos não expiram.</p></div>
           <div class="step reveal"><h3>Lance os resultados</h3><p>Digite os escores brutos ou envie os arquivos dos testes. A correção e os gráficos saem na hora.</p></div>
           <div class="step reveal"><h3>Revise e assine</h3><p>Receba o laudo estruturado, ajuste o que quiser e exporte em Word ou PDF com o seu cabeçalho.</p></div>
         </div>
@@ -308,7 +308,7 @@
           <span class="eyebrow">Preços</span>
           <h2>Pague só pelo que usar</h2>
           <p>Sem mensalidade e sem fidelidade. Escolha a quantidade de créditos que combina com a sua rotina.</p>
-          <span class="price-note">💡 Cada crédito = 1 laudo completo = R$ 20,00</span>
+          <span class="price-note">💡 1 crédito = R$ 20,00 · cada teste corrigido ou laudo usa 1 crédito · História de Vida usa 0,5</span>
         </div>
         <div class="prices" id="prices"></div>
         <p class="secure">🔒 Pagamento seguro pelo Mercado Pago · Pix, cartão de crédito e boleto</p>
@@ -322,7 +322,8 @@
           <h2>Perguntas e respostas</h2>
         </div>
         <div class="faq reveal">
-          <details><summary>Como funcionam os créditos?</summary><p>Cada crédito permite gerar um laudo completo com IA. A correção dos instrumentos, os gráficos e o cadastro de pacientes não consomem créditos.</p></details>
+          <details><summary>Como funcionam os créditos?</summary><p>Cada teste corrigido usa 1 crédito, cada laudo com IA usa 1 crédito e cada História de Vida usa 0,5 crédito. Recalcular o mesmo teste do mesmo paciente no mesmo dia não cobra de novo. O saldo aparece sempre no painel; quando zera, os serviços ficam bloqueados até a próxima compra. Cadastro de pacientes e exportação não consomem créditos.</p></details>
+          <details><summary>Existe teste grátis?</summary><p>Sim. A conta de teste dura 14 dias, com um contador de dias no painel. Ao fim do período, o acesso é bloqueado até a compra de um pacote.</p></details>
           <details><summary>Os créditos expiram?</summary><p>Não. Os créditos ficam na sua conta até você usar.</p></details>
           <details><summary>Quais formas de pagamento são aceitas?</summary><p>Pix, cartão de crédito e boleto, pelo Mercado Pago. Os créditos entram assim que o pagamento é aprovado.</p></details>
           <details><summary>O laudo sai pronto para entregar?</summary><p>O laudo sai completo e estruturado, mas é uma ferramenta de apoio: todo laudo deve ser revisado e assinado por profissional habilitado.</p></details>
@@ -384,11 +385,11 @@
     // Pacotes (fallback = valores padrão; o admin edita no sistema)
     const FALLBACK = [
       { key: 'inicial', name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
-        features: ['10 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
+        features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
       { key: 'profissional', name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
-        features: ['20 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
+        features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
       { key: 'premium', name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
-        features: ['30 laudos completos com IA', 'Correção automática de 70+ instrumentos', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
+        features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
     ];
     function renderPlans(plans) {
       const box = $('#prices');
@@ -400,9 +401,9 @@
         return `<div class="price reveal${p.featured ? ' featured' : ''}">
           ${p.featured ? '<span class="badge">Mais escolhido</span>' : ''}
           <h3>${esc(p.name)}</h3>
-          <div class="credits">${p.credits} créditos · ${p.credits} laudos</div>
+          <div class="credits">${p.credits} créditos</div>
           <div class="amount"><small>R$</small><b>${reais}</b><small>,${cents}</small></div>
-          <div class="unit">${unit ? `R$ ${unit} por laudo · pagamento único` : 'pagamento único'}</div>
+          <div class="unit">${unit ? `R$ ${unit} por crédito · pagamento único` : 'pagamento único'}</div>
           <ul>${(p.features || []).map(f => `<li><i class="check">✓</i>${esc(f)}</li>`).join('')}</ul>
           <a class="btn ${p.featured ? 'btn-cta' : 'btn-primary'} btn-block" href="/login.html?next=planos">Comprar ${p.credits} créditos</a>
         </div>`;

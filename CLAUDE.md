@@ -333,3 +333,9 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - Seção com `itens=None` = a folha ainda não veio, e a tela pede o bruto digitado. É o caso das 3 formas de **Nível de
   Domínio** (bruto por domínio em H20/H23/H26/H33, mal-adaptativo em H46/H48) e do mal-adaptativo do Professor. Quando
   as folhas chegarem, basta preencher `itens`/`inicio` em `vineland.py`.
+- **Testes realizados → "📥 Enviar testes (upload)"** (`POST /api/test-results/import`, multipart `patient_json` +
+  `files`): aceita os formatos de `file_content.ACCEPTED_EXT`, fotos passam por `ocr_prep`. `auto_score.run` faz a triagem.
+  Escores brutos de teste do catálogo são corrigidos pelo motor e salvos (1 crédito por teste, mesma ref de
+  `/api/score`). Relatórios já corrigidos passam por `transcribe_corrected` (só transcreve as tabelas) e são salvos
+  com `result.externo=true`, sem custo. A resposta traz `salvos` (ids), `alertas` e `patient_key`; a tela recarrega a
+  lista, seleciona o paciente e deixa os novos marcados (`tr-new`).

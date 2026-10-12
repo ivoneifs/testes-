@@ -637,7 +637,7 @@
     const btn = $('#trUpBtn'), msg = $('#trUpMsg');
     btn.disabled = true; btn.textContent = 'Lendo arquivos… (pode levar 1–3 min)'; msg.innerHTML = '';
     try {
-      const r = await NS.api('/api/test-results/import', { method: 'POST', body: fd });
+      const r = await window.apiJob('/api/test-results/import', fd, (s) => { btn.textContent = `Lendo arquivos… ${s}s`; });
       state.trSel = state.trSel || {};
       (r.salvos || []).forEach(x => { state.trSel[x.id] = true; });
       state.trKey = r.patient_key || state.trKey;

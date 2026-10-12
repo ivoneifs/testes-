@@ -121,6 +121,27 @@ async function api(url, options={}){
   if(!r.ok) throw new Error(data.detail || `HTTP ${r.status}`); return data;
 }
 
+// Tarefas longas (laudo, upload de testes): a Cloudflare corta respostas acima de 100 s.
+// Inicia em `${url}/start`, recebe o id e consulta /api/jobs/{id} até terminar.
+async function apiJob(url, body, onTick){
+  const {job}=await api(url+'/start',{method:'POST',body});
+  const t0=Date.now();
+  for(;;){
+    await new Promise(r=>setTimeout(r,3000));
+    let st;
+    try{ st=await api('/api/jobs/'+job); }
+    catch(e){ if(/não encontrada/i.test(e.message)) throw e; if(Date.now()-t0>15*60e3) throw e; continue; } // rede instável: tenta de novo
+    if(st.status==='done') return st.result;
+    if(st.status==='error'){
+      if(st.code===402){ setTimeout(()=>{ try{ window.showView ? window.showView('planos') : (location.hash='#planos'); }catch{} },1200); }
+      throw new Error(st.detail||`Erro ${st.code}`);
+    }
+    if(onTick) onTick(st.elapsed);
+    if(Date.now()-t0>15*60e3) throw new Error('A tarefa passou de 15 minutos. Veja em Testes realizados se algo foi salvo e tente de novo.');
+  }
+}
+window.apiJob=apiJob;
+
 // ---------- Autenticação (Supabase) ----------
 async function bootstrapAuth(){
   let cfg={};

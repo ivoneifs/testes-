@@ -285,7 +285,7 @@
       fd.append('dados_json', JSON.stringify(dados()));
       files.forEach((f) => fd.append('files', f));
       anamFiles.forEach((f) => fd.append('anamnese_files', f));
-      laudo = await api('/api/ai/laudo-neuro', { method: 'POST', body: fd });
+      laudo = await apiJob('/api/ai/laudo-neuro', fd);
       showLaudo();
       const novos = laudo.salvos_em_testes_realizados || [];
       toast(novos.length ? `Laudo gerado. Salvos em Testes realizados: ${novos.join(', ')}.` : 'Laudo neuropsicológico gerado.');

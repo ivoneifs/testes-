@@ -339,3 +339,8 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   `/api/score`). Relatórios já corrigidos passam por `transcribe_corrected` (só transcreve as tabelas) e são salvos
   com `result.externo=true`, sem custo. A resposta traz `salvos` (ids), `alertas` e `patient_key`; a tela recarrega a
   lista, seleciona o paciente e deixa os novos marcados (`tr-new`).
+- **Tarefas longas em segundo plano** (por causa do erro 524 da Cloudflare, que corta a resposta aos 100 s):
+  `POST /api/ai/laudo-neuro/start` e `POST /api/test-results/import/start` leem os arquivos, iniciam a tarefa
+  (`_start_job`, guardada na memória do processo por até 3 h) e devolvem `{job}`. O front usa `apiJob(url, fd)` (app.js),
+  que consulta `GET /api/jobs/{id}` a cada 3 s. As rotas antigas, sem `/start`, continuam funcionando. Um deploy
+  reinicia o processo e perde as tarefas em andamento.

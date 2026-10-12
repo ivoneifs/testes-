@@ -8,6 +8,8 @@ from typing import Any
 
 import httpx
 
+from .ocr_prep import prepare_image
+
 from . import qplataforma
 
 OPENAI_URL = 'https://api.openai.com/v1/responses'
@@ -31,6 +33,28 @@ TEST_REPORT_SCHEMA = {
 ANAMNESIS_SCHEMA = {
     'type': 'object',
     'properties': {
+        'transcricao': {
+            'type': 'array',
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'documento': {'type': 'string'},
+                    'pagina': {'type': 'string'},
+                    'texto': {'type': 'string'},
+                },
+                'required': ['documento','pagina','texto'],
+                'additionalProperties': False,
+            },
+        },
+        'identificacao': {
+            'type': 'object',
+            'properties': {
+                'nome': {'type': 'string'},
+                'data_nascimento': {'type': 'string'},
+            },
+            'required': ['nome','data_nascimento'],
+            'additionalProperties': False,
+        },
         'resumo': {'type': 'string'},
         'historia_de_vida': {'type': 'string'},
         'secoes': {
@@ -62,7 +86,7 @@ ANAMNESIS_SCHEMA = {
         'lacunas': {'type': 'array', 'items': {'type': 'string'}},
         'observacoes_legibilidade': {'type': 'array', 'items': {'type': 'string'}},
     },
-    'required': ['resumo','historia_de_vida','secoes','linha_do_tempo','lacunas','observacoes_legibilidade'],
+    'required': ['transcricao','identificacao','resumo','historia_de_vida','secoes','linha_do_tempo','lacunas','observacoes_legibilidade'],
     'additionalProperties': False,
 }
 
@@ -207,9 +231,15 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
     content=[{
         'type':'input_text',
         'text':(
-            'Leia os documentos de anamnese anexados e organize a história de vida do paciente. '
+            'PRIMEIRO faça o OCR completo: em transcricao, transcreva LITERALMENTE cada página de cada documento, '
+            'na ordem de leitura, incluindo texto manuscrito, perguntas do formulário com as respostas, campos '
+            'preenchidos, caixas marcadas ([X] / [ ]), tabelas (uma linha por linha da tabela, colunas separadas por " | ") '
+            'e anotações nas margens. Não resuma, não corrija a grafia e não pule nada. Palavra duvidosa: escreva a melhor '
+            'leitura seguida de [?]; trecho ilegível: [ilegível]. Datas e números exatamente como escritos. '
+            'DEPOIS, a partir da transcrição, organize a história de vida do paciente. '
             'Preserve fatos, datas e incertezas. Se a escrita manuscrita estiver ilegível, indique isso em observacoes_legibilidade. '
-            'Quando algo não estiver informado, registre como lacuna em vez de inferir.'
+            'Quando algo não estiver informado, registre como lacuna em vez de inferir. '
+            'Em identificacao, copie o nome do paciente e a data de nascimento (AAAA-MM-DD) como estão no documento; vazio se não constar.'
             '\nDados cadastrais disponíveis: '+json.dumps(patient,ensure_ascii=False,default=str)
         )
     }]
@@ -222,10 +252,13 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
                 'file_data':f'data:application/pdf;base64,{b64}',
             })
         elif mime.startswith('image/'):
+            data,mime=prepare_image(data,mime)
+            b64=base64.b64encode(data).decode('ascii')
+            content.append({'type':'input_text','text':f'Documento: {filename}'})
             content.append({
                 'type':'input_image',
                 'image_url':f'data:{mime};base64,{b64}',
-                'detail':'auto',
+                'detail':'high',
             })
         else:
             raise ValueError(f'Formato não suportado: {filename} ({mime})')
@@ -235,7 +268,8 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
         'Não crie diagnóstico, não preencha lacunas por suposição e não transforme hipótese do informante em fato confirmado. '
         'Organize cronologicamente quando possível e produza uma história de vida clínica coesa para revisão profissional.'
     )
-    return _request([{'role':'user','content':content}], 'anamnesis_history', ANAMNESIS_SCHEMA, instructions)
+    return _request([{'role':'user','content':content}], 'anamnesis_history', ANAMNESIS_SCHEMA, instructions,
+                    timeout=300.0)
 
 
 LAUDO_MODEL_SCHEMA = {
@@ -279,7 +313,7 @@ def analyze_laudo_model(files: list[tuple[str, str, bytes]]):
             content.append({'type': 'input_file', 'filename': filename,
                             'file_data': f'data:application/pdf;base64,{b64}'})
         elif mime.startswith('image/'):
-            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'auto'})
+            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'high'})
         elif mime.startswith('text/') or filename.lower().endswith(('.txt', '.md')):
             content.append({'type': 'input_text', 'text': data.decode('utf-8', 'replace')[:20000]})
         else:
@@ -336,7 +370,7 @@ def extract_external_instrument(files: list[tuple[str, str, bytes]], nome: str =
             content.append({'type': 'input_file', 'filename': filename,
                             'file_data': f'data:application/pdf;base64,{b64}'})
         elif mime.startswith('image/'):
-            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'auto'})
+            content.append({'type': 'input_image', 'image_url': f'data:{mime};base64,{b64}', 'detail': 'high'})
         elif mime.startswith('text/') or filename.lower().endswith(('.txt', '.md', '.csv')):
             content.append({'type': 'input_text', 'text': data.decode('utf-8', 'replace')[:20000]})
         else:

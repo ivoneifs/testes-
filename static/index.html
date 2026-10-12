@@ -124,6 +124,10 @@
             <span class="muted">Envie a anamnese (PDF/imagem) e a IA organiza a história clínica.</span></div>
             <span class="badge ai">OpenAI</span></div>
           <p class="ai-config-note" id="aiConfigNote" hidden>IA não configurada no servidor.</p>
+          <div class="hv-patient">
+            <label>Paciente<input id="hvName" type="text" placeholder="Nome (se vazio, é lido da anamnese)" autocomplete="off" /></label>
+            <label>Nascimento<input id="hvBirth" type="date" /></label>
+          </div>
           <label class="upload-zone" id="uploadZone">
             <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
             <span class="upload-icon">⇧</span><strong>Selecionar anamnese</strong>

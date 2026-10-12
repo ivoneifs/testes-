@@ -562,9 +562,10 @@
   const HV = 'História de Vida';
   function trSummary(r) {
     if (r.test === HV) {
-      const t = String((r.result || {}).resumo || '').trim();
+      const t = String(((r.result || {}).historia_modelo || {}).historia_doenca_atual || (r.result || {}).resumo || '').trim();
       const files = ((r.inputs || {}).arquivos || []).length;
-      return `<span>${NS.esc(t.length > 220 ? t.slice(0, 220) + '…' : t)}</span>${files ? `<span>Anamnese: <b>${files} arquivo(s)</b></span>` : ''}`;
+      const form = (r.inputs || {}).formulario;
+      return `<span>${NS.esc(t.length > 220 ? t.slice(0, 220) + '…' : t)}</span>${files ? `<span>Anamnese: <b>${files} arquivo(s) (OCR)</b></span>` : ''}${form ? '<span>Anamnese: <b>preenchida online</b></span>' : ''}`;
     }
     // primeira tabela do resultado: até 4 linhas "rótulo: valor"
     const t = ((r.result || {}).tables || [])[0]; if (!t) return '';

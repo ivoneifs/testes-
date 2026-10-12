@@ -287,3 +287,8 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   "Salvar e gerar história" → `POST /api/ai/anamnesis-form` (`{patient, patient_id, respostas, texto}`, 0,5 crédito;
   schema sem transcricao/identificacao; o texto marcado vira a "transcrição") → Testes realizados com `inputs.formulario`
   (Abrir reabre o formulário). Pacientes: botão "📇 Anamnese" e os campos de `dados` no modal. Teste real: 23 s.
+- **História no modelo da profissional** (Google Doc 1VtUoR5…): schema ganhou `historia_modelo` (`HV_MODEL_KEYS` em
+  openai_service.py: historia_doenca_atual + periodo_gestacional, desenvolvimento_global, alimentacao_sono,
+  historico_familiar_social, autonomia_comportamento, historico_escolar; guia em `HV_MODEL_GUIDE`). Vale para OCR e
+  formulário. Tela: documento Times 12 justificado + "Copiar texto" (HTML p/ Word); resto recolhido. Testes realizados
+  mostra a História da Doença Atual no resumo. O que falta vai só em `lacunas`, não dentro dos tópicos.

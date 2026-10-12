@@ -122,6 +122,8 @@
     const roleEl = $('#userRole');
     if (roleEl) { roleEl.textContent = p.role === 'admin' ? 'Administrador' : (p.trial_ends_at ? 'Teste' : 'Pro'); roleEl.hidden = false; }
     $('#userEmail').textContent = p.full_name || p.email || state.user?.email || '';
+    const first = String(p.full_name || '').trim().split(/\s+/)[0];
+    $('#welcomeTitle').textContent = first ? `Olá, ${first}! Bem-vindo ao NeuroScore` : 'Bem-vindo ao NeuroScore';
     $('#navAdmin').hidden = p.role !== 'admin';
     const cc = $('#creditCard');
     if (cc) {
@@ -571,13 +573,13 @@
     if (c.primary) {
       root.setProperty('--primary', c.primary);
       root.setProperty('--primary-ink', `color-mix(in srgb, ${c.primary} 84%, #000)`);
-      root.setProperty('--primary-soft', `color-mix(in srgb, ${c.primary} 10%, #fff)`);
+      root.setProperty('--primary-soft', `color-mix(in srgb, ${c.primary} 10%, var(--surface))`);
       root.setProperty('--primary-ring', `color-mix(in srgb, ${c.primary} 18%, transparent)`);
     }
-    if (c.accent) {
-      root.setProperty('--accent', c.accent);
-      root.setProperty('--accent-soft', `color-mix(in srgb, ${c.accent} 10%, #fff)`);
-    }
+    if (c.accent) root.setProperty('--cta', c.accent);
+    if (c.secondary) root.setProperty('--brand-2', c.secondary);
+    if (c.dark) root.setProperty('--dark', c.dark);
+    if (site && site.whatsapp) { const w = $('#consultorBtn'); if (w) w.href = 'https://wa.me/' + site.whatsapp; }
   }
   fetch('/api/site').then(r => r.json()).then(({ site }) => { state.site = site || {}; applySiteColors(state.site); }).catch(() => {});
 

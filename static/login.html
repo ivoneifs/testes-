@@ -4,44 +4,86 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#131d2f" />
+  <meta name="theme-color" content="#4f46e5" />
   <title>NeuroScore — Acesso</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233157d5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" />
   <style>
-    :root{--primary:#2f57b8;--ink:#1b2333;--muted:#727d92;--line:#e5e9f0;--bg:#f4f6fa}
+    :root{--primary:#4f46e5;--cta:#f97316;--brand-2:#06b6d4;--dark:#0f172a;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+      --grad:linear-gradient(120deg,var(--primary),var(--brand-2))}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;
-      font-family:"Inter","Segoe UI",system-ui,sans-serif;background:
-      radial-gradient(1200px 600px at 50% -10%,#e9eefc,transparent),var(--bg);color:var(--ink)}
-    .card{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);
-      border-radius:18px;box-shadow:0 12px 40px rgba(17,24,39,.1);padding:30px 28px}
-    .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-    .mark{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;font-weight:800;color:#fff;
-      background:linear-gradient(150deg,#6f8cff,#3157d5 72%);box-shadow:0 10px 22px rgba(41,74,175,.4)}
-    h1{font-size:19px;margin:0}.brand span{font-size:12px;color:var(--muted)}
-    label{display:block;font-size:12px;font-weight:600;color:#54607a;margin:14px 0 6px}
-    input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;
-      background:#fafbfd;outline:none;transition:.15s}
-    input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(47,87,184,.16)}
-    button{width:100%;margin-top:20px;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:700;
-      color:#fff;background:linear-gradient(180deg,#3a63c8,#2f57b8);cursor:pointer;transition:.15s}
-    button:hover{filter:brightness(1.03)}button:disabled{opacity:.6;cursor:not-allowed}
-    .switch{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
-    .switch a{color:var(--primary);font-weight:600;cursor:pointer;text-decoration:none}
-    .msg{margin-top:14px;font-size:12.5px;line-height:1.5;border-radius:10px;padding:10px 12px;display:none}
+    body{margin:0;min-height:100vh;display:grid;grid-template-columns:1.05fr 1fr;
+      font-family:"Inter","Segoe UI",system-ui,sans-serif;color:var(--ink);background:#fff}
+    a{color:inherit}
+    .side{position:relative;overflow:hidden;color:#fff;padding:48px 56px;display:flex;flex-direction:column;justify-content:space-between;
+      background:linear-gradient(150deg,var(--primary),color-mix(in srgb,var(--primary) 45%,var(--brand-2)))}
+    .side::after{content:"";position:absolute;right:-90px;bottom:-130px;width:380px;height:380px;border-radius:50%;
+      background:color-mix(in srgb,var(--cta) 55%,transparent);filter:blur(70px);opacity:.55}
+    .side > *{position:relative;z-index:1}
+    .logo{display:flex;align-items:center;gap:10px;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-weight:800;font-size:20px;text-decoration:none}
+    .logo-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:14px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
+    .side h2{font-family:"Plus Jakarta Sans",Inter,sans-serif;font-size:clamp(28px,3vw,38px);line-height:1.15;letter-spacing:-.02em;margin:0 0 14px}
+    .side p{margin:0 0 26px;opacity:.9;font-size:17px;max-width:460px;line-height:1.55}
+    .perks{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;font-size:15px}
+    .perks li{display:flex;gap:10px;align-items:center}
+    .perks i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:rgba(255,255,255,.2)}
+    .side small{opacity:.75;font-size:12.5px}
+    .formside{display:grid;place-items:center;padding:32px 24px;background:#f8fafc}
+    .card{width:100%;max-width:410px;background:#fff;border:1px solid var(--line);border-radius:20px;
+      box-shadow:0 20px 50px rgba(15,23,42,.08);padding:34px 30px}
+    .brand{margin-bottom:22px}
+    h1{font-family:"Plus Jakarta Sans",Inter,sans-serif;font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+    .brand span{font-size:14px;color:var(--muted)}
+    .mark{display:none}
+    label{display:block;font-size:13px;font-weight:600;color:#334155;margin:16px 0 7px}
+    input{width:100%;border:1px solid var(--line);border-radius:12px;padding:13px 14px;font:inherit;font-size:15px;
+      background:#f8fafc;outline:none;transition:.15s}
+    input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 16%,transparent)}
+    button{width:100%;margin-top:22px;border:0;border-radius:12px;padding:14px;font:inherit;font-size:15px;font-weight:700;
+      color:#fff;background:var(--cta);cursor:pointer;transition:.15s;box-shadow:0 10px 24px color-mix(in srgb,var(--cta) 35%,transparent)}
+    button:hover{filter:brightness(1.05);transform:translateY(-1px)}button:disabled{opacity:.6;cursor:not-allowed;transform:none}
+    .switch{margin-top:18px;text-align:center;font-size:14px;color:var(--muted)}
+    .switch a{color:var(--primary);font-weight:700;cursor:pointer;text-decoration:none}
+    .msg{margin-top:14px;font-size:13px;line-height:1.5;border-radius:10px;padding:10px 12px;display:none}
     .msg.err{display:block;background:#fdeceb;border:1px solid #f1c9c6;color:#a5322c}
     .msg.ok{display:block;background:#e4f3ec;border:1px solid #bfe3d2;color:#0f6f4b}
-    .foot{margin-top:22px;font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5}
+    .trialnote{margin-top:16px;font-size:13px;text-align:center;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px 12px}
+    .foot{margin-top:22px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.5}
+    .back{display:block;text-align:center;margin-top:16px;font-size:13px;color:var(--muted);text-decoration:none}
+    .back:hover{color:var(--primary)}
+    @media (max-width:860px){
+      body{grid-template-columns:1fr}
+      .side{padding:28px 20px}
+      .side p,.perks,.side small{display:none}
+      .side h2{font-size:22px;margin:18px 0 0}
+      .formside{padding:24px 16px 40px}
+      .card{padding:26px 20px}
+    }
   </style>
 </head>
 <body>
+  <aside class="side">
+    <a class="logo" href="/"><span class="logo-mark">NS</span>NeuroScore</a>
+    <div>
+      <h2>Laudos neuropsicológicos em minutos, com precisão clínica.</h2>
+      <p>Correção automática de mais de 70 instrumentos, história de vida e laudo completo com IA.</p>
+      <ul class="perks">
+        <li><i>✓</i>Correção com as normas aplicadas na hora</li>
+        <li><i>✓</i>Laudo em 14 seções, em Word ou PDF</li>
+        <li><i>✓</i>Pague só pelo que usar, sem mensalidade</li>
+      </ul>
+    </div>
+    <small>© NeuroScore · Ferramenta de apoio ao profissional</small>
+  </aside>
+
+  <main class="formside">
   <div class="card">
     <div class="brand">
       <div class="mark">NS</div>
-      <div><h1>NeuroScore</h1><span id="modeLabel">Entrar na sua conta</span></div>
+      <div><h1>Bem-vindo de volta</h1><span id="modeLabel">Entre na sua conta para continuar</span></div>
     </div>
 
     <form id="form">
@@ -50,22 +92,24 @@
         <input id="fullName" type="text" autocomplete="name" />
       </div>
       <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="email" required />
+      <input id="email" type="email" autocomplete="email" placeholder="voce@clinica.com.br" required />
       <label for="password">Senha</label>
-      <input id="password" type="password" autocomplete="current-password" minlength="6" required />
+      <input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres" required />
       <button id="submitBtn" type="submit">Entrar</button>
     </form>
 
     <div class="msg" id="msg"></div>
+    <div class="trialnote" id="trialNote" hidden>🎁 Sua conta começa com 14 dias de teste.</div>
     <div class="switch" id="switch">
       Não tem conta? <a id="toggle">Criar conta</a>
     </div>
+    <a class="back" href="/">← Voltar para o site</a>
 
     <div class="foot">
-      Ferramenta de apoio à correção e redação neuropsicológica.<br>
       Todo laudo exige revisão e assinatura de profissional habilitado.
     </div>
   </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.6/dist/umd/supabase.js"></script>
   <script>
@@ -74,6 +118,13 @@
     const next = new URLSearchParams(location.search).get('next');
     const DEST = '/app' + (next && /^[a-z]+$/.test(next) ? '#' + next : '');
     const msg = (t, ok) => { const m = $('#msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); };
+    fetch('/api/site').then(r => r.ok ? r.json() : null).then(d => {
+      const c = (d && d.site && d.site.colors) || {};
+      for (const k of ['primary', 'cta', 'brand-2']) {
+        const v = c[{ 'cta': 'accent', 'brand-2': 'secondary' }[k] || k];
+        if (/^#[0-9a-f]{3,8}$/i.test(v || '')) document.documentElement.style.setProperty('--' + k, v);
+      }
+    }).catch(() => {});
     let cfg;
     try { cfg = await (await fetch('/api/config')).json(); } catch { cfg = {}; }
 
@@ -90,7 +141,9 @@
       $('#nameRow').hidden = !signup;
       $('#fullName').required = signup;
       $('#password').autocomplete = signup ? 'new-password' : 'current-password';
-      $('#modeLabel').textContent = signup ? 'Criar uma conta' : 'Entrar na sua conta';
+      $('#modeLabel').textContent = signup ? 'Crie sua conta em menos de 1 minuto' : 'Entre na sua conta para continuar';
+      document.querySelector('h1').textContent = signup ? 'Criar conta' : 'Bem-vindo de volta';
+      $('#trialNote').hidden = !signup;
       $('#submitBtn').textContent = signup ? 'Criar conta' : 'Entrar';
       $('#switch').innerHTML = signup
         ? 'Já tem conta? <a id="toggle">Entrar</a>'

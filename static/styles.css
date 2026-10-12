@@ -890,3 +890,16 @@ h1,h2,h3{font-family:var(--display)}
   background:linear-gradient(120deg,var(--primary-soft),color-mix(in srgb,var(--brand-2) 9%,var(--surface)))}
 .tr-final h3{font-size:17px;font-weight:800}
 @media(max-width:640px){.tr-card{flex-wrap:wrap}.tr-card .row-acts{width:100%}.tr-card .row-acts .btn{flex:1}.tr-final .btn{width:100%}}
+
+/* ---- Protocolo item a item ---- */
+.proto{display:flex;flex-direction:column;gap:14px}
+.proto-inf{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.proto-inf .seg{margin-top:0;flex-wrap:wrap}
+.proto-id{max-width:520px}
+.proto-items{display:flex;flex-direction:column}
+.proto-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line-2)}
+.proto-item:last-child{border-bottom:0}
+.proto-label{font-size:13.5px;color:var(--ink)}
+.proto-seg{min-width:260px}
+.proto-seg button{min-width:40px}
+@media(max-width:700px){.proto-item{grid-template-columns:1fr}.proto-seg{min-width:0}}

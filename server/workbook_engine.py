@@ -17,7 +17,7 @@ import schedula as sh
 import formulas
 
 from . import xl_compat
-from . import ravlt_sheet
+from . import ravlt_sheet, item_sheet
 xl_compat.patch()  # coerção Excel de texto->número nos operadores (antes de compilar)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1037,11 +1037,20 @@ class WorkbookEngine:
                 'tables':tables,
                 'chart_type':self.chart_type(canonical),
             }
+            # Seletores de tabela normativa que a planilha usa mas a tela não mostrava.
+            have={p['cell'] for p in meta['parameters']}|{f['cell'] for f in meta['raw_fields']}
+            meta['parameters']=meta['parameters']+[x for x in item_sheet.detect_selectors(rows) if x['cell'] not in have]
             if canonical==ravlt_sheet.SHEET:
                 # Ficha do RAVLT: a planilha recebe a ordem das palavras, intrusões e
                 # reconhecimento e faz a contagem sozinha (fórmulas inalteradas).
                 meta['answer_sheet']=ravlt_sheet.layout(rows)
                 meta['extra_inputs']=sorted(ravlt_sheet.input_cells(meta['answer_sheet']))
+            else:
+                # Protocolo item a item lido da própria planilha (respostas que ela pontua).
+                proto=item_sheet.detect(rows)
+                if proto and canonical in item_sheet.ENABLED:
+                    meta['item_protocol']=proto
+                    meta['extra_inputs']=sorted(item_sheet.input_cells(proto))
             self._meta_cache[canonical]=meta
             return meta
 

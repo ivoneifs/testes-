@@ -263,3 +263,6 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   C11:G25 / I11:K25, intrusões C30:K39, reconhecimento S/N C/E/G/I/K 45:54). `test_meta('RAVLT')` ganha `answer_sheet`
   (palavras lidas da planilha) e `extra_inputs`; `build_overrides` aceita essas células. Fórmulas inalteradas:
   totais digitados × ficha marcada dão tabelas idênticas; self_test 68/0. Reconhecimento da planilha = acertos − FP.
+- **Testes realizados** (`#realizados`, migração **0013** `test_results`, único por owner+patient_key+test): todo cálculo
+  bem-sucedido no corretor é salvo (entradas + resultado). Aba lista por paciente; Abrir/editar reabre no corretor
+  (inclusive a ficha do RAVLT); Excluir; seleção → "Gerar laudo completo" monta `state.results` e dispara a Avaliação Completa.

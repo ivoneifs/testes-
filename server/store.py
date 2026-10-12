@@ -503,3 +503,41 @@ async def admin_delete_video(user: dict, vid: str) -> None:
     await _require_admin(user)
     await _req('DELETE', '/videos', user, params={'id': f'eq.{vid}'})
     await log(user, 'admin_delete', 'video', vid)
+
+
+# ---------- testes realizados (um por paciente + teste) ----------
+def patient_key(p: dict) -> str:
+    import unicodedata
+    name = unicodedata.normalize('NFKD', str(p.get('name') or '')).encode('ascii', 'ignore').decode()
+    return (' '.join(name.lower().split()) or 'sem-nome') + '|' + str(p.get('birth_date') or '')
+
+
+async def list_test_results(user: dict, key: str | None = None) -> list[dict]:
+    params = {'select': '*', 'order': 'updated_at.desc', 'limit': '1000'}
+    if key:
+        params['patient_key'] = f'eq.{key}'
+    return await _req('GET', '/test_results', user, params=params) or []
+
+
+async def save_test_result(user: dict, data: dict, rid: str | None = None) -> dict:
+    p = data.get('patient') or {}
+    if not data.get('test'):
+        raise HTTPException(400, 'Informe o teste.')
+    body = {'patient': p, 'patient_key': patient_key(p), 'patient_id': data.get('patient_id'),
+            'test': data['test'], 'inputs': data.get('inputs') or {}, 'result': data.get('result') or {}}
+    if rid:
+        rows = await _req('PATCH', '/test_results', user, params={'id': f'eq.{rid}'}, json=body, write=True)
+    else:
+        h = {'on_conflict': 'owner,patient_key,test'}
+        async with httpx.AsyncClient(timeout=15.0) as c:
+            r = await c.post(f'{REST}/test_results', params=h, json={**body, 'owner': user['id']},
+                             headers={**_headers(user, write=True),
+                                      'Prefer': 'return=representation,resolution=merge-duplicates'})
+        if r.status_code >= 400:
+            raise HTTPException(r.status_code, f'Supabase: {r.text[:300]}')
+        rows = r.json()
+    return (rows or [{}])[0]
+
+
+async def delete_test_result(user: dict, rid: str) -> None:
+    await _req('DELETE', '/test_results', user, params={'id': f'eq.{rid}'})

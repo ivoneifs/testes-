@@ -464,6 +464,30 @@ async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(ac
 async def admin_site_update(req: dict[str, Any], user: dict = Depends(active_user)):
     return {'site': await store.update_site(user, req)}
 
+class TestResultRequest(BaseModel):
+    patient: dict[str,Any]=Field(default_factory=dict)
+    patient_id: str|None=None
+    test: str
+    inputs: dict[str,Any]=Field(default_factory=dict)
+    result: dict[str,Any]=Field(default_factory=dict)
+
+@app.get('/api/test-results')
+async def test_results_list(user: dict = Depends(active_user)):
+    return {'results': await store.list_test_results(user)}
+
+@app.post('/api/test-results')
+async def test_results_save(req: TestResultRequest, user: dict = Depends(active_user)):
+    return await store.save_test_result(user, req.model_dump())
+
+@app.put('/api/test-results/{rid}')
+async def test_results_update(rid: str, req: TestResultRequest, user: dict = Depends(active_user)):
+    return await store.save_test_result(user, req.model_dump(), rid)
+
+@app.delete('/api/test-results/{rid}')
+async def test_results_delete(rid: str, user: dict = Depends(active_user)):
+    await store.delete_test_result(user, rid)
+    return {'ok': True}
+
 class VideoRequest(BaseModel):
     title: str|None=None
     test: str|None=None

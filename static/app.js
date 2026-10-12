@@ -381,6 +381,7 @@ els.calc.addEventListener('click',async()=>{
     const result=await api('/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:state.meta.name,patient:p,raw_scores:collectRaw(),parameters:collectParams()})});
     state.result=result;
     try{ window.afterLaudo && window.afterLaudo(); }catch{}
+    saveTestResult(result,p);
     renderResults(result); fillAutoFields(result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); toast('Resultados recalculados. Clique em "Arquivar teste" para incluí-lo na Avaliação Completa.');
     els.results.scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){toast(e.message,true);}finally{els.calc.disabled=false;els.calc.textContent='Calcular resultados';}
@@ -913,6 +914,55 @@ $('#printBtn').addEventListener('click',()=>window.print());
 $('#exportBtn').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify({patient:patient(),results:state.results,anamnesis:state.anamnesis,test_reports:state.testReports,laudo_model:state.laudoModel,integrated_report:state.integrated},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`neuro_avaliacao_${slugify(patient().name)}_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
 });
+
+// ---------- Testes realizados (salvos por paciente; CRUD na aba própria) ----------
+// Cada cálculo bem-sucedido grava entradas + resultado. Mesmo paciente + teste = atualiza.
+async function saveTestResult(result,p){
+  if(!state.authEnabled) return;
+  const {credits_balance,...clean}=result;
+  try{
+    await api('/api/test-results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      patient:p,patient_id:currentPatientId(),test:clean.test||state.meta?.name,
+      inputs:{raw_scores:collectRaw(),parameters:collectParams()},result:clean})});
+    const note=$('#savedNote'); if(note){note.hidden=false;note.textContent=`✓ Salvo em Testes realizados (${p.name||'sem nome'})`;}
+  }catch(e){ toast('Resultado calculado, mas não foi salvo em Testes realizados: '+e.message,true); }
+}
+function setPatientFields(p){
+  $('#patientName').value=p.name||''; $('#birthDate').value=p.birth_date||'';
+  $('#applicationDate').value=p.application_date||''; $('#sex').value=p.sex||'';
+  $('#education').value=p.education||''; updateAge();
+}
+// Reabre um teste salvo no corretor, com as entradas preenchidas, para editar e recalcular.
+async function openSavedTest(rec){
+  setPatientFields(rec.patient||{});
+  await selectTest(rec.test);
+  const raw=(rec.inputs||{}).raw_scores||{};
+  els.raw.querySelectorAll('[data-raw]').forEach(i=>{
+    const v=raw[i.dataset.raw]; if(v===undefined||v===null||v==='') return;
+    i.value=v; if('calc' in i.dataset) i.dataset.touched='1'; syncChips(i);
+  });
+  // ficha do RAVLT: reconstrói os toques, o reconhecimento e as intrusões
+  els.raw.querySelectorAll('.rv-cell').forEach(b=>{const v=b.nextElementSibling.value; if(v){b.textContent=v;b.classList.add('on');}});
+  ['A1','A2','A3','A4','A5','B1','A6','A7'].forEach(t=>{const tt=els.raw.querySelector(`[data-rv-total="${t}"]`); if(tt) tt.textContent=els.raw.querySelectorAll(`.rv-cell.on[data-trial="${t}"]`).length;});
+  els.raw.querySelectorAll('.rv-rec').forEach(r=>{const v=r.nextElementSibling.value; r.dataset.sn=v; r.querySelector('.rv-sn').textContent=v;});
+  els.raw.querySelectorAll('[data-rv-intr]').forEach(f=>{f.value=[...f.parentElement.querySelectorAll('input[type=hidden]')].map(h=>h.value).filter(Boolean).join(', ');});
+  const params=(rec.inputs||{}).parameters||{};
+  els.params.querySelectorAll('[data-param]').forEach(i=>{ if(params[i.dataset.param]!==undefined) i.value=params[i.dataset.param]; });
+  els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+  if(rec.result && rec.result.tables){ state.result=rec.result; renderResults(rec.result); fillAutoFields(rec.result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); }
+}
+// Monta a Avaliação Completa com os testes escolhidos e gera o laudo integrado.
+function laudoFromSaved(recs){
+  if(!recs.length) return;
+  setPatientFields(recs[0].patient||{});
+  state.results=recs.map(r=>r.result).filter(r=>r&&r.tables);
+  state.testReports=[]; state.integrated=null; state.evalId=null;
+  renderArchive();
+  els.integratedBtn.scrollIntoView({behavior:'smooth',block:'center'});
+  els.integratedBtn.click();
+}
+window.NS=window.NS||{};
+Object.assign(window.NS,{openSavedTest,laudoFromSaved});
 
 // ---------- Avaliações salvas (nuvem, por profissional) ----------
 function currentPatientId(){

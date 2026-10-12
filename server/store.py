@@ -258,7 +258,7 @@ def _scalar(v):
 
 # Custo de cada serviço, em créditos (1 crédito = R$ 20).
 COST_TESTE = 1.0      # correção de um teste
-COST_HISTORIA = 0.5   # História de Vida (análise da anamnese)
+COST_HISTORIA = 1.0   # História de Vida (análise da anamnese)
 COST_LAUDO = 1.0      # laudo (Avaliação Completa ou Geração de Laudo)
 NO_CREDITS = 'Créditos insuficientes: {need} crédito(s) para este serviço. Compre um pacote em Planos para continuar.'
 

@@ -129,10 +129,10 @@
     if (cc) {
       $('#creditBalance').textContent = fmtCred(p.credits);
       cc.hidden = p.role === 'admin';           // admin não usa créditos
-      cc.classList.toggle('credit-card--empty', p.role !== 'admin' && Number(p.credits || 0) < 0.5);
+      cc.classList.toggle('credit-card--empty', p.role !== 'admin' && Number(p.credits || 0) < 1);
     }
     // saldo zerado: avisa que os serviços pagos estão bloqueados
-    const out = p.role !== 'admin' && state.authEnabled && Number(p.credits || 0) < 0.5 && !state.blocked;
+    const out = p.role !== 'admin' && state.authEnabled && Number(p.credits || 0) < 1 && !state.blocked;
     $('#creditsBanner').hidden = !out;
   }
 

@@ -255,7 +255,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   `trial_expired`/`suspended`; ficam liberados só `/api/profile`, `/api/plans`, `/api/credits`, `/api/checkout`.
   Front: faixa com contador de dias e tela de bloqueio. Comprar créditos (webhook MP) zera o `trial_ends_at` → vira Pro.
 - **Créditos por uso** (custos em `store.COST_*`): teste corrigido (`/api/score`) = 1, ref = teste+paciente+nascimento
-  (recalcular no mesmo dia não cobra); História de Vida (`/api/ai/anamnesis`) = 0,5; laudo = 1. Saldo < custo → 402
+  (recalcular no mesmo dia não cobra); História de Vida (`/api/ai/anamnesis`) = 1 (era 0,5 até a migração 0015); laudo = 1. Saldo < custo → 402
   e o app leva para Planos; faixa vermelha "créditos acabaram" quando o saldo < 0,5.
 - **Q-Plataforma (Pearson)** (`server/qplataforma.py`): só os NOMES dos 62 testes da conta da usuária + mapa `nativo` para
   o catálogo do motor. Card na Geração de Laudo (atalho + lista); a triagem e o laudo tratam relatório da Pearson como

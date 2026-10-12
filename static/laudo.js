@@ -38,7 +38,25 @@
     calcAge();
   });
 
+  // Q-Plataforma (Pearson): atalho + lista dos testes reconhecidos nos relatórios
+  let qpTests = null;
+  function renderQp() {
+    const q = ($('#qpSearch').value || '').toLowerCase();
+    $('#qpList').innerHTML = (qpTests || []).filter(t => !q || t.nome.toLowerCase().includes(q)).map(t =>
+      `<li><span>${esc(t.nome)}</span>${t.nativo ? '<span class="qp-tag qp-tag--nat">NeuroScore</span>' : '<span class="qp-tag">PDF da Pearson</span>'}</li>`
+    ).join('') || '<li class="muted">Nenhum teste encontrado.</li>';
+  }
+  async function loadQp() {
+    if (qpTests) return;
+    try {
+      const { url, tests } = await api('/api/qplataforma');
+      qpTests = tests; $('#qpOpen').href = url; $('#qpCount').textContent = tests.length; renderQp();
+    } catch {}
+  }
+  $('#qpSearch')?.addEventListener('input', renderQp);
+
   window.glOnShow = function () {
+    loadQp();
     const p = state.profile || {};
     if (!$('#gl_psi').value && p.full_name) $('#gl_psi').value = p.full_name;
     if (!$('#gl_crp').value && p.professional_id) $('#gl_crp').value = p.professional_id;

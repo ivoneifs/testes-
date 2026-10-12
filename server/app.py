@@ -27,7 +27,7 @@ from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content
 from . import auto_score
 from .openai_service import generate_laudo_neuro
-from . import auth, payments, store, scales
+from . import auth, payments, store, scales, qplataforma
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -463,6 +463,10 @@ async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(ac
 @app.put('/api/admin/site')
 async def admin_site_update(req: dict[str, Any], user: dict = Depends(active_user)):
     return {'site': await store.update_site(user, req)}
+
+@app.get('/api/qplataforma')
+async def qplataforma_list(user: dict = Depends(current_user)):
+    return qplataforma.public_list()
 
 # ---------------- Públicas: landing page ----------------
 @app.get('/api/site')

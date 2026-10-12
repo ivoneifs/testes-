@@ -8,6 +8,8 @@ from typing import Any
 
 import httpx
 
+from . import qplataforma
+
 OPENAI_URL = 'https://api.openai.com/v1/responses'
 
 TEST_REPORT_SCHEMA = {
@@ -520,6 +522,11 @@ def generate_laudo_neuro(dados: dict, file_items: list[dict], anamnese_items: li
         'tabelas (escores padronizados, percentis, classificações) como os resultados corrigidos oficiais do '
         'instrumento, transcrevendo os valores exatamente; ignore colunas auxiliares, vazias ou com erro. '
         'Não recalcule nada.\n'
+        '9b. RELATÓRIOS DA Q-PLATAFORMA (Pearson / Casa do Psicólogo): já vêm corrigidos pela Pearson. '
+        'Transcreva os escores, percentis e classificações exatamente como no relatório, com a nomenclatura '
+        'do relatório, e monte o "grafico" do instrumento com esses valores. Se o mesmo instrumento também '
+        'aparecer em "resultados_corrigidos_pelo_sistema", prevalece o relatório da Pearson; aponte a '
+        'divergência em "alertas_para_revisao".\n'
         '10. DOCUMENTOS DE ANAMNESE (se anexados): leia-os e transcreva a história de vida do paciente na '
         'seção 06, organizada pelos subitens da especificação (gestação e parto, desenvolvimento, linguagem, '
         'escolarização/ocupação, sono e alimentação, comportamento/emocional, socialização, autonomia, '
@@ -571,7 +578,8 @@ def triage_instruments(file_items: list[dict], catalog: list[str]):
         'brutos, somas ou respostas item a item pontuadas; "protocolo_sem_escores" se não há pontuação; '
         '(4) "arquivos": os nomes dos arquivos onde ele aparece. Não invente instrumentos.'
     )
-    content = [{'type': 'input_text', 'text': 'CATÁLOGO DO NEUROSCORE:\n' + '\n'.join(catalog)}] + file_items
+    content = [{'type': 'input_text', 'text': 'CATÁLOGO DO NEUROSCORE:\n' + '\n'.join(catalog)},
+               {'type': 'input_text', 'text': qplataforma.triage_hint()}] + file_items
     return _request([{'role': 'user', 'content': content}], 'triagem_instrumentos', schema, instructions,
                     timeout=240.0)
 

@@ -248,6 +248,10 @@ function renderInputs(){
     return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}${prog}</div><div class="raw-grid">${cells}</div></section>`;
   }).join('');
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+  if(m.answer_sheet){
+    els.raw.innerHTML=ravltSheetHtml(m.answer_sheet)
+      +`<details class="ravlt-manual"><summary>Ou digite só os totais de cada tentativa (opcional)</summary>${els.raw.innerHTML}</details>`;
+  }
   const params=m.parameters||[]; els.paramsPanel.hidden=!params.length;
   const keepParam=m.input_mode!=='itens';
   els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${keepParam?esc(p.current??''):''}" /></label>`).join('');
@@ -256,6 +260,64 @@ function renderInputs(){
 // Campos [data-calc] (somas/índices/totais com fórmula) são calculados pela
 // planilha por padrão e só são enviados quando a pessoa digita um valor (override).
 // Ao digitar, o campo é marcado com data-touched; ao esvaziar, volta a ser automático.
+// ---------- Ficha do RAVLT (igual à folha de respostas) ----------
+// Cada toque numa palavra grava a ORDEM de evocação na célula da planilha; a
+// planilha conta (COUNT), calcula efeitos, reconhecimento e falsos positivos.
+function ravltSheetHtml(sh){
+  const T=sh.trials, col=t=>T.find(x=>x.trial===t);
+  const head=['Lista A','A1','A2','A3','A4','A5','Lista B','B1','A6','A7','Lista A'];
+  const rows=sh.list_a.map((w,i)=>{
+    const cell=t=>{const c=col(t).cells[i];return `<td><button type="button" class="rv-cell" data-rv="${esc(c.cell)}" data-trial="${t}" title="${esc(t)} · ${esc(c.word)}"></button><input type="hidden" data-raw="${esc(c.cell)}"></td>`;};
+    return `<tr><th>${esc(w)}</th>${['A1','A2','A3','A4','A5'].map(cell).join('')}<th class="rv-b">${esc(sh.list_b[i]||'')}</th>${['B1','A6','A7'].map(cell).join('')}<th>${esc(w)}</th></tr>`;
+  }).join('');
+  const tot=t=>`<td><b data-rv-total="${t}">0</b></td>`;
+  const intr=['A1','A2','A3','A4','A5','B1','A6','A7'].map(t=>
+    `<label class="field">${t}<input type="text" data-rv-intr="${t}" placeholder="ex.: gato, casa">`
+    +sh.intrusions[t].map(c=>`<input type="hidden" data-raw="${esc(c)}" data-text>`).join('')+`</label>`).join('');
+  const rec=sh.recognition.map(r=>`<button type="button" class="rv-rec" data-rv-rec="${esc(r.cell)}"><span class="rv-sn"></span>${esc(r.word)}</button><input type="hidden" data-raw="${esc(r.cell)}" data-text>`).join('');
+  return `<section class="ravlt">
+    <div class="ravlt-head"><b>Folha de respostas e correção</b><span class="muted small">Toque nas palavras na ordem em que o paciente evocou. Toque de novo para desmarcar.</span></div>
+    <div class="table-scroll"><table class="ravlt-grid"><thead><tr>${head.map((h,i)=>`<th class="${i===0||i===6||i===10?'rv-list':''}">${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><th>TOTAL</th>${['A1','A2','A3','A4','A5'].map(tot).join('')}<th>TOTAL</th>${['B1','A6','A7'].map(tot).join('')}<th></th></tr></tfoot></table></div>
+    <h4 class="ravlt-sub">Quadro de intrusões <span class="muted small">(palavras ditas que não estão na lista, separadas por vírgula)</span></h4>
+    <div class="ravlt-intr">${intr}</div>
+    <h4 class="ravlt-sub">Lista para o reconhecimento <span class="muted small">toque: S (reconheceu) → N (não reconheceu) → vazio</span>
+      <button type="button" class="btn ghost xs" id="rvFillN">Marcar N nas que faltam</button></h4>
+    <div class="ravlt-rec">${rec}</div>
+  </section>`;
+}
+function rvRenumber(trial){
+  // mantém a ordem de evocação contínua (1, 2, 3…) depois de desmarcar
+  const btns=[...els.raw.querySelectorAll(`.rv-cell[data-trial="${trial}"]`)].filter(b=>b.textContent!=='');
+  btns.sort((a,b)=>Number(a.textContent)-Number(b.textContent)).forEach((b,i)=>{b.textContent=i+1;b.nextElementSibling.value=i+1;});
+  const t=els.raw.querySelector(`[data-rv-total="${trial}"]`); if(t) t.textContent=btns.length;
+}
+els.raw.addEventListener('click',e=>{
+  const b=e.target.closest('.rv-cell');
+  if(b){
+    const trial=b.dataset.trial, inp=b.nextElementSibling;
+    if(b.textContent===''){
+      const used=[...els.raw.querySelectorAll(`.rv-cell[data-trial="${trial}"]`)].filter(x=>x.textContent!=='').length;
+      b.textContent=used+1; inp.value=used+1; b.classList.add('on');
+    }else{ b.textContent=''; inp.value=''; b.classList.remove('on'); }
+    rvRenumber(trial); return;
+  }
+  const r=e.target.closest('.rv-rec');
+  if(r){
+    const inp=r.nextElementSibling, nxt={'':'S','S':'N','N':''}[inp.value||''];
+    inp.value=nxt; r.dataset.sn=nxt; r.querySelector('.rv-sn').textContent=nxt; return;
+  }
+  if(e.target.id==='rvFillN'){
+    els.raw.querySelectorAll('.rv-rec').forEach(x=>{const i=x.nextElementSibling; if(!i.value){i.value='N';x.dataset.sn='N';x.querySelector('.rv-sn').textContent='N';}});
+  }
+});
+els.raw.addEventListener('input',e=>{
+  const t=e.target; if(!t.dataset || !t.dataset.rvIntr) return;
+  const words=t.value.split(',').map(x=>x.trim()).filter(Boolean);
+  [...t.parentElement.querySelectorAll('input[type=hidden]')].forEach((h,i)=>{h.value=words[i]||'';});
+});
+
 // Botões de toque dos itens: marcam o valor no input (e desmarcam se tocar de novo).
 function syncChips(input){
   const seg=input.parentElement.querySelector('.score-seg'); if(!seg) return;
@@ -284,13 +346,17 @@ function collectRaw(){
   const out={};
   document.querySelectorAll('[data-raw]').forEach(i=>{
     if(i.dataset.calc==='1' && i.dataset.touched!=='1') return; // deixa a planilha calcular
-    out[i.dataset.raw]=i.value===''?'':Number(i.value);
+    out[i.dataset.raw]=i.value===''?'':('text' in i.dataset?i.value:Number(i.value));
   });
   return out;
 }
 function collectParams(){const out={};document.querySelectorAll('[data-param]').forEach(i=>out[i.dataset.param]=i.value);return out;}
 els.clear.addEventListener('click',()=>{
   document.querySelectorAll('[data-raw]').forEach(i=>{i.value='';delete i.dataset.touched;syncChips(i);});
+  els.raw.querySelectorAll('.rv-cell').forEach(b=>{b.textContent='';b.classList.remove('on');});
+  els.raw.querySelectorAll('[data-rv-total]').forEach(t=>{t.textContent='0';});
+  els.raw.querySelectorAll('.rv-rec').forEach(r=>{r.dataset.sn='';r.querySelector('.rv-sn').textContent='';});
+  els.raw.querySelectorAll('[data-rv-intr]').forEach(i=>{i.value='';});
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
 });
 

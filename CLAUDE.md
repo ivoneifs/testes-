@@ -259,3 +259,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **Q-Plataforma (Pearson)** (`server/qplataforma.py`): só os NOMES dos 62 testes da conta da usuária + mapa `nativo` para
   o catálogo do motor. Card na Geração de Laudo (atalho + lista); a triagem e o laudo tratam relatório da Pearson como
   já corrigido (escores da Pearson prevalecem). **Decisão:** não copiar itens/normas/correção da Pearson nem entrar na conta dela.
+- **RAVLT igual à ficha** (`server/ravlt_sheet.py`): a aba RAVLT da planilha já é a folha de respostas (ordem de evocação
+  C11:G25 / I11:K25, intrusões C30:K39, reconhecimento S/N C/E/G/I/K 45:54). `test_meta('RAVLT')` ganha `answer_sheet`
+  (palavras lidas da planilha) e `extra_inputs`; `build_overrides` aceita essas células. Fórmulas inalteradas:
+  totais digitados × ficha marcada dão tabelas idênticas; self_test 68/0. Reconhecimento da planilha = acertos − FP.

@@ -374,7 +374,14 @@
             <button type="button" class="btn primary" id="videoNewBtn" hidden>+ Novo vídeo</button>
           </div>
         </div>
-        <input id="videoSearch" type="search" class="instrument-search" placeholder="Buscar por teste ou título…" />
+        <div class="video-tools">
+          <input id="videoSearch" type="search" class="instrument-search" placeholder="Buscar por teste ou título…" />
+          <div class="seg" id="videoFilter">
+            <button type="button" class="seg-btn active" data-vf="">Todos</button>
+            <button type="button" class="seg-btn" data-vf="Teste">Testes</button>
+            <button type="button" class="seg-btn" data-vf="Cursos e aulas">Cursos e aulas</button>
+          </div>
+        </div>
         <div class="video-grid" id="videoGrid"><p class="muted small">Carregando…</p></div>
       </section>
 

@@ -903,8 +903,13 @@
       // cores padrão antigas do painel (#4f46e5/#f97316/#06b6d4) não substituem a paleta desta página
       const OLD = ['#4f46e5', '#f97316', '#06b6d4'];
       for (const k of ['primary', 'accent', 'secondary']) if (/^#[0-9a-f]{3,8}$/i.test(c[k] || '') && !OLD.includes(c[k].toLowerCase())) root.setProperty('--' + k, c[k]);
-      const emb = s.video_url && videoEmbed(s.video_url);
-      if (emb) {
+      const mp4 = s.video_url && /\.(mp4|webm)(\?|$)/i.test(s.video_url) && /^(https:\/\/|\/)/.test(s.video_url);
+      const emb = !mp4 && s.video_url && videoEmbed(s.video_url);
+      if (mp4) {
+        const poster = s.video_url.replace(/\.(mp4|webm)(\?.*)?$/i, '.jpg');
+        $('#videoIn').innerHTML = `<video src="${esc(s.video_url)}" poster="${esc(poster)}" controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;background:#060915"></video>`;
+        $('#videoNote').textContent = 'Narração gerada por IA. Telas ilustrativas, dados fictícios.';
+      } else if (emb) {
         $('#videoIn').innerHTML = `<iframe src="${esc(emb)}" title="Apresentação do NeuroScore" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         $('#videoNote').textContent = '';
       }

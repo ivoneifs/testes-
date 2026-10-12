@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from .ocr_prep import prepare_image
+from .file_content import to_content as file_to_content
 
 from . import laudo_modelo, qplataforma
 
@@ -294,7 +295,8 @@ def analyze_anamnesis(files: list[tuple[str,str,bytes]], patient: dict):
                 'detail':'high',
             })
         else:
-            raise ValueError(f'Formato não suportado: {filename} ({mime})')
+            # DOCX, XLSX, PPTX, CSV, TXT, JSON… viram texto (a "transcrição" é o próprio texto)
+            content.extend(file_to_content(filename,mime,data))
     instructions=(
         'Atue como assistente de organização de anamnese neuropsicológica. '
         'Extraia somente informações presentes nos documentos e nos dados cadastrais fornecidos. '

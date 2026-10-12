@@ -559,10 +559,13 @@
   function renderVideos() {
     const isAdmin = state.profile?.role === 'admin';
     const q = ($('#videoSearch').value || '').toLowerCase();
-    const list = (state.videos || []).filter(v => !q || `${v.title} ${v.test || ''} ${v.description || ''}`.toLowerCase().includes(q));
+    const vf = state.videoFilter || '';
+    const list = (state.videos || []).filter(v => (!vf || v.test === vf)
+      && (!q || `${v.title} ${v.test || ''} ${v.description || ''}`.toLowerCase().includes(q)));
     $('#videoGrid').innerHTML = list.map(v => {
       const yt = ytId(v.url);
-      const thumb = yt ? `<img src="https://i.ytimg.com/vi/${yt}/mqdefault.jpg" alt="" loading="lazy">` : '<span>▶</span>';
+      const thumb = yt ? `<img src="https://i.ytimg.com/vi/${yt}/mqdefault.jpg" alt="" loading="lazy">`
+        : `<span class="video-ph"><b>${NS.esc(v.title)}</b><small>${/drive\.google\.com/.test(v.url) ? '🎬 Aulas no Google Drive' : '▶ Assistir'}</small></span>`;
       return `<article class="video-card">
         <a class="video-thumb" href="${NS.esc(v.url)}" target="_blank" rel="noopener">${thumb}<i>▶</i></a>
         <div class="video-body">
@@ -592,6 +595,12 @@
     description: $('#f_vdesc').value.trim(), sort: Number($('#f_vsort').value) || 0,
   });
   $('#videoSearch')?.addEventListener('input', renderVideos);
+  $('#videoFilter')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-vf]'); if (!b) return;
+    state.videoFilter = b.dataset.vf;
+    $$('#videoFilter .seg-btn').forEach(x => x.classList.toggle('active', x === b));
+    renderVideos();
+  });
   $('#videoNewBtn')?.addEventListener('click', () => openEdit('Novo vídeo', videoForm(), async () => {
     await NS.api('/api/admin/videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(videoPayload()) });
     loadVideos();

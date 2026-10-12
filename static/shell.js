@@ -16,10 +16,10 @@
   try { applyTheme(localStorage.getItem(THEME_KEY) || 'system'); } catch { applyTheme('system'); }
 
   // ---------------- Views / navegação ----------------
-  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'geracao', 'planos', 'config', 'admin', 'conta'];
+  const VIEWS = ['dashboard', 'pacientes', 'historia', 'laudos', 'geracao', 'videos', 'planos', 'config', 'admin', 'conta'];
   const TITLES = {
     dashboard: 'Dashboard', pacientes: 'Pacientes', historia: 'História de Vida',
-    laudos: 'Laudos', geracao: 'Geração de Laudo Neuropsicológico', planos: 'Planos e Recargas', config: 'Configurações',
+    laudos: 'Laudos', videos: 'Vídeos dos Testes', geracao: 'Geração de Laudo Neuropsicológico', planos: 'Planos e Recargas', config: 'Configurações',
     admin: 'Administração', conta: 'Minha Conta',
   };
   let currentView = null;
@@ -541,6 +541,77 @@
     }
   });
 
+  // ---------------- Vídeos explicativos ----------------
+  function ytId(url) {
+    const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  async function loadVideos() {
+    const isAdmin = state.profile?.role === 'admin';
+    $('#videoNewBtn').hidden = !isAdmin;
+    try {
+      const { videos = [], platform_url } = await NS.api('/api/videos');
+      state.videos = videos;
+      if (platform_url) $('#videoPlatform').href = platform_url;
+      renderVideos();
+    } catch (e) { $('#videoGrid').innerHTML = `<p class="inline-msg err">${NS.esc(e.message)}</p>`; }
+  }
+  function renderVideos() {
+    const isAdmin = state.profile?.role === 'admin';
+    const q = ($('#videoSearch').value || '').toLowerCase();
+    const list = (state.videos || []).filter(v => !q || `${v.title} ${v.test || ''} ${v.description || ''}`.toLowerCase().includes(q));
+    $('#videoGrid').innerHTML = list.map(v => {
+      const yt = ytId(v.url);
+      const thumb = yt ? `<img src="https://i.ytimg.com/vi/${yt}/mqdefault.jpg" alt="" loading="lazy">` : '<span>▶</span>';
+      return `<article class="video-card">
+        <a class="video-thumb" href="${NS.esc(v.url)}" target="_blank" rel="noopener">${thumb}<i>▶</i></a>
+        <div class="video-body">
+          ${v.test ? `<span class="pill">${NS.esc(v.test)}</span>` : ''}
+          <h3>${NS.esc(v.title)}</h3>
+          ${v.description ? `<p>${NS.esc(v.description)}</p>` : ''}
+          <div class="row-acts">
+            <a class="btn primary xs" href="${NS.esc(v.url)}" target="_blank" rel="noopener">Assistir ↗</a>
+            ${isAdmin ? `<button class="btn ghost xs" data-edit-video="${v.id}">Editar</button>
+              <button class="btn ghost xs danger" data-del-video="${v.id}">Excluir</button>` : ''}
+          </div>
+        </div></article>`;
+    }).join('') || `<div class="empty-state">${(state.videos || []).length ? 'Nenhum vídeo encontrado.'
+      : (isAdmin ? 'Nenhum vídeo cadastrado. Clique em "+ Novo vídeo" e cole o link da aula.' : 'Os vídeos explicativos aparecerão aqui em breve.')}</div>`;
+  }
+  function videoForm(v = {}) {
+    const tests = (state.tests || []).map(t => `<option value="${NS.esc(t.name || t)}">`).join('');
+    return `
+      <label class="field span-2">Título<input id="f_vtitle" value="${NS.esc(v.title || '')}" placeholder="Ex.: WISC-IV: aplicação e correção"></label>
+      <label class="field span-2">Link do vídeo<input id="f_vurl" type="url" value="${NS.esc(v.url || '')}" placeholder="https://aluno.serneuropsi.com.br/…"></label>
+      <label class="field">Teste relacionado<input id="f_vtest" list="f_vtests" value="${NS.esc(v.test || '')}"><datalist id="f_vtests">${tests}</datalist></label>
+      <label class="field">Ordem<input id="f_vsort" type="number" value="${v.sort ?? 0}"></label>
+      <label class="field span-2">Descrição (opcional)<textarea id="f_vdesc" rows="3">${NS.esc(v.description || '')}</textarea></label>`;
+  }
+  const videoPayload = () => ({
+    title: $('#f_vtitle').value.trim(), url: $('#f_vurl').value.trim(), test: $('#f_vtest').value.trim(),
+    description: $('#f_vdesc').value.trim(), sort: Number($('#f_vsort').value) || 0,
+  });
+  $('#videoSearch')?.addEventListener('input', renderVideos);
+  $('#videoNewBtn')?.addEventListener('click', () => openEdit('Novo vídeo', videoForm(), async () => {
+    await NS.api('/api/admin/videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(videoPayload()) });
+    loadVideos();
+  }));
+  $('#videoGrid')?.addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-edit-video]'), del = e.target.closest('[data-del-video]');
+    if (ed) {
+      const v = (state.videos || []).find(x => x.id === ed.dataset.editVideo); if (!v) return;
+      openEdit('Editar vídeo', videoForm(v), async () => {
+        await NS.api('/api/admin/videos/' + v.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(videoPayload()) });
+        loadVideos();
+      });
+    }
+    if (del) {
+      if (!confirm('Excluir este vídeo da lista?')) return;
+      try { await NS.api('/api/admin/videos/' + del.dataset.delVideo, { method: 'DELETE' }); loadVideos(); NS.toast('Vídeo excluído.'); }
+      catch (err) { NS.toast(err.message, true); }
+    }
+  });
+
   // ---------------- Modal genérico de edição ----------------
   let editSaver = null;
   function openEdit(title, formHtml, onSave) {
@@ -562,7 +633,7 @@
 
   const VIEW_LOADERS = {
     dashboard: loadDashboard, pacientes: loadPatients, planos: loadPlanos,
-    admin: loadAdmin, conta: fillConta,
+    admin: loadAdmin, conta: fillConta, videos: loadVideos,
     geracao: () => window.glOnShow && window.glOnShow(),
   };
 

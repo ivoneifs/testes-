@@ -123,6 +123,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **0008** `site_settings` (linha única `id='site'`, `data` jsonb: cores + textos da landing; leitura pública, escrita só admin) + pacotes 10/20/30 créditos a R$ 20/crédito
 - **0009** `profiles.trial_ends_at` (acesso de teste); cadastro novo = teste de 14 dias; só admin altera o prazo
 - **0011** cadastro novo ganha 3 créditos grátis (`credit_ledger.reason='trial_bonus'`)
+- **0012** tabela `videos` (links de vídeos explicativos; leitura: logados, escrita: admin) — aba `#videos`
 - **0010** créditos fracionados (`numeric(12,2)`); `spend_credits(p_amount, p_reason, p_ref)` (mesmo motivo+ref no mesmo dia = grátis); textos dos pacotes
 
 ## ================= ONDE PARAMOS (2026-09-03) =================

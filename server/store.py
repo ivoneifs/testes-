@@ -473,3 +473,33 @@ async def update_site(user: dict, data: dict) -> dict:
                       json={'data': data}, write=True)
     await log(user, 'admin_update', 'site', 'site')
     return (rows or [{}])[0].get('data') or data
+
+
+# ---------- vídeos explicativos (links) ----------
+_VIDEO_FIELDS = ('title', 'test', 'url', 'description', 'sort')
+
+
+async def list_videos(user: dict) -> list[dict]:
+    return await _req('GET', '/videos', user, params={'select': '*', 'order': 'sort,title'}) or []
+
+
+async def admin_save_video(user: dict, data: dict, vid: str | None = None) -> dict:
+    await _require_admin(user)
+    body = {k: data[k] for k in _VIDEO_FIELDS if data.get(k) is not None}
+    url = (body.get('url') or '').strip()
+    if url and not url.lower().startswith(('https://', 'http://')):
+        raise HTTPException(400, 'O link precisa começar com https://')
+    if vid:
+        rows = await _req('PATCH', '/videos', user, params={'id': f'eq.{vid}'}, json=body, write=True)
+    else:
+        if not body.get('title') or not url:
+            raise HTTPException(400, 'Título e link são obrigatórios.')
+        rows = await _req('POST', '/videos', user, json=body, write=True)
+    await log(user, 'admin_update', 'video', vid)
+    return (rows or [{}])[0]
+
+
+async def admin_delete_video(user: dict, vid: str) -> None:
+    await _require_admin(user)
+    await _req('DELETE', '/videos', user, params={'id': f'eq.{vid}'})
+    await log(user, 'admin_delete', 'video', vid)

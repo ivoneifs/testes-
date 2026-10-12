@@ -27,6 +27,7 @@
         <a class="nav-item" data-view="historia" href="#historia"><i>📇</i><span>História de Vida</span></a>
         <a class="nav-item" data-view="laudos" href="#laudos"><i>📄</i><span>Laudos</span></a>
         <a class="nav-item" data-view="geracao" href="#geracao"><i>🧠</i><span>Geração de Laudo</span></a>
+        <a class="nav-item" data-view="videos" href="#videos"><i>🎬</i><span>Vídeos</span></a>
         <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
         <a class="nav-item" data-view="config" href="#config"><i>⚙</i><span>Configurações</span></a>
         <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span></a>
@@ -361,6 +362,20 @@
             <p class="muted">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
           <a class="btn primary" id="consultorBtn" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
         </div>
+      </section>
+
+      <!-- ================= VÍDEOS ================= -->
+      <section class="view" id="view-videos" hidden>
+        <div class="card video-hero">
+          <div><h2>Vídeos explicativos dos testes</h2>
+            <span class="muted">Aplicação, correção e interpretação. Os vídeos abrem na plataforma de origem, com o seu acesso.</span></div>
+          <div class="row-acts">
+            <a class="btn ghost" id="videoPlatform" href="https://aluno.serneuropsi.com.br/" target="_blank" rel="noopener">Abrir Ser Neuropsi ↗</a>
+            <button type="button" class="btn primary" id="videoNewBtn" hidden>+ Novo vídeo</button>
+          </div>
+        </div>
+        <input id="videoSearch" type="search" class="instrument-search" placeholder="Buscar por teste ou título…" />
+        <div class="video-grid" id="videoGrid"><p class="muted small">Carregando…</p></div>
       </section>
 
       <!-- ================= CONFIGURAÇÕES ================= -->

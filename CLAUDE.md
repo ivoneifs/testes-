@@ -292,3 +292,15 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   historico_familiar_social, autonomia_comportamento, historico_escolar; guia em `HV_MODEL_GUIDE`). Vale para OCR e
   formulário. Tela: documento Times 12 justificado + "Copiar texto" (HTML p/ Word); resto recolhido. Testes realizados
   mostra a História da Doença Atual no resumo. O que falta vai só em `lacunas`, não dentro dos tópicos.
+- **Laudo no modelo da profissional** (Google Doc 1LCalEMU… — laudo real de paciente: só a ESTRUTURA foi usada,
+  nada do paciente entra no repo). `server/laudo_modelo.py`: textos fixos (nota CFP, referencial teórico, Obs.
+  Importante, À equipe multidisciplinar, rodapé) + `GUIA` de redação; `LAUDO_NEURO_SCHEMA` refeito (identificação com
+  CPF/filiação/data_construcao, procedimentos, instrumentos {nome, referencia, objetivo}, encontros, histórico familiar,
+  medicações, analise_testes {descricao, tabelas[], base_conceitual, interpretacao, grafico}, conclusao_sintese,
+  impressão, encaminhamentos, recomendações família/escola, local_data). A resposta ganha `textos_fixos`.
+  `.docx` (`build_laudo_neuro_docx`), tela e impressão: Times New Roman 12, títulos pretos, ordem do modelo.
+- **Laudo a partir de Testes realizados**: `/api/ai/laudo-neuro` aceita `dados.testes_realizados_ids` (o servidor lê
+  os registros do usuário: História de Vida → `historia_de_vida_salva`; testes → `resultados_corrigidos_pelo_sistema`)
+  e `dados.tipo_laudo` = `completo` | `teste_isolado`. Geração de Laudo: ao escolher o paciente, preenche CPF/filiação/
+  cidade/medicações/histórico familiar do cadastro e lista HV + testes salvos para marcar. Testes realizados:
+  "Gerar laudo completo" e "Laudo deste teste" abrem a Geração já preenchida. Teste real: 49 s / 45 s, 1 crédito cada.

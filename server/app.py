@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import time
+import uuid
 import json
 import os
 import re
@@ -338,6 +340,73 @@ async def ai_integrated(req: IntegratedRequest, user: dict = Depends(active_user
     return report
 
 # ---------------- Geração de Laudo Neuropsicológico (aba dedicada) ----------------
+# ---- tarefas longas em segundo plano ----
+# A Cloudflare corta respostas que passam de 100 s (erro 524). Laudo e upload de testes levam mais
+# que isso: o navegador inicia a tarefa (/start), recebe um id na hora e consulta /api/jobs/{id}.
+_JOBS: dict[str, dict] = {}
+
+
+class _MemFile:
+    """Arquivo já lido (o UploadFile original fecha quando a requisição termina)."""
+    def __init__(self, filename: str, content_type: str, data: bytes):
+        self.filename, self.content_type, self._data = filename, content_type, data
+
+    async def read(self) -> bytes:
+        return self._data
+
+
+async def _mem(files: list[UploadFile]) -> list[_MemFile]:
+    return [_MemFile(f.filename or 'arquivo', f.content_type or '', await f.read()) for f in files or []]
+
+
+def _start_job(user: dict, make_coro) -> dict:
+    now = time.time()
+    for k in [k for k, j in _JOBS.items() if now - j['t'] > 3 * 3600]:
+        _JOBS.pop(k, None)
+    jid = uuid.uuid4().hex
+    job = {'owner': user.get('id'), 't': now, 'status': 'running'}
+    _JOBS[jid] = job
+
+    async def run():
+        try:
+            job.update(status='done', result=await make_coro())
+        except HTTPException as exc:
+            job.update(status='error', code=exc.status_code, detail=str(exc.detail))
+        except Exception as exc:
+            job.update(status='error', code=500, detail=f'{type(exc).__name__}: {exc}')
+
+    job['task'] = asyncio.create_task(run())
+    return {'job': jid}
+
+
+@app.get('/api/jobs/{jid}')
+async def job_status(jid: str, user: dict = Depends(active_user)):
+    job = _JOBS.get(jid)
+    if not job or job['owner'] != user.get('id'):
+        raise HTTPException(404, 'Tarefa não encontrada (o servidor pode ter sido reiniciado). Tente de novo.')
+    if job['status'] == 'done':
+        return {'status': 'done', 'result': job['result'], 'elapsed': round(time.time() - job['t'])}
+    if job['status'] == 'error':
+        return {'status': 'error', 'code': job.get('code', 500), 'detail': job.get('detail', '')}
+    return {'status': 'running', 'elapsed': round(time.time() - job['t'])}
+
+
+@app.post('/api/ai/laudo-neuro/start')
+async def ai_laudo_neuro_start(dados_json: str=Form('{}'), files: list[UploadFile]=File(default=[]),
+                               anamnese_files: list[UploadFile]=File(default=[]),
+                               user: dict = Depends(active_user)):
+    fs, an = await _mem(files), await _mem(anamnese_files)
+    return _start_job(user, lambda: ai_laudo_neuro(dados_json=dados_json, files=fs, anamnese_files=an, user=user))
+
+
+@app.post('/api/test-results/import/start')
+async def test_results_import_start(patient_json: str=Form('{}'), patient_id: str|None=Form(None),
+                                    files: list[UploadFile]=File(...), user: dict = Depends(active_user)):
+    fs = await _mem(files)
+    return _start_job(user, lambda: test_results_import(patient_json=patient_json, patient_id=patient_id,
+                                                        files=fs, user=user))
+
+
 @app.post('/api/ai/laudo-neuro')
 async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=File(default=[]),
                          anamnese_files: list[UploadFile]=File(default=[]),

@@ -390,7 +390,7 @@
       <label class="field">Nome<input id="f_fn"></label>
       <label class="field">CRP<input id="f_crp"></label>
       ${ACCESS_FIELDS('trial', 14)}
-      <label class="field">Créditos iniciais<input id="f_credits" type="number" step="0.5" value="0"></label>`,
+      <label class="field">Créditos iniciais<input id="f_credits" type="number" step="0.5" value="3"></label>`,
       async () => {
         await NS.api('/api/admin/professionals', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },

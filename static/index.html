@@ -358,10 +358,10 @@
       <section class="view" id="view-admin" hidden>
         <div class="card">
           <div class="section-heading">
-            <div><h2>Controle de Profissionais</h2><span class="muted">Acesso total do administrador mestre.</span></div>
+            <div><h2>Usuários &amp; Acessos</h2><span class="muted">Acesso total do administrador mestre.</span></div>
             <div class="row-acts">
               <input id="proSearch" type="search" placeholder="Buscar…" class="instrument-search" style="max-width:200px" />
-              <button type="button" class="btn primary" id="proNewBtn">+ Novo profissional</button>
+              <button type="button" class="btn primary" id="proNewBtn">+ Novo usuário</button>
             </div>
           </div>
           <div class="table-scroll">
@@ -374,12 +374,35 @@
 
         <div class="card">
           <div class="section-heading"><div><h2>Planos &amp; Preços</h2>
-            <span class="muted">Valores e créditos vendidos na tela de Planos.</span></div></div>
+            <span class="muted">Valores e créditos vendidos na landing page e na tela de Planos.</span></div>
+            <button type="button" class="btn primary" id="planNewBtn">+ Novo pacote</button></div>
           <div class="table-scroll">
             <table class="result-table" id="plansTable">
               <thead><tr><th>Pacote</th><th>Créditos</th><th>Preço (R$)</th><th>Destaque</th><th>Ativo</th><th></th></tr></thead>
               <tbody id="plansBody"><tr><td colspan="6" class="muted small">Carregando…</td></tr></tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-heading"><div><h2>Aparência do Site</h2>
+            <span class="muted">Cores e textos da landing page (e cores do sistema). Vale para todos os visitantes.</span></div>
+            <a class="btn ghost" href="/" target="_blank" rel="noopener">Ver landing page ↗</a></div>
+          <div class="form-grid">
+            <label class="field">Cor principal<input id="siteColorPrimary" type="color" value="#4f46e5" /></label>
+            <label class="field">Cor de destaque<input id="siteColorAccent" type="color" value="#f97316" /></label>
+            <label class="field">Cor secundária (gradiente)<input id="siteColorSecondary" type="color" value="#06b6d4" /></label>
+            <label class="field">Fundo escuro (rodapé/faixas)<input id="siteColorDark" type="color" value="#0f172a" /></label>
+            <label class="field span-2">Título principal<input id="siteHeroTitle" placeholder="Laudos neuropsicológicos em minutos, com precisão clínica" /></label>
+            <label class="field span-2">Subtítulo<textarea id="siteHeroSub" rows="2" placeholder="Correção automática de mais de 70 instrumentos…"></textarea></label>
+            <label class="field">Texto do botão principal<input id="siteCta" placeholder="Começar agora" /></label>
+            <label class="field">WhatsApp (só números, com DDD)<input id="siteWhats" placeholder="5511999999999" /></label>
+            <label class="field">E-mail de contato<input id="siteEmail" type="email" /></label>
+          </div>
+          <div class="row-acts">
+            <button type="button" class="btn primary" id="siteSaveBtn">Salvar aparência</button>
+            <button type="button" class="btn ghost" id="siteResetBtn">Restaurar cores padrão</button>
+            <span id="siteMsg" class="inline-msg"></span>
           </div>
         </div>
       </section>

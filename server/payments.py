@@ -34,9 +34,9 @@ async def create_preference(order_id: str, pack: dict, payer_email: str) -> dict
         'external_reference': order_id,
         'metadata': {'payer_email': payer_email} if payer_email else {},
         'back_urls': {
-            'success': f'{PUBLIC_URL}/#planos?pago=1',
-            'failure': f'{PUBLIC_URL}/#planos?pago=0',
-            'pending': f'{PUBLIC_URL}/#planos?pago=pend',
+            'success': f'{PUBLIC_URL}/app#planos?pago=1',
+            'failure': f'{PUBLIC_URL}/app#planos?pago=0',
+            'pending': f'{PUBLIC_URL}/app#planos?pago=pend',
         },
         'auto_return': 'approved',
         'notification_url': f'{PUBLIC_URL}/api/webhooks/mercadopago',

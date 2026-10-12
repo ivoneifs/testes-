@@ -120,6 +120,7 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **0005** `evaluations.patient_id` (FK patients), função `dashboard_summary()`
 - **0006** `evaluations.external_results` (jsonb) — instrumentos corrigidos fora do sistema
 - **0007** trigger `t_profiles_protect`: só admin (ou security definer/service_role) altera role/status/plan/credits
+- **0008** `site_settings` (linha única `id='site'`, `data` jsonb: cores + textos da landing; leitura pública, escrita só admin) + pacotes 10/20/30 créditos a R$ 20/crédito
 
 ## ================= ONDE PARAMOS (2026-09-03) =================
 
@@ -237,3 +238,11 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   só somas brutas por domínio + % do máximo. **Sem classificação normativa** (faltam as tabelas do
   manual) — o resultado diz isso. Catálogo agora = 71.
 - Não rodar Chromium/Playwright no servidor: RAM no limite, a carga foi a 600.
+
+## Sessão 2026-10-12
+
+- **Landing page** em `/` (`static/landing.html`); o app foi para **`/app`** (login e retorno do Mercado Pago apontam para `/app#...`).
+  `login.html?next=planos` → `/app#planos`. Planos da landing vêm de `GET /api/public/plans` (fallback fixo no HTML).
+- **Admin**: aparência do site (`PUT /api/admin/site`, lida em `GET /api/site`; cores aplicadas na landing e no app),
+  trocar senha de qualquer usuário (`POST /api/admin/professionals/{id}/password`, Auth Admin API),
+  criar/excluir pacotes (`DELETE /api/admin/plans/{key}`).

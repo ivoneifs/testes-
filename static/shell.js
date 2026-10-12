@@ -298,10 +298,76 @@
         <td>${p.credits}</td><td>${brl(p.amount_cents)}</td>
         <td>${p.featured ? '★' : '—'}</td>
         <td><span class="pill${p.active ? ' pill--ok' : ' pill--off'}">${p.active ? 'Sim' : 'Não'}</span></td>
-        <td class="row-acts"><button class="btn ghost xs" data-edit-plan="${NS.esc(p.key)}">Editar</button></td>
-      </tr>`).join('');
+        <td class="row-acts"><button class="btn ghost xs" data-edit-plan="${NS.esc(p.key)}">Editar</button>
+          <button class="btn ghost xs danger" data-del-plan="${NS.esc(p.key)}">Excluir</button></td>
+      </tr>`).join('') || '<tr><td colspan="6" class="muted small">Nenhum pacote.</td></tr>';
     } catch (e) { $('#plansBody').innerHTML = `<tr><td colspan="6" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
+    try {
+      const { site = {} } = await NS.api('/api/site');
+      state.site = site; fillSiteForm(site);
+    } catch {}
   }
+
+  // ---------------- Aparência do site ----------------
+  const SITE_DEFAULT_COLORS = { primary: '#4f46e5', accent: '#f97316', secondary: '#06b6d4', dark: '#0f172a' };
+  function fillSiteForm(site) {
+    const c = { ...SITE_DEFAULT_COLORS, ...(site.colors || {}) };
+    $('#siteColorPrimary').value = c.primary; $('#siteColorAccent').value = c.accent;
+    $('#siteColorSecondary').value = c.secondary; $('#siteColorDark').value = c.dark;
+    $('#siteHeroTitle').value = site.hero_title || ''; $('#siteHeroSub').value = site.hero_subtitle || '';
+    $('#siteCta').value = site.cta_text || ''; $('#siteWhats').value = site.whatsapp || '';
+    $('#siteEmail').value = site.email || '';
+  }
+  async function saveSite(colors) {
+    const msg = $('#siteMsg');
+    const data = {
+      colors: colors || {
+        primary: $('#siteColorPrimary').value, accent: $('#siteColorAccent').value,
+        secondary: $('#siteColorSecondary').value, dark: $('#siteColorDark').value,
+      },
+      hero_title: $('#siteHeroTitle').value.trim(), hero_subtitle: $('#siteHeroSub').value.trim(),
+      cta_text: $('#siteCta').value.trim(), whatsapp: $('#siteWhats').value.replace(/\D/g, ''),
+      email: $('#siteEmail').value.trim(),
+    };
+    try {
+      const { site } = await NS.api('/api/admin/site', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+      });
+      state.site = site; fillSiteForm(site); applySiteColors(site);
+      msg.textContent = 'Aparência salva.'; msg.className = 'inline-msg ok';
+    } catch (e) { msg.textContent = e.message; msg.className = 'inline-msg err'; }
+  }
+  $('#siteSaveBtn')?.addEventListener('click', () => saveSite());
+  $('#siteResetBtn')?.addEventListener('click', () => {
+    if (confirm('Voltar às cores padrão do site?')) saveSite({ ...SITE_DEFAULT_COLORS });
+  });
+  $('#planNewBtn')?.addEventListener('click', () => {
+    openEdit('Novo pacote', `
+      <label class="field">Código (sem espaços)<input id="f_key" placeholder="pack40"></label>
+      <label class="field">Nome<input id="f_name" placeholder="Pack 40 créditos"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" value="10"></label>
+      <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="200.00"></label>
+      <label class="field">Ordem<input id="f_sort" type="number" value="${(state.plans || []).length + 1}"></label>
+      <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4"></textarea></label>
+      <label class="switch-row"><div><b>Destaque</b><small>"Mais vendido"</small></div><input type="checkbox" class="switch" id="f_featured"></label>`,
+      async () => {
+        const key = $('#f_key').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (!key) throw new Error('Informe o código do pacote.');
+        if ((state.plans || []).some(p => p.key === key)) throw new Error('Já existe um pacote com esse código.');
+        await NS.api('/api/admin/plans/' + key, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: $('#f_name').value.trim() || key,
+            credits: Number($('#f_credits').value) || 0,
+            amount_cents: Math.round(parseFloat($('#f_price').value) * 100) || 0,
+            sort: Number($('#f_sort').value) || 0,
+            features: $('#f_feat').value.split('\n').map(s => s.trim()).filter(Boolean),
+            featured: $('#f_featured').checked, active: true,
+          }),
+        });
+        loadAdmin();
+      });
+  });
   $('#proNewBtn')?.addEventListener('click', () => {
     openEdit('Novo profissional', `
       <label class="field span-2">E-mail<input id="f_email" type="email"></label>
@@ -323,13 +389,21 @@
         loadAdmin();
       });
   });
-  $('#plansBody')?.addEventListener('click', (e) => {
+  $('#plansBody')?.addEventListener('click', async (e) => {
+    const d = e.target.closest('[data-del-plan]');
+    if (d) {
+      if (!confirm('Excluir este pacote? Ele some da landing page e da tela de Planos.')) return;
+      try { await NS.api('/api/admin/plans/' + d.dataset.delPlan, { method: 'DELETE' }); loadAdmin(); NS.toast('Pacote excluído.'); }
+      catch (err) { NS.toast(err.message, true); }
+      return;
+    }
     const b = e.target.closest('[data-edit-plan]'); if (!b) return;
     const p = (state.plans || []).find(x => x.key === b.dataset.editPlan); if (!p) return;
     openEdit('Editar ' + p.name, `
       <label class="field span-2">Nome<input id="f_name" value="${NS.esc(p.name)}"></label>
       <label class="field">Créditos (laudos)<input id="f_credits" type="number" value="${p.credits}"></label>
       <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="${(p.amount_cents / 100).toFixed(2)}"></label>
+      <label class="field">Ordem<input id="f_sort" type="number" value="${p.sort ?? 0}"></label>
       <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4">${NS.esc((p.features || []).join('\n'))}</textarea></label>
       <label class="switch-row"><div><b>Destaque</b><small>"Mais vendido"</small></div><input type="checkbox" class="switch" id="f_featured" ${p.featured ? 'checked' : ''}></label>
       <label class="switch-row"><div><b>Ativo</b><small>Aparece na tela de Planos</small></div><input type="checkbox" class="switch" id="f_active" ${p.active ? 'checked' : ''}></label>`,
@@ -342,6 +416,7 @@
             amount_cents: Math.round(parseFloat($('#f_price').value) * 100) || 0,
             features: $('#f_feat').value.split('\n').map(s => s.trim()).filter(Boolean),
             featured: $('#f_featured').checked, active: $('#f_active').checked,
+            sort: Number($('#f_sort').value) || 0,
           }),
         });
         loadAdmin();
@@ -360,6 +435,7 @@
       <td class="row-acts">
         <button class="btn ghost xs" data-grant-pro="${p.id}">+ créditos</button>
         <button class="btn ghost xs" data-edit-pro="${p.id}">Editar</button>
+        <button class="btn ghost xs" data-pw-pro="${p.id}">Senha</button>
         <button class="btn ghost xs danger" data-del-pro="${p.id}">Excluir</button>
       </td></tr>`).join('') || '<tr><td colspan="8" class="muted small">Nenhum profissional.</td></tr>';
   }
@@ -380,6 +456,22 @@
         loadAdmin();
         if (p.id === state.profile?.id) refreshCredits();
       } catch (err) { NS.toast(err.message, true); }
+      return;
+    }
+    if (t.dataset.pwPro) {
+      const p = state.pros.find(x => x.id === t.dataset.pwPro); if (!p) return;
+      openEdit('Nova senha — ' + (p.full_name || p.email), `
+        <label class="field">Nova senha<input id="f_pw1" type="text" minlength="6" autocomplete="off"></label>
+        <label class="field">Confirmar<input id="f_pw2" type="text" minlength="6" autocomplete="off"></label>
+        <span class="muted small span-2">A senha antiga deixa de funcionar na hora. Envie a nova ao usuário.</span>`,
+        async () => {
+          const pw = $('#f_pw1').value;
+          if (pw.length < 6) throw new Error('Mínimo de 6 caracteres.');
+          if (pw !== $('#f_pw2').value) throw new Error('As senhas não conferem.');
+          await NS.api('/api/admin/professionals/' + p.id + '/password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }),
+          });
+        });
       return;
     }
     if (t.dataset.editPro) {
@@ -438,6 +530,23 @@
     admin: loadAdmin, conta: fillConta,
     geracao: () => window.glOnShow && window.glOnShow(),
   };
+
+  // ---------------- Cores do site (definidas pelo admin) ----------------
+  function applySiteColors(site) {
+    const c = (site && site.colors) || {};
+    const root = document.documentElement.style;
+    if (c.primary) {
+      root.setProperty('--primary', c.primary);
+      root.setProperty('--primary-ink', `color-mix(in srgb, ${c.primary} 84%, #000)`);
+      root.setProperty('--primary-soft', `color-mix(in srgb, ${c.primary} 10%, #fff)`);
+      root.setProperty('--primary-ring', `color-mix(in srgb, ${c.primary} 18%, transparent)`);
+    }
+    if (c.accent) {
+      root.setProperty('--accent', c.accent);
+      root.setProperty('--accent-soft', `color-mix(in srgb, ${c.accent} 10%, #fff)`);
+    }
+  }
+  fetch('/api/site').then(r => r.json()).then(({ site }) => { state.site = site || {}; applySiteColors(state.site); }).catch(() => {});
 
   // ---------------- Boot (chamado por app.js após auth) ----------------
   window.onSessionReady = async function () {

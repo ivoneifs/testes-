@@ -3,373 +3,775 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NeuroScore — Correção e laudos neuropsicológicos com IA</title>
-  <meta name="description" content="Correção automática de mais de 70 instrumentos neuropsicológicos e laudos completos com IA em minutos. Pague só pelo que usar: R$ 20 por crédito." />
-  <meta name="theme-color" content="#4f46e5" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%234f46e5'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI,Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <title>NeuroScore — Plataforma clínica de neuropsicologia com IA</title>
+  <meta name="description" content="Correção de 71 instrumentos pelas normas, anamnese lida por OCR e laudo neuropsicológico completo no seu modelo, em minutos. Teste grátis por 14 dias com 3 créditos." />
+  <meta name="theme-color" content="#0b0f1f" />
+  <meta property="og:title" content="NeuroScore — do protocolo ao laudo em minutos" />
+  <meta property="og:description" content="Plataforma clínica para neuropsicólogos: correção pelas normas, História de Vida por OCR e laudo completo no seu modelo." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2300e0ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Ctext x='50' y='67' font-size='48' font-family='Arial,sans-serif' font-weight='800' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" />
   <style>
     :root{
-      --primary:#4f46e5; --accent:#f97316; --secondary:#06b6d4; --dark:#0f172a;
-      --ink:#0f172a; --ink-2:#334155; --muted:#64748b; --line:#e2e8f0;
-      --bg:#ffffff; --bg-2:#f8fafc;
-      --primary-soft:color-mix(in srgb,var(--primary) 9%,#fff);
-      --accent-soft:color-mix(in srgb,var(--accent) 12%,#fff);
-      --grad:linear-gradient(120deg,var(--primary),var(--secondary));
-      --r:16px; --shadow:0 1px 2px rgba(15,23,42,.05),0 12px 32px rgba(15,23,42,.08);
-      --display:"Plus Jakarta Sans","Inter",system-ui,sans-serif;
+      --primary:#7c5cff; --secondary:#00e0ff; --accent:#ff7a3d; --dark:#070a17;
+      --bg:#070a17; --bg-2:#0c1124; --card:rgba(255,255,255,.045); --card-2:rgba(255,255,255,.07);
+      --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+      --ink:#eef1ff; --ink-2:#b7bfdc; --muted:#8089ab; --ok:#2ee59d; --wa:#25d366;
+      --grad:linear-gradient(115deg,var(--primary),var(--secondary));
+      --grad-cta:linear-gradient(115deg,var(--accent),#ff3d77);
+      --display:"Space Grotesk","Inter",system-ui,sans-serif;
+      --r:18px;
     }
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
-    body{margin:0;font-family:"Inter","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--bg);
-      font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+    html{scroll-behavior:smooth;background:var(--bg)}
+    body{margin:0;font-family:"Inter",system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:16px;line-height:1.6;
+      -webkit-font-smoothing:antialiased;overflow-x:hidden}
     a{color:inherit;text-decoration:none}
     img,svg{display:block;max-width:100%}
-    .wrap{width:100%;max-width:1160px;margin:0 auto;padding:0 20px}
-    h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;letter-spacing:-.02em}
-    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--primary);
-      background:var(--primary-soft);border:1px solid color-mix(in srgb,var(--primary) 18%,#fff);padding:6px 12px;border-radius:999px}
+    .wrap{width:100%;max-width:1180px;margin:0 auto;padding:0 20px}
+    h1,h2,h3,h4{font-family:var(--display);line-height:1.1;margin:0;letter-spacing:-.025em}
+    p{margin:0}
     .grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .muted{color:var(--muted)}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--secondary);border:1px solid color-mix(in srgb,var(--secondary) 35%,transparent);background:color-mix(in srgb,var(--secondary) 8%,transparent);
+      padding:6px 12px;border-radius:999px}
+    .eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--secondary);box-shadow:0 0 12px var(--secondary);animation:pulse 2s infinite}
+    @keyframes pulse{50%{opacity:.35}}
 
-    /* Botões */
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;
-      padding:13px 22px;border-radius:12px;border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s;white-space:nowrap}
-    .btn:hover{transform:translateY(-1px)}
-    .btn-cta{background:var(--accent);color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 35%,transparent)}
-    .btn-cta:hover{box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 45%,transparent)}
-    .btn-primary{background:var(--primary);color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--primary) 30%,transparent)}
-    .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
-    .btn-ghost:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
-    .btn-sm{padding:9px 16px;font-size:14px;border-radius:10px}
+    /* fundo futurista */
+    .bg-fx{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+    .bg-fx::before{content:"";position:absolute;inset:-50%;background:
+      radial-gradient(40% 35% at 20% 15%,color-mix(in srgb,var(--primary) 30%,transparent),transparent 70%),
+      radial-gradient(35% 30% at 85% 10%,color-mix(in srgb,var(--secondary) 18%,transparent),transparent 70%),
+      radial-gradient(40% 40% at 70% 85%,color-mix(in srgb,var(--primary) 16%,transparent),transparent 70%);
+      animation:drift 26s ease-in-out infinite alternate}
+    .bg-fx::after{content:"";position:absolute;inset:0;background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+      background-size:56px 56px;mask-image:radial-gradient(70% 60% at 50% 20%,#000 30%,transparent 80%);opacity:.55}
+    @keyframes drift{to{transform:translate(4%,3%) rotate(6deg)}}
+
+    /* botões */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15.5px;padding:14px 24px;border-radius:14px;
+      border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap;font-family:inherit}
+    .btn:hover{transform:translateY(-2px)}
+    .btn-cta{background:var(--grad-cta);color:#fff;box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
+    .btn-cta:hover{box-shadow:0 14px 40px color-mix(in srgb,var(--accent) 55%,transparent)}
+    .btn-glass{background:var(--card-2);border-color:var(--line-2);color:var(--ink);backdrop-filter:blur(8px)}
+    .btn-wa{background:var(--wa);color:#05210f}
+    .btn-wa:hover{box-shadow:0 12px 34px color-mix(in srgb,var(--wa) 45%,transparent)}
+    .btn-lg{padding:17px 30px;font-size:17px;border-radius:16px}
     .btn-block{width:100%}
+    .wa-ico{width:20px;height:20px;flex:none}
 
-    /* Nav */
-    .nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:saturate(1.6) blur(12px);
-      border-bottom:1px solid transparent;transition:border-color .2s}
-    .nav.scrolled{border-bottom-color:var(--line)}
-    .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px;gap:16px}
-    .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px}
-    .logo-mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:14px;background:var(--grad)}
-    .nav-links{display:flex;gap:28px;font-size:15px;font-weight:500;color:var(--ink-2)}
-    .nav-links a:hover{color:var(--primary)}
-    .nav-acts{display:flex;gap:10px;align-items:center}
-    .menu-btn{display:none;background:none;border:1px solid var(--line);border-radius:10px;width:42px;height:42px;cursor:pointer;font-size:20px}
+    /* nav */
+    .nav{position:sticky;top:0;z-index:50;transition:background .2s,border-color .2s;border-bottom:1px solid transparent}
+    .nav.scrolled{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(14px);border-color:var(--line)}
+    .nav .wrap{display:flex;align-items:center;gap:18px;height:70px}
+    .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:-.02em}
+    .logo b{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:var(--grad);font-size:15px;color:#fff;box-shadow:0 0 22px color-mix(in srgb,var(--primary) 55%,transparent)}
+    .nav-links{display:flex;gap:4px;margin-left:auto;align-items:center}
+    .nav-links a{padding:8px 12px;border-radius:10px;color:var(--ink-2);font-weight:500;font-size:14.5px}
+    .nav-links a:hover{color:var(--ink);background:var(--card)}
+    .nav-links .btn{padding:10px 18px;font-size:14.5px;color:#fff}
+    .menu-btn{display:none;margin-left:auto;background:var(--card-2);border:1px solid var(--line-2);color:var(--ink);border-radius:10px;width:42px;height:42px;font-size:20px;cursor:pointer}
+    @media(max-width:900px){
+      .menu-btn{display:block}
+      .nav-links{display:none;position:absolute;top:70px;left:12px;right:12px;flex-direction:column;align-items:stretch;padding:12px;
+        background:var(--bg-2);border:1px solid var(--line-2);border-radius:16px}
+      .nav-links.open{display:flex}
+    }
 
-    /* Hero */
-    .hero{position:relative;overflow:hidden;padding:72px 0 88px;
-      background:radial-gradient(900px 480px at 85% -10%,color-mix(in srgb,var(--secondary) 16%,transparent),transparent 70%),
-                 radial-gradient(800px 500px at 0% 0%,color-mix(in srgb,var(--primary) 12%,transparent),transparent 70%)}
-    .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center}
-    .hero h1{font-size:clamp(34px,5vw,56px);margin:18px 0 18px}
-    .hero p.lead{font-size:clamp(17px,1.6vw,19px);color:var(--ink-2);max-width:540px;margin:0 0 30px}
-    .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
-    .hero-trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:30px;font-size:14px;color:var(--muted)}
-    .hero-trust span{display:flex;align-items:center;gap:7px}
-    .check{width:18px;height:18px;flex:none;border-radius:50%;display:grid;place-items:center;
-      background:color-mix(in srgb,#10b981 15%,#fff);color:#059669;font-size:11px;font-weight:800}
+    /* hero */
+    .hero{padding:64px 0 40px}
+    .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+    .hero h1{font-size:clamp(38px,5.6vw,66px);margin:18px 0 18px}
+    .hero .sub{font-size:clamp(17px,1.6vw,19.5px);color:var(--ink-2);max-width:580px}
+    .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+    .micro{display:flex;gap:16px;flex-wrap:wrap;margin-top:18px;font-size:13.5px;color:var(--muted)}
+    .micro span{display:inline-flex;align-items:center;gap:6px}
+    .micro span::before{content:"✓";color:var(--ok);font-weight:800}
+    @media(max-width:960px){.hero .wrap{grid-template-columns:1fr}.hero{padding-top:36px}}
 
-    /* Mockup */
-    .mock{position:relative;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 30px 80px rgba(15,23,42,.14);padding:18px}
-    .mock-bar{display:flex;gap:6px;margin-bottom:14px}
-    .mock-bar i{width:10px;height:10px;border-radius:50%;background:#e2e8f0}
-    .mock-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-    .mock-head b{font-size:15px}.mock-head small{color:var(--muted);font-size:12px}
-    .pill{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,#10b981 14%,#fff);color:#047857}
-    .mock-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-    .kpi{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-    .kpi small{display:block;font-size:11px;color:var(--muted)}.kpi b{font-size:20px;font-family:var(--display)}
-    .bars{display:flex;flex-direction:column;gap:9px;border:1px solid var(--line);border-radius:12px;padding:14px}
-    .bar-row{display:grid;grid-template-columns:44px 1fr 34px;gap:10px;align-items:center;font-size:12px;color:var(--ink-2)}
-    .bar{height:10px;border-radius:99px;background:var(--bg-2);overflow:hidden}
-    .bar i{display:block;height:100%;border-radius:99px;background:var(--grad)}
-    .float{position:absolute;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
-      padding:12px 14px;font-size:13px;display:flex;gap:10px;align-items:center}
-    .float .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px}
-    .float-1{left:-28px;bottom:42px}.float-1 .ico{background:var(--accent-soft)}
-    .float-2{right:-18px;top:-18px}.float-2 .ico{background:var(--primary-soft)}
-    .float small{display:block;color:var(--muted);font-size:11.5px}
+    /* mock do app no hero */
+    .device{position:relative;border-radius:22px;padding:1px;background:linear-gradient(140deg,color-mix(in srgb,var(--primary) 70%,transparent),transparent 40%,color-mix(in srgb,var(--secondary) 60%,transparent));
+      box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 80px color-mix(in srgb,var(--primary) 25%,transparent);transform:perspective(1400px) rotateY(-8deg) rotateX(4deg);transition:transform .5s}
+    .device:hover{transform:perspective(1400px) rotateY(-2deg) rotateX(1deg)}
+    .screen{border-radius:21px;background:linear-gradient(180deg,#0e1430,#0a0f22);overflow:hidden}
+    .bar{display:flex;align-items:center;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .bar i{width:10px;height:10px;border-radius:50%;background:#ff5f57}.bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
+    .bar span{margin-left:10px;font-size:12px;color:var(--muted)}
+    .app{display:grid;grid-template-columns:120px 1fr;min-height:330px}
+    .side{border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+    .side div{font-size:11.5px;color:var(--ink-2);padding:7px 9px;border-radius:8px}
+    .side div.on{background:color-mix(in srgb,var(--primary) 25%,transparent);color:#fff}
+    .main{padding:16px;display:grid;gap:12px;align-content:start}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+    .kpi small{display:block;font-size:10.5px;color:var(--muted)} .kpi b{font-family:var(--display);font-size:19px}
+    .chart{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;height:150px;display:flex;align-items:flex-end;gap:7px}
+    .chart i{flex:1;border-radius:6px 6px 2px 2px;background:var(--grad);opacity:.9;transform-origin:bottom;animation:grow 1.4s cubic-bezier(.2,.8,.2,1) both}
+    @keyframes grow{from{transform:scaleY(0)}}
+    .float{position:absolute;background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line-2);border-radius:14px;
+      padding:10px 14px;font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.45);animation:bob 6s ease-in-out infinite}
+    .float b{display:block;font-family:var(--display);font-size:15px}
+    .float small{color:var(--muted)}
+    .f1{left:-26px;top:46%}.f2{right:-18px;top:12%;animation-delay:-2s}.f3{right:10%;bottom:-22px;animation-delay:-4s}
+    .dot-ok{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);margin-right:6px}
+    @keyframes bob{50%{transform:translateY(-8px)}}
+    @media(max-width:960px){.device{transform:none}.f1{left:6px}.f2{right:6px}}
+    @media(max-width:520px){.app{grid-template-columns:1fr}.side{display:none}.float{font-size:12px}}
 
-    /* Faixa de números */
-    .stats{background:var(--dark);color:#fff}
-    .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:38px 20px}
-    .stat b{display:block;font-family:var(--display);font-size:34px;line-height:1.1}
-    .stat b em{font-style:normal;color:var(--accent)}
-    .stat span{font-size:14px;color:#cbd5e1}
+    /* faixa de números */
+    .stats{padding:26px 0 10px}
+    .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;text-align:center}
+    .stat b{display:block;font-family:var(--display);font-size:clamp(26px,3.2vw,38px)}
+    .stat span{color:var(--ink-2);font-size:14px}
+    @media(max-width:760px){.stats .wrap{grid-template-columns:repeat(2,1fr)}}
 
-    /* Seções */
-    section.block{padding:96px 0}
-    section.alt{background:var(--bg-2)}
-    .sec-head{text-align:center;max-width:680px;margin:0 auto 52px}
-    .sec-head h2{font-size:clamp(28px,3.4vw,40px);margin:14px 0 12px}
-    .sec-head p{color:var(--ink-2);font-size:17px;margin:0}
+    /* seções */
+    section.sec{padding:92px 0}
+    .sec-head{text-align:center;max-width:760px;margin:0 auto 46px}
+    .sec-head h2{font-size:clamp(30px,4vw,46px);margin:14px 0 14px}
+    .sec-head p{color:var(--ink-2);font-size:17.5px}
 
-    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-    .feat{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px;transition:transform .2s,box-shadow .2s,border-color .2s}
-    .feat:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:color-mix(in srgb,var(--primary) 25%,var(--line))}
-    .feat .ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;margin-bottom:16px}
-    .feat:nth-child(3n+1) .ico{background:var(--primary-soft)}
-    .feat:nth-child(3n+2) .ico{background:var(--accent-soft)}
-    .feat:nth-child(3n+3) .ico{background:color-mix(in srgb,var(--secondary) 13%,#fff)}
-    .feat h3{font-size:18px;margin-bottom:8px}
-    .feat p{margin:0;color:var(--ink-2);font-size:15px}
+    /* dor x solução */
+    .vs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .vs > div{border-radius:22px;padding:28px;border:1px solid var(--line)}
+    .vs .pain{background:linear-gradient(180deg,rgba(255,80,110,.07),transparent)}
+    .vs .gain{background:linear-gradient(180deg,color-mix(in srgb,var(--secondary) 10%,transparent),transparent);border-color:color-mix(in srgb,var(--secondary) 35%,transparent)}
+    .vs h3{font-size:22px;margin-bottom:16px}
+    .vs ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+    .vs li{display:flex;gap:12px;color:var(--ink-2)}
+    .vs li::before{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:800}
+    .vs .pain li::before{content:"✕";background:rgba(255,80,110,.15);color:#ff6b8a}
+    .vs .gain li::before{content:"✓";background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+    @media(max-width:820px){.vs{grid-template-columns:1fr}}
 
-    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;counter-reset:s}
-    .step{position:relative;padding:28px 26px;border-radius:var(--r);background:#fff;border:1px solid var(--line)}
-    .step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:40px;height:40px;border-radius:12px;
-      font-family:var(--display);font-weight:800;color:#fff;background:var(--grad);margin-bottom:16px}
-    .step h3{font-size:18px;margin-bottom:8px}.step p{margin:0;color:var(--ink-2);font-size:15px}
+    /* tour por abas */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:26px}
+    .tab{background:var(--card);border:1px solid var(--line);color:var(--ink-2);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14.5px;cursor:pointer;font-family:inherit;transition:.2s}
+    .tab:hover{color:var(--ink);border-color:var(--line-2)}
+    .tab.on{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 8px 26px color-mix(in srgb,var(--primary) 40%,transparent)}
+    .panel{display:none;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:34px}
+    .panel.on{display:grid;animation:fade .45s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(10px)}}
+    .panel h3{font-size:clamp(24px,2.6vw,32px);margin:10px 0 12px}
+    .panel p{color:var(--ink-2)}
+    .panel ul{margin:18px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+    .panel li{display:flex;gap:10px;color:var(--ink-2)}
+    .panel li::before{content:"";flex:none;width:8px;height:8px;margin-top:9px;border-radius:50%;background:var(--secondary);box-shadow:0 0 10px var(--secondary)}
+    .tag{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--secondary)}
+    .mock{border-radius:18px;background:linear-gradient(180deg,#0e1430,#0a0f22);border:1px solid var(--line-2);padding:16px;min-height:300px;display:grid;gap:10px;align-content:start;
+      box-shadow:0 20px 60px rgba(0,0,0,.45)}
+    .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13.5px}
+    .row .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pill{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--secondary) 15%,transparent);color:var(--secondary);white-space:nowrap}
+    .pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+    .pill.acc{background:color-mix(in srgb,var(--accent) 18%,transparent);color:#ffb08a}
+    .chk{width:18px;height:18px;border-radius:6px;background:var(--grad);flex:none;display:grid;place-items:center;font-size:11px;color:#fff}
+    .seg{display:flex;gap:4px}.seg i{width:26px;height:26px;border-radius:7px;border:1px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-size:12px;color:var(--ink-2)}
+    .seg i.on{background:var(--grad);color:#fff;border-color:transparent}
+    .grid-items{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .gi{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 8px;font-size:12px}
+    .gi b{width:20px;text-align:right;color:var(--ink-2)}
+    .doc{background:#f7f8fc;color:#1b2033;border-radius:12px;padding:18px 20px;font-family:"Times New Roman",serif;font-size:13px;line-height:1.5}
+    .doc h5{font-family:"Times New Roman",serif;font-size:13px;margin:8px 0 4px;text-transform:uppercase}
+    .doc .ln{height:7px;border-radius:4px;background:#d9dcea;margin:6px 0}
+    .vid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .vid div{aspect-ratio:16/10;border-radius:10px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 45%,#0e1430),#0e1430);display:grid;place-items:center;font-size:20px;border:1px solid var(--line)}
+    @media(max-width:860px){.panel{grid-template-columns:1fr;padding:22px}.grid-items{grid-template-columns:repeat(3,1fr)}}
 
-    /* Preços */
-    .price-note{display:inline-flex;gap:8px;align-items:center;margin-top:16px;font-weight:600;color:var(--ink);
-      background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,#fff);padding:8px 14px;border-radius:999px;font-size:14px}
-    .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
-    .price{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:20px;padding:30px 26px}
-    .price.featured{border:2px solid var(--primary);box-shadow:0 24px 60px color-mix(in srgb,var(--primary) 18%,transparent);transform:translateY(-8px)}
-    .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:12px;font-weight:800;
-      letter-spacing:.04em;text-transform:uppercase;padding:5px 14px;border-radius:999px;white-space:nowrap}
-    .price h3{font-size:19px}
-    .price .credits{color:var(--muted);font-size:14px;margin-top:4px}
-    .amount{display:flex;align-items:baseline;gap:6px;margin:20px 0 4px;font-family:var(--display)}
-    .amount small{font-size:18px;font-weight:700;color:var(--ink-2)}
-    .amount b{font-size:46px;line-height:1;font-weight:800}
-    .unit{font-size:13.5px;color:var(--muted);margin-bottom:22px}
-    .price ul{list-style:none;padding:0;margin:0 0 26px;display:flex;flex-direction:column;gap:11px;font-size:15px;color:var(--ink-2)}
-    .price li{display:flex;gap:10px;align-items:flex-start}
-    .price li .check{margin-top:3px}
-    .price .btn{margin-top:auto}
-    .secure{text-align:center;margin-top:30px;color:var(--muted);font-size:14px}
+    /* passos */
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
+    .step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px}
+    .step::before{counter-increment:s;content:"0" counter(s);font-family:var(--display);font-size:46px;font-weight:700;line-height:1;
+      background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:block;margin-bottom:14px}
+    .step h3{font-size:21px;margin-bottom:10px}.step p{color:var(--ink-2)}
+    @media(max-width:860px){.steps{grid-template-columns:1fr}}
+
+    /* recursos */
+    .feats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .feat{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;transition:border-color .2s,transform .2s}
+    .feat:hover{border-color:color-mix(in srgb,var(--primary) 60%,transparent);transform:translateY(-3px)}
+    .feat .ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:21px;margin-bottom:14px;
+      background:color-mix(in srgb,var(--primary) 18%,transparent);border:1px solid color-mix(in srgb,var(--primary) 40%,transparent)}
+    .feat h3{font-size:17.5px;margin-bottom:8px}.feat p{color:var(--ink-2);font-size:14.5px}
+    @media(max-width:980px){.feats{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:560px){.feats{grid-template-columns:1fr}}
+
+    /* instrumentos (letreiro) */
+    .marquee{overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);padding:6px 0}
+    .marquee + .marquee{margin-top:10px}
+    .track{display:flex;gap:10px;width:max-content;animation:scroll 60s linear infinite}
+    .marquee.rev .track{animation-direction:reverse;animation-duration:70s}
+    .track span{padding:9px 16px;border-radius:999px;border:1px solid var(--line-2);background:var(--card);font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+    @keyframes scroll{to{transform:translateX(-50%)}}
+
+    /* calculadora */
+    .calc{display:grid;grid-template-columns:1fr 1fr;gap:26px;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:34px}
+    .calc label{display:block;margin-bottom:22px;color:var(--ink-2);font-weight:600;font-size:15px}
+    .calc label output{float:right;color:var(--ink);font-family:var(--display);font-size:18px}
+    .calc input[type=range]{width:100%;margin-top:10px;accent-color:var(--primary)}
+    .result{border-radius:20px;padding:28px;background:linear-gradient(140deg,color-mix(in srgb,var(--primary) 30%,transparent),color-mix(in srgb,var(--secondary) 14%,transparent));
+      border:1px solid color-mix(in srgb,var(--primary) 45%,transparent);display:flex;flex-direction:column;justify-content:center;gap:8px}
+    .result .big{font-family:var(--display);font-size:clamp(40px,5vw,58px);font-weight:700;line-height:1}
+    .result small{color:var(--ink-2)}
+    @media(max-width:860px){.calc{grid-template-columns:1fr;padding:22px}}
+
+    /* ética */
+    .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .trust div{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px}
+    .trust h3{font-size:18px;margin:10px 0 8px}.trust p{color:var(--ink-2);font-size:14.5px}
+    .trust .big{font-size:26px}
+    @media(max-width:860px){.trust{grid-template-columns:1fr}}
+
+    /* preços */
+    .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
+    .price{position:relative;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:30px;display:flex;flex-direction:column}
+    .price.featured{background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 22%,transparent),var(--card));border-color:color-mix(in srgb,var(--primary) 70%,transparent);
+      box-shadow:0 20px 70px color-mix(in srgb,var(--primary) 30%,transparent);transform:translateY(-8px)}
+    .price .badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--grad-cta);color:#fff;font-size:12px;font-weight:800;padding:5px 14px;border-radius:999px;white-space:nowrap}
+    .price h3{font-size:20px}
+    .price .credits{color:var(--secondary);font-weight:700;font-size:14px;margin-top:4px}
+    .price .amount{display:flex;align-items:baseline;gap:2px;margin:18px 0 2px}
+    .price .amount b{font-family:var(--display);font-size:50px;line-height:1}
+    .price .unit{color:var(--muted);font-size:13.5px}
+    .price ul{list-style:none;padding:0;margin:20px 0 26px;display:grid;gap:10px;flex:1}
+    .price li{display:flex;gap:10px;color:var(--ink-2);font-size:14.5px}
+    .price li i{color:var(--ok);font-style:normal;font-weight:800}
+    .free-band{margin-top:22px;text-align:center;padding:18px;border-radius:18px;border:1px dashed color-mix(in srgb,var(--ok) 50%,transparent);background:color-mix(in srgb,var(--ok) 7%,transparent);color:var(--ink-2)}
+    .free-band b{color:var(--ok)}
+    @media(max-width:900px){.prices{grid-template-columns:1fr !important;max-width:460px;margin:0 auto}.price.featured{transform:none}}
 
     /* FAQ */
-    .faq{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
-    details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 22px}
-    details[open]{border-color:color-mix(in srgb,var(--primary) 30%,var(--line))}
-    summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:600;display:flex;justify-content:space-between;gap:16px}
-    summary::-webkit-details-marker{display:none}
-    summary::after{content:"+";font-size:22px;line-height:1;color:var(--primary);transition:transform .2s}
-    details[open] summary::after{transform:rotate(45deg)}
-    details p{margin:0 0 18px;color:var(--ink-2)}
+    .faq{max-width:820px;margin:0 auto;display:grid;gap:10px}
+    .faq details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:4px 20px}
+    .faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:600;font-size:16.5px;display:flex;justify-content:space-between;gap:16px}
+    .faq summary::after{content:"+";font-size:22px;color:var(--secondary);transition:transform .2s}
+    .faq details[open] summary::after{transform:rotate(45deg)}
+    .faq details p{color:var(--ink-2);padding:0 0 18px}
 
     /* CTA final */
-    .final{padding:0 0 96px}
-    .final-box{position:relative;overflow:hidden;border-radius:24px;padding:64px 40px;text-align:center;color:#fff;
-      background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 55%,var(--secondary)))}
-    .final-box::after{content:"";position:absolute;inset:auto -80px -120px auto;width:340px;height:340px;border-radius:50%;
-      background:color-mix(in srgb,var(--accent) 45%,transparent);filter:blur(60px);opacity:.6}
-    .final-box h2{font-size:clamp(28px,3.6vw,42px);margin-bottom:14px;position:relative;z-index:1}
-    .final-box p{color:rgba(255,255,255,.88);font-size:18px;margin:0 auto 30px;max-width:560px;position:relative;z-index:1}
-    .final-box .hero-cta{justify-content:center;position:relative;z-index:1}
-    .final-box .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+    .final{position:relative;text-align:center;border-radius:30px;padding:64px 26px;overflow:hidden;border:1px solid color-mix(in srgb,var(--primary) 45%,transparent);
+      background:radial-gradient(60% 90% at 50% 0%,color-mix(in srgb,var(--primary) 40%,transparent),transparent),var(--bg-2)}
+    .final h2{font-size:clamp(30px,4.4vw,52px);max-width:820px;margin:0 auto 16px}
+    .final p{color:var(--ink-2);font-size:18px;max-width:640px;margin:0 auto}
+    .final .hero-ctas{justify-content:center}
 
-    footer{background:var(--dark);color:#94a3b8;font-size:14px}
-    footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:40px 20px}
-    footer .logo{color:#fff}
-    footer a:hover{color:#fff}
-    .foot-links{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
-    .disclaimer{border-top:1px solid rgba(255,255,255,.08);padding:18px 20px;text-align:center;font-size:12.5px}
+    footer{padding:46px 0 110px;color:var(--muted);font-size:14px}
+    footer .wrap{display:flex;gap:20px;justify-content:space-between;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:28px}
+    footer a:hover{color:var(--ink)}
 
-    .wa{position:fixed;right:20px;bottom:20px;z-index:60;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
-      background:#22c55e;color:#fff;box-shadow:0 10px 28px rgba(34,197,94,.45)}
+    /* WhatsApp flutuante + barra fixa no celular */
+    .wa-float{position:fixed;right:20px;bottom:22px;z-index:60;width:62px;height:62px;border-radius:50%;background:var(--wa);display:grid;place-items:center;
+      box-shadow:0 12px 34px rgba(37,211,102,.5);animation:ring 3s infinite}
+    .wa-float svg{width:32px;height:32px}
+    .wa-float .tip{position:absolute;right:74px;white-space:nowrap;background:#fff;color:#0b1020;font-weight:700;font-size:13.5px;padding:8px 12px;border-radius:12px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:0;transform:translateX(8px);transition:.25s;pointer-events:none}
+    .wa-float:hover .tip,.wa-float.hint .tip{opacity:1;transform:none}
+    @keyframes ring{0%,100%{box-shadow:0 12px 34px rgba(37,211,102,.5),0 0 0 0 rgba(37,211,102,.45)}50%{box-shadow:0 12px 34px rgba(37,211,102,.5),0 0 0 14px rgba(37,211,102,0)}}
+    .m-bar{display:none}
+    @media(max-width:700px){
+      .m-bar{display:flex;gap:8px;position:fixed;left:0;right:0;bottom:0;z-index:55;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+        background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line-2)}
+      .m-bar .btn{flex:1;padding:13px 10px;font-size:14.5px}
+      .wa-float{bottom:84px;width:56px;height:56px}
+      .wa-float .tip{display:none}
+    }
 
-    .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease,transform .6s ease}
+
+    /* vídeo de apresentação */
+    .video-box{position:relative;max-width:980px;margin:0 auto;border-radius:26px;padding:1px;background:linear-gradient(140deg,color-mix(in srgb,var(--primary) 75%,transparent),transparent 45%,color-mix(in srgb,var(--secondary) 65%,transparent));
+      box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 90px color-mix(in srgb,var(--primary) 22%,transparent)}
+    .video-in{border-radius:25px;overflow:hidden;background:#060915;aspect-ratio:16/9;position:relative}
+    .video-in iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+    .demo{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+    .demo-top{display:flex;align-items:center;gap:6px;padding:12px 16px;border-bottom:1px solid var(--line)}
+    .demo-top i{width:10px;height:10px;border-radius:50%;background:#ff5f57}.demo-top i:nth-child(2){background:#febc2e}.demo-top i:nth-child(3){background:#28c840}
+    .demo-top span{margin-left:10px;font-size:12px;color:var(--muted)}
+    .stage{position:relative;overflow:hidden}
+    .scene{position:absolute;inset:0;padding:clamp(14px,3vw,34px);display:grid;align-content:center;gap:12px;opacity:0;transform:scale(.98);transition:opacity .6s,transform .6s}
+    .scene.on{opacity:1;transform:none}
+    .scene h4{font-size:clamp(18px,2.6vw,30px)}
+    .scene .row{font-size:clamp(11px,1.5vw,14px)}
+    .scan{position:relative;border-radius:12px;overflow:hidden}
+    .scan::after{content:"";position:absolute;left:0;right:0;height:38%;top:-40%;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--secondary) 45%,transparent),transparent);animation:scan 2.2s linear infinite}
+    @keyframes scan{to{top:100%}}
+    .typing .ln{animation:type 1.6s ease both}
+    .typing .ln:nth-child(3){animation-delay:.4s}.typing .ln:nth-child(4){animation-delay:.8s}.typing .ln:nth-child(6){animation-delay:1.2s}.typing .ln:nth-child(7){animation-delay:1.6s}
+    @keyframes type{from{width:0 !important}}
+    .demo-bot{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--line);background:rgba(0,0,0,.25)}
+    .demo-bot button{width:34px;height:34px;border-radius:50%;border:0;background:var(--grad);color:#fff;cursor:pointer;font-size:13px;flex:none}
+    .prog{flex:1;height:5px;border-radius:9px;background:var(--line-2);overflow:hidden}
+    .prog i{display:block;height:100%;width:0;background:var(--grad)}
+    .cap{font-size:clamp(11px,1.5vw,14px);color:var(--ink-2);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
+    .video-note{text-align:center;color:var(--muted);font-size:13px;margin-top:14px}
+
+    /* depoimentos */
+    .depos{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+    .depo{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:26px;display:flex;flex-direction:column;gap:18px}
+    .depo blockquote{margin:0;color:var(--ink);font-size:16px;line-height:1.65;position:relative}
+    .depo blockquote::before{content:"“";font-family:var(--display);font-size:64px;line-height:.6;display:block;color:var(--secondary);opacity:.7;margin-bottom:6px}
+    .depo .who{display:flex;align-items:center;gap:12px;margin-top:auto}
+    .depo .av{width:46px;height:46px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font-weight:800;font-family:var(--display);flex:none;overflow:hidden}
+    .depo .av img{width:100%;height:100%;object-fit:cover}
+    .depo .who b{display:block}.depo .who small{color:var(--muted)}
+    /* animação de entrada */
+    .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
     .reveal.in{opacity:1;transform:none}
-    @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.btn:hover,.feat:hover{transform:none}}
-
-    @media (max-width:980px){
-      .hero-grid{grid-template-columns:1fr;gap:48px}
-      .features,.prices{grid-template-columns:1fr 1fr}
-      .steps{grid-template-columns:1fr}
-      .stats .wrap{grid-template-columns:1fr 1fr}
-      .float-1{left:-8px}.float-2{right:-6px}
-    }
-    @media (max-width:760px){
-      .nav-links{display:none;position:absolute;top:68px;left:0;right:0;flex-direction:column;gap:0;background:#fff;border-bottom:1px solid var(--line);padding:8px 20px}
-      .nav-links.open{display:flex}
-      .nav-links a{padding:12px 0;border-bottom:1px solid var(--line)}
-      .nav-links a:last-child{border-bottom:0}
-      .menu-btn{display:block}
-      .nav-acts .btn-ghost{display:none}
-      .wrap{padding:0 16px}
-      .hero{padding:48px 0 64px}
-      section.block{padding:72px 0}
-      .features,.prices{grid-template-columns:1fr}
-      .price.featured{transform:none}
-      .mock-kpis{grid-template-columns:repeat(3,1fr)}
-      .float{display:none}
-      .final-box{padding:48px 22px}
-      .hero-cta .btn{flex:1 1 100%}
-    }
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important;transition:none !important}.reveal{opacity:1;transform:none}}
   </style>
 </head>
 <body>
-  <header class="nav" id="nav">
+  <div class="bg-fx" aria-hidden="true"></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="wa" viewBox="0 0 32 32"><path fill="currentColor" d="M16.04 3C8.86 3 3.03 8.82 3.03 16c0 2.3.6 4.53 1.74 6.5L3 29l6.68-1.75A12.95 12.95 0 0 0 16.04 29C23.2 29 29 23.18 29 16S23.2 3 16.04 3Zm0 23.64c-2 0-3.95-.54-5.65-1.56l-.4-.24-3.97 1.04 1.06-3.86-.26-.4A10.6 10.6 0 0 1 5.4 16c0-5.87 4.77-10.64 10.64-10.64 5.86 0 10.63 4.77 10.63 10.64 0 5.86-4.77 10.64-10.63 10.64Zm5.83-7.97c-.32-.16-1.89-.93-2.18-1.04-.3-.1-.5-.16-.72.16-.21.32-.82 1.04-1 1.25-.19.21-.37.24-.69.08-.32-.16-1.35-.5-2.57-1.59a9.6 9.6 0 0 1-1.78-2.2c-.19-.32-.02-.5.14-.66.15-.14.32-.37.48-.56.16-.18.21-.32.32-.53.1-.21.05-.4-.03-.56-.08-.16-.72-1.73-.98-2.37-.26-.62-.52-.54-.72-.55h-.61c-.21 0-.56.08-.85.4-.3.32-1.12 1.09-1.12 2.66 0 1.57 1.15 3.08 1.3 3.3.17.2 2.25 3.44 5.46 4.82.76.33 1.36.53 1.82.68.77.24 1.46.2 2.01.12.61-.09 1.89-.77 2.16-1.52.26-.74.26-1.38.18-1.52-.08-.13-.29-.21-.61-.37Z"/></symbol></svg>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
     <div class="wrap">
-      <a href="#" class="logo"><span class="logo-mark">NS</span>NeuroScore</a>
-      <nav class="nav-links" id="navLinks">
-        <a href="#recursos">Recursos</a>
+      <a class="logo" href="#topo"><b>NS</b>NeuroScore</a>
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="#plataforma">Plataforma</a>
         <a href="#como-funciona">Como funciona</a>
+        <a href="#video">Vídeo</a>
+        <a href="#recursos">Recursos</a>
         <a href="#precos">Preços</a>
         <a href="#faq">Dúvidas</a>
-      </nav>
-      <div class="nav-acts">
-        <a href="/login.html" class="btn btn-ghost btn-sm">Entrar</a>
-        <a href="#precos" class="btn btn-cta btn-sm" data-cta>Começar agora</a>
-        <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
+        <a href="/login.html">Entrar</a>
+        <a class="btn btn-cta" href="/login.html?cadastro=1" data-cta>Testar grátis</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero" id="topo">
+    <div class="wrap">
+      <div class="reveal">
+        <span class="eyebrow"><i></i>Plataforma clínica de neuropsicologia com IA</span>
+        <h1 id="heroTitle">Do protocolo ao <span class="grad-text">laudo pronto</span> em minutos — não em noites.</h1>
+        <p class="sub" id="heroSub">O NeuroScore corrige seus testes pelas normas, lê a anamnese por OCR e escreve o laudo neuropsicológico completo no seu modelo. Você revisa, assina e devolve o seu tempo para o paciente.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-cta btn-lg" href="/login.html?cadastro=1" data-cta>Começar teste grátis de 14 dias →</a>
+          <a class="btn btn-wa btn-lg" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>Falar no WhatsApp</a>
+        </div>
+        <div class="micro"><span>3 créditos grátis</span><span>Sem cartão para começar</span><span>Sem mensalidade</span></div>
+      </div>
+      <div class="reveal" style="position:relative">
+        <div class="device">
+          <div class="screen">
+            <div class="bar"><i></i><i></i><i></i><span>neuroscore · Testes realizados</span></div>
+            <div class="app">
+              <div class="side"><div>📊 Dashboard</div><div>👥 Pacientes</div><div class="on">🧪 Laudos</div><div>🗂 Realizados</div><div>📇 História</div><div>🧠 Geração</div><div>🎬 Vídeos</div></div>
+              <div class="main">
+                <div class="kpis"><div class="kpi"><small>ICV</small><b>110</b></div><div class="kpi"><small>IOP</small><b>106</b></div><div class="kpi"><small>QIT</small><b>105</b></div></div>
+                <div class="chart" aria-hidden="true"><i style="height:62%"></i><i style="height:78%;animation-delay:.1s"></i><i style="height:55%;animation-delay:.2s"></i><i style="height:86%;animation-delay:.3s"></i><i style="height:70%;animation-delay:.4s"></i><i style="height:92%;animation-delay:.5s"></i><i style="height:66%;animation-delay:.6s"></i></div>
+                <div class="row"><span class="chk">✓</span><span class="grow">WISC-IV corrigido pelas normas</span><span class="pill ok">salvo</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="float f1"><small>Anamnese</small><b><span class="dot-ok"></span>Lida por OCR</b></div>
+        <div class="float f2"><small>Laudo</small><b>Pronto no seu modelo</b></div>
+        <div class="float f3"><small>Exportar</small><b>Word · PDF</b></div>
       </div>
     </div>
   </header>
 
-  <main>
-    <section class="hero">
-      <div class="wrap hero-grid">
-        <div class="reveal">
-          <span class="eyebrow">✦ Plataforma para neuropsicólogos</span>
-          <h1 id="heroTitle">Laudos neuropsicológicos em minutos, com <span class="grad-text">precisão clínica</span></h1>
-          <p class="lead" id="heroSub">Corrija mais de 70 instrumentos automaticamente, gere gráficos e receba um laudo completo em 14 seções, pronto para revisar e assinar. Mais tempo para o paciente, menos tempo com planilhas.</p>
-          <div class="hero-cta">
-            <a href="#precos" class="btn btn-cta" data-cta>Começar agora →</a>
-            <a href="#como-funciona" class="btn btn-ghost">Ver como funciona</a>
-          </div>
-          <div class="hero-trust">
-            <span><i class="check">✓</i>Sem mensalidade</span>
-            <span><i class="check">✓</i>Pix, cartão ou boleto</span>
-            <span><i class="check">✓</i>Exporta em Word e PDF</span>
-          </div>
-        </div>
+  <!-- NÚMEROS -->
+  <div class="stats">
+    <div class="wrap">
+      <div class="stat reveal"><b class="grad-text" data-count="71">71</b><span>instrumentos no catálogo</span></div>
+      <div class="stat reveal"><b class="grad-text">1 clique</b><span>do teste corrigido ao laudo</span></div>
+      <div class="stat reveal"><b class="grad-text">R$ 20</b><span>por crédito, sem mensalidade</span></div>
+      <div class="stat reveal"><b class="grad-text" data-count="14">14</b><span>dias grátis para testar</span></div>
+    </div>
+  </div>
 
-        <div class="reveal" aria-hidden="true">
-          <div class="mock">
-            <div class="mock-bar"><i></i><i></i><i></i></div>
-            <div class="mock-head"><div><b>WISC-IV · Índices</b><br><small>Paciente M. A., 9 anos</small></div><span class="pill">Corrigido</span></div>
-            <div class="mock-kpis">
-              <div class="kpi"><small>QI Total</small><b>105</b></div>
-              <div class="kpi"><small>ICV</small><b>110</b></div>
-              <div class="kpi"><small>IOP</small><b>106</b></div>
+
+  <!-- VÍDEO DE APRESENTAÇÃO -->
+  <section class="sec" id="video" style="padding-top:70px">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Veja em ação</span>
+        <h2>Do arquivo ao laudo em <span class="grad-text">um único fluxo</span>.</h2>
+        <p>Acompanhe uma avaliação inteira dentro do NeuroScore: anamnese, correção e laudo pronto para revisar.</p>
+      </div>
+      <div class="video-box reveal">
+        <div class="video-in" id="videoIn">
+          <div class="demo" id="demo">
+            <div class="demo-top"><i></i><i></i><i></i><span>NeuroScore · demonstração</span></div>
+            <div class="stage">
+              <div class="scene" data-cap="1. Cadastre o paciente — os dados vão direto para o laudo.">
+                <h4>👥 Novo paciente</h4>
+                <div class="row"><span class="chk">M</span><span class="grow"><b>M. A. S.</b> · 9 anos · 4º ano · responsável: mãe</span><span class="pill">cadastrado</span></div>
+                <div class="row"><span class="grow">Hipótese / demanda: dificuldades de atenção e leitura</span><span class="pill acc">anamnese</span></div>
+              </div>
+              <div class="scene" data-cap="2. Envie a anamnese (foto, PDF, Word…): o OCR lê e organiza a História de Vida.">
+                <h4>📇 Lendo a anamnese…</h4>
+                <div class="scan"><div class="doc"><h5>Anamnese infantojuvenil</h5><div class="ln" style="width:92%"></div><div class="ln" style="width:80%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:65%"></div><div class="ln" style="width:90%"></div></div></div>
+                <div class="row"><span class="chk">✓</span><span class="grow">História de Vida organizada em 7 tópicos</span><span class="pill ok">salva</span></div>
+              </div>
+              <div class="scene" data-cap="3. Lance os brutos ou toque item a item: a correção sai pelas normas, com gráficos.">
+                <h4>🧪 Correção pelas normas</h4>
+                <div class="chart" style="height:clamp(90px,16vw,150px)"><i style="height:62%"></i><i style="height:78%"></i><i style="height:55%"></i><i style="height:86%"></i><i style="height:70%"></i><i style="height:92%"></i></div>
+                <div class="row"><span class="grow"><b>WISC-IV</b> · ICV 110 · IOP 106 · IMO 94 · IVP 103</span><span class="pill ok">QIT 105</span></div>
+              </div>
+              <div class="scene" data-cap="4. Um clique: o laudo neuropsicológico completo é escrito no seu modelo.">
+                <h4>🧠 Gerando o laudo…</h4>
+                <div class="doc typing"><h5 style="text-align:center">Laudo neuropsicológico</h5><div class="ln" style="width:94%"></div><div class="ln" style="width:86%"></div><h5>Conclusão e síntese</h5><div class="ln" style="width:91%"></div><div class="ln" style="width:70%"></div></div>
+              </div>
+              <div class="scene" data-cap="5. Revise, exporte em Word ou PDF e assine. Pronto para a devolutiva.">
+                <h4>✅ Pronto para revisar e assinar</h4>
+                <div class="row"><span class="grow">laudo_neuropsicologico.docx</span><span class="pill ok">Word</span><span class="pill">PDF</span></div>
+                <div class="row"><span class="chk">✓</span><span class="grow">Salvo em Testes realizados do paciente</span></div>
+                <a class="btn btn-cta" href="/login.html?cadastro=1" data-cta style="justify-self:start">Testar grátis agora →</a>
+              </div>
             </div>
-            <div class="bars">
-              <div class="bar-row">ICV<span class="bar"><i style="width:73%"></i></span>110</div>
-              <div class="bar-row">IOP<span class="bar"><i style="width:70%"></i></span>106</div>
-              <div class="bar-row">IMO<span class="bar"><i style="width:58%"></i></span>94</div>
-              <div class="bar-row">IVP<span class="bar"><i style="width:67%"></i></span>103</div>
-            </div>
-            <div class="float float-1"><span class="ico">📄</span><div><b>Laudo gerado</b><small>14 seções · .docx</small></div></div>
-            <div class="float float-2"><span class="ico">⚡</span><div><b>Correção automática</b><small>em segundos</small></div></div>
+            <div class="demo-bot"><button type="button" id="demoPlay" aria-label="Pausar">❚❚</button><div class="prog"><i id="demoProg"></i></div><span class="cap" id="demoCap"></span></div>
           </div>
         </div>
       </div>
-    </section>
+      <p class="video-note" id="videoNote">Demonstração animada da interface. Dados fictícios.</p>
+    </div>
+  </section>
 
-    <div class="stats">
-      <div class="wrap">
-        <div class="stat"><b><em>70+</em></b><span>instrumentos corrigidos automaticamente</span></div>
-        <div class="stat"><b>14</b><span>seções no laudo neuropsicológico</span></div>
-        <div class="stat"><b>R$ <em>20</em></b><span>por crédito, sem mensalidade</span></div>
-        <div class="stat"><b>100%</b><span>online, de qualquer computador</span></div>
+  <!-- DOR x SOLUÇÃO -->
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>A realidade de quem avalia</span>
+        <h2>Você estudou para entender pessoas — <span class="grad-text">não para digitar planilhas</span> até de madrugada.</h2>
+        <p>Cada avaliação vira horas de tabela normativa, conferência de escores e um laudo escrito do zero. O NeuroScore tira esse peso do seu caminho.</p>
+      </div>
+      <div class="vs">
+        <div class="pain reveal">
+          <h3>Sem o NeuroScore</h3>
+          <ul>
+            <li>Procurar a tabela certa da idade, converter escore por escore e torcer para não errar.</li>
+            <li>Planilhas diferentes para cada teste, abertas uma de cada vez.</li>
+            <li>Digitar a anamnese inteira à mão a partir de papel ou foto.</li>
+            <li>Reescrever o laudo do zero, seção por seção, em cada avaliação.</li>
+            <li>Fila de devolutivas atrasadas e agenda travada.</li>
+          </ul>
+        </div>
+        <div class="gain reveal">
+          <h3>Com o NeuroScore</h3>
+          <ul>
+            <li>Digite os brutos (ou toque item a item): a correção sai pelas normas, com gráficos.</li>
+            <li>71 instrumentos num só lugar, salvos por paciente em “Testes realizados”.</li>
+            <li>Envie a anamnese em PDF, foto, Word ou planilha: vira História de Vida no seu modelo.</li>
+            <li>Laudo neuropsicológico completo no seu modelo, pronto para revisar e assinar.</li>
+            <li>Mais avaliações por mês, devolutivas no prazo e noites livres.</li>
+          </ul>
+        </div>
       </div>
     </div>
+  </section>
 
-    <section class="block" id="recursos">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <span class="eyebrow">Recursos</span>
-          <h2>Tudo o que a avaliação precisa, em um só lugar</h2>
-          <p>Da correção do teste ao laudo assinado, sem trocar de ferramenta.</p>
-        </div>
-        <div class="features">
-          <div class="feat reveal"><div class="ico">🧮</div><h3>Correção automática</h3><p>WISC-IV, WASI, RAVLT, Perfil Sensorial 2, ATA, HADS e mais de 70 instrumentos com as normas aplicadas na hora.</p></div>
-          <div class="feat reveal"><div class="ico">🧠</div><h3>Laudo completo com IA</h3><p>Laudo neuropsicológico em 14 seções, escrito a partir dos resultados, da anamnese e da observação clínica.</p></div>
-          <div class="feat reveal"><div class="ico">📊</div><h3>Gráficos prontos</h3><p>Perfis de índices, subtestes e quadrantes gerados automaticamente para cada instrumento.</p></div>
-          <div class="feat reveal"><div class="ico">📁</div><h3>Envie os arquivos</h3><p>Suba PDF, imagem, Word ou Excel dos testes já corrigidos. O sistema lê e organiza tudo para o laudo.</p></div>
-          <div class="feat reveal"><div class="ico">👥</div><h3>Gestão de pacientes</h3><p>Cadastro, histórico de avaliações e história de vida de cada paciente, organizados e fáceis de achar.</p></div>
-          <div class="feat reveal"><div class="ico">🔒</div><h3>Seguro e privado</h3><p>Acesso por login individual e dados separados por profissional. Cada um vê apenas os próprios pacientes.</p></div>
+  <!-- TOUR POR ABAS -->
+  <section class="sec" id="plataforma">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Tour pela plataforma</span>
+        <h2>Uma plataforma clínica completa, <span class="grad-text">aba por aba</span>.</h2>
+        <p>Tudo o que a avaliação neuropsicológica pede — do cadastro à devolutiva — integrado e salvo por paciente.</p>
+      </div>
+      <div class="tabs reveal" role="tablist" id="tabs">
+        <button class="tab on" data-tab="dash">📊 Dashboard</button>
+        <button class="tab" data-tab="pac">👥 Pacientes</button>
+        <button class="tab" data-tab="cor">🧪 Correção</button>
+        <button class="tab" data-tab="real">🗂 Testes realizados</button>
+        <button class="tab" data-tab="hist">📇 História de Vida</button>
+        <button class="tab" data-tab="laudo">🧠 Geração de Laudo</button>
+        <button class="tab" data-tab="vid">🎬 Vídeos</button>
+        <button class="tab" data-tab="cred">💳 Créditos</button>
+      </div>
+
+      <div class="panel on" data-panel="dash">
+        <div><span class="tag">Dashboard</span><h3>Sua clínica em um olhar.</h3>
+          <p>Avaliações do mês, instrumentos mais usados e a atividade recente — clique e volte direto ao paciente.</p>
+          <ul><li>Indicadores reais da sua rotina</li><li>Atalhos para continuar de onde parou</li><li>Saldo de créditos sempre visível</li></ul></div>
+        <div class="mock">
+          <div class="kpis"><div class="kpi"><small>Avaliações no mês</small><b>18</b></div><div class="kpi"><small>Pacientes</small><b>42</b></div><div class="kpi"><small>Créditos</small><b>12</b></div></div>
+          <div class="chart"><i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:70%"></i><i style="height:64%"></i><i style="height:88%"></i></div>
+          <div class="row"><span class="grow">Laudo gerado · paciente M. A.</span><span class="pill">agora</span></div>
         </div>
       </div>
-    </section>
 
-    <section class="block alt" id="como-funciona">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <span class="eyebrow">Como funciona</span>
-          <h2>Três passos até o laudo pronto</h2>
-          <p>Simples para começar hoje, sem instalação.</p>
-        </div>
-        <div class="steps">
-          <div class="step reveal"><h3>Escolha seu pacote</h3><p>Compre créditos com Pix, cartão ou boleto. Cada teste corrigido ou laudo usa 1 crédito, e os créditos não expiram.</p></div>
-          <div class="step reveal"><h3>Lance os resultados</h3><p>Digite os escores brutos ou envie os arquivos dos testes. A correção e os gráficos saem na hora.</p></div>
-          <div class="step reveal"><h3>Revise e assine</h3><p>Receba o laudo estruturado, ajuste o que quiser e exporte em Word ou PDF com o seu cabeçalho.</p></div>
+      <div class="panel" data-panel="pac">
+        <div><span class="tag">Pacientes</span><h3>Cadastro clínico organizado.</h3>
+          <p>Identificação completa (responsável, filiação, CPF, escola, solicitante, hipótese) e a anamnese ligada ao paciente.</p>
+          <ul><li>Tudo do paciente em um lugar</li><li>Abra os testes e a anamnese com um clique</li><li>Dados reaproveitados no laudo automaticamente</li></ul></div>
+        <div class="mock">
+          <div class="row"><span class="chk">M</span><span class="grow"><b>M. A. S.</b> · 9 anos · 4º ano</span><span class="pill">6 testes</span></div>
+          <div class="row"><span class="chk">J</span><span class="grow"><b>J. C. N.</b> · 24 anos · Superior</span><span class="pill">8 testes</span></div>
+          <div class="row"><span class="chk">L</span><span class="grow"><b>L. P. R.</b> · 6 anos · Educ. infantil</span><span class="pill acc">anamnese</span></div>
+          <div class="row"><span class="chk">R</span><span class="grow"><b>R. T.</b> · 41 anos · Médio</span><span class="pill">3 testes</span></div>
         </div>
       </div>
-    </section>
 
-    <section class="block" id="precos">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <span class="eyebrow">Preços</span>
-          <h2>Pague só pelo que usar</h2>
-          <p>Sem mensalidade e sem fidelidade. Escolha a quantidade de créditos que combina com a sua rotina.</p>
-          <span class="price-note">💡 1 crédito = R$ 20,00 · cada teste corrigido ou laudo usa 1 crédito · História de Vida usa 0,5</span>
-        </div>
-        <div class="prices" id="prices"></div>
-        <p class="secure">🔒 Pagamento seguro pelo Mercado Pago · Pix, cartão de crédito e boleto</p>
-      </div>
-    </section>
-
-    <section class="block alt" id="faq">
-      <div class="wrap">
-        <div class="sec-head reveal">
-          <span class="eyebrow">Dúvidas frequentes</span>
-          <h2>Perguntas e respostas</h2>
-        </div>
-        <div class="faq reveal">
-          <details><summary>Como funcionam os créditos?</summary><p>Cada teste corrigido usa 1 crédito, cada laudo com IA usa 1 crédito e cada História de Vida usa 0,5 crédito. Recalcular o mesmo teste do mesmo paciente no mesmo dia não cobra de novo. O saldo aparece sempre no painel; quando zera, os serviços ficam bloqueados até a próxima compra. Cadastro de pacientes e exportação não consomem créditos.</p></details>
-          <details><summary>Existe teste grátis?</summary><p>Sim. A conta de teste dura 14 dias e já vem com 3 créditos grátis, com um contador de dias no painel. Ao fim do período, o acesso é bloqueado até a compra de um pacote.</p></details>
-          <details><summary>Os créditos expiram?</summary><p>Não. Os créditos ficam na sua conta até você usar.</p></details>
-          <details><summary>Quais formas de pagamento são aceitas?</summary><p>Pix, cartão de crédito e boleto, pelo Mercado Pago. Os créditos entram assim que o pagamento é aprovado.</p></details>
-          <details><summary>O laudo sai pronto para entregar?</summary><p>O laudo sai completo e estruturado, mas é uma ferramenta de apoio: todo laudo deve ser revisado e assinado por profissional habilitado.</p></details>
-          <details><summary>Preciso instalar alguma coisa?</summary><p>Não. O NeuroScore funciona no navegador, em qualquer computador com internet.</p></details>
-        </div>
-      </div>
-    </section>
-
-    <section class="final">
-      <div class="wrap">
-        <div class="final-box reveal">
-          <h2>Comece seu próximo laudo hoje</h2>
-          <p>Ganhe horas na semana e entregue laudos mais claros para pacientes e famílias.</p>
-          <div class="hero-cta">
-            <a href="#precos" class="btn btn-cta" data-cta>Começar agora →</a>
-            <a href="/login.html" class="btn btn-ghost">Já tenho conta</a>
+      <div class="panel" data-panel="cor">
+        <div><span class="tag">Correção</span><h3>Digite os brutos. A norma é com a gente.</h3>
+          <p>Escolha o instrumento, informe nascimento e data de aplicação: o NeuroScore aplica as tabelas pela idade e entrega escores, classificações e gráficos.</p>
+          <ul><li>71 instrumentos, de WISC-IV e WAIS-III a RAVLT, FDT, ETDAH-2 e Perfil Sensorial 2</li><li>Protocolos item a item com botões de toque (Vineland-3, SNAP-IV, SDQ, BRIEF-P…)</li><li>Basal e teto automáticos no Vineland-3</li></ul></div>
+        <div class="mock">
+          <div class="row"><span class="grow"><b>Vineland-3</b> · Entrevista Extensivo</span><span class="pill ok">basal ✓ teto ✓</span></div>
+          <div class="grid-items">
+            <div class="gi"><b>18</b><span class="seg"><i class="on">2</i><i>1</i><i>0</i></span></div>
+            <div class="gi"><b>19</b><span class="seg"><i class="on">2</i><i>1</i><i>0</i></span></div>
+            <div class="gi"><b>20</b><span class="seg"><i class="on">2</i><i>1</i><i>0</i></span></div>
+            <div class="gi"><b>21</b><span class="seg"><i class="on">2</i><i>1</i><i>0</i></span></div>
+            <div class="gi"><b>22</b><span class="seg"><i>2</i><i class="on">1</i><i>0</i></span></div>
+            <div class="gi"><b>23</b><span class="seg"><i>2</i><i class="on">1</i><i>0</i></span></div>
+            <div class="gi"><b>24</b><span class="seg"><i>2</i><i>1</i><i class="on">0</i></span></div>
+            <div class="gi"><b>25</b><span class="seg"><i>2</i><i>1</i><i class="on">0</i></span></div>
           </div>
+          <div class="row"><span class="grow">Receptiva · bruto</span><b>50</b><span class="pill">v-escala</span></div>
         </div>
       </div>
-    </section>
-  </main>
+
+      <div class="panel" data-panel="real">
+        <div><span class="tag">Testes realizados</span><h3>Todo teste corrigido fica salvo por paciente.</h3>
+          <p>Reabra, edite, exclua ou marque quais entram no laudo. Envie arquivos de testes (PDF, foto, Word, planilha…) e eles são lidos e acrescentados à lista.</p>
+          <ul><li>Brutos lidos do arquivo são corrigidos pelas normas</li><li>Relatórios já corrigidos têm as tabelas transcritas</li><li>“Gerar laudo completo” ou “Laudo deste teste”</li></ul></div>
+        <div class="mock">
+          <div class="row"><span class="chk">✓</span><span class="grow"><b>📇 História de Vida</b></span><span class="pill acc">OCR</span></div>
+          <div class="row"><span class="chk">✓</span><span class="grow"><b>WISC-IV</b> · QIT 105 · Média</span><span class="pill ok">corrigido</span></div>
+          <div class="row"><span class="chk">✓</span><span class="grow"><b>RAVLT</b> · Aprendizagem</span><span class="pill ok">corrigido</span></div>
+          <div class="row"><span class="chk">✓</span><span class="grow"><b>ETDAH-2</b> · Pais</span><span class="pill ok">corrigido</span></div>
+          <div class="row" style="justify-content:center;background:var(--grad);border:0;font-weight:700">🧠 Gerar laudo completo</div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="hist">
+        <div><span class="tag">História de Vida</span><h3>A anamnese vira texto clínico — sozinha.</h3>
+          <p>Envie a anamnese em PDF, foto, DOCX, XLSX, CSV, PPTX, TXT ou JSON, ou preencha a ficha só marcando opções. A leitura por OCR transcreve tudo e organiza a história no seu modelo.</p>
+          <ul><li>Transcrição literal, inclusive manuscrita</li><li>Organizada em tópicos: gestação, desenvolvimento, sono, família, escola…</li><li>Lacunas sinalizadas — nada é inventado</li></ul></div>
+        <div class="mock">
+          <div class="row"><span class="grow">anamnese_paciente.pdf · 4 páginas</span><span class="pill ok">lido</span></div>
+          <div class="doc"><h5>História da doença atual</h5><div class="ln" style="width:96%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:72%"></div>
+            <h5>Desenvolvimento global</h5><div class="ln" style="width:93%"></div><div class="ln" style="width:81%"></div>
+            <h5>Histórico escolar</h5><div class="ln" style="width:90%"></div><div class="ln" style="width:60%"></div></div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="laudo">
+        <div><span class="tag">Geração de Laudo</span><h3>O laudo neuropsicológico completo, no seu modelo.</h3>
+          <p>Identificação, demanda, procedimentos, análise de cada teste com tabelas e gráficos, conclusão, impressão diagnóstica, encaminhamentos e orientações — em Times New Roman 12.</p>
+          <ul><li>Laudo completo ou de teste isolado</li><li>Exporta em Word (.docx) e PDF</li><li>Avisos “para revisar antes de assinar”</li></ul></div>
+        <div class="mock">
+          <div class="doc"><h5 style="text-align:center">Laudo Neuropsicológico</h5>
+            <h5>1. Identificação</h5><div class="ln" style="width:70%"></div><div class="ln" style="width:55%"></div>
+            <h5>Análise dos testes · WISC-IV</h5><div class="ln" style="width:95%"></div><div class="ln" style="width:90%"></div><div class="ln" style="width:84%"></div>
+            <h5>Conclusão e síntese</h5><div class="ln" style="width:92%"></div><div class="ln" style="width:76%"></div></div>
+          <div class="row"><span class="grow">laudo_neuropsicologico.docx</span><span class="pill ok">Word</span><span class="pill">PDF</span></div>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="vid">
+        <div><span class="tag">Vídeos</span><h3>Aplicação, correção e interpretação ao alcance.</h3>
+          <p>Biblioteca de vídeos explicativos organizada por teste, direto da plataforma.</p>
+          <ul><li>Revisão rápida antes de aplicar</li><li>Organizado por instrumento</li><li>Para você e para a sua equipe</li></ul></div>
+        <div class="mock"><div class="vid"><div>▶</div><div>▶</div><div>▶</div><div>▶</div><div>▶</div><div>▶</div></div>
+          <div class="row"><span class="grow">WISC-IV · aplicação e correção</span><span class="pill">vídeo</span></div></div>
+      </div>
+
+      <div class="panel" data-panel="cred">
+        <div><span class="tag">Créditos</span><h3>Pague só pelo que usar.</h3>
+          <p>Sem mensalidade e sem fidelidade. Compre créditos por Pix, cartão ou boleto e use quando quiser.</p>
+          <ul><li>1 crédito = 1 teste corrigido ou 1 laudo</li><li>História de Vida por 0,5 crédito</li><li>Recalcular o mesmo teste no mesmo dia não cobra de novo</li></ul></div>
+        <div class="mock">
+          <div class="row"><span class="grow">Teste corrigido</span><b>1 crédito</b></div>
+          <div class="row"><span class="grow">Laudo neuropsicológico</span><b>1 crédito</b></div>
+          <div class="row"><span class="grow">História de Vida (anamnese)</span><b>0,5 crédito</b></div>
+          <div class="row"><span class="grow">Relatório já corrigido transcrito</span><span class="pill ok">sem custo</span></div>
+          <div class="row" style="justify-content:center"><span class="pill">Pix</span><span class="pill">Cartão</span><span class="pill">Boleto</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section class="sec" id="como-funciona">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Como funciona</span>
+        <h2>Três passos entre a aplicação e a <span class="grad-text">devolutiva</span>.</h2>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><h3>Aplique e lance</h3><p>Digite os brutos, toque item a item ou envie os arquivos dos testes. A anamnese pode ser foto, PDF ou Word.</p></div>
+        <div class="step reveal"><h3>O NeuroScore corrige</h3><p>As normas por idade são aplicadas pelo motor de correção, com tabelas e gráficos. Tudo fica salvo no paciente.</p></div>
+        <div class="step reveal"><h3>Revise e assine</h3><p>O laudo completo sai no seu modelo, pronto para revisão. Exporte em Word ou PDF e entregue no prazo.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECURSOS -->
+  <section class="sec" id="recursos">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Recursos</span>
+        <h2>Feito por quem vive a <span class="grad-text">rotina da avaliação</span>.</h2>
+      </div>
+      <div class="feats">
+        <div class="feat reveal"><div class="ic">⚙️</div><h3>Correção pelas normas</h3><p>Motor normativo por idade: escores, percentis, classificações e intervalos.</p></div>
+        <div class="feat reveal"><div class="ic">👆</div><h3>Item a item no toque</h3><p>Protocolos com botões 2/1/0, basal e teto automáticos e progresso por seção.</p></div>
+        <div class="feat reveal"><div class="ic">🔎</div><h3>OCR de alta precisão</h3><p>Fotos tratadas automaticamente; manuscritos transcritos com marcação de dúvidas.</p></div>
+        <div class="feat reveal"><div class="ic">📎</div><h3>Qualquer formato</h3><p>PDF, DOCX, DOC, JPEG, PNG, XLSX, CSV, PPTX, TXT e JSON.</p></div>
+        <div class="feat reveal"><div class="ic">🧠</div><h3>Laudo no seu modelo</h3><p>Estrutura completa, Times New Roman 12, com tabelas e gráficos de cada teste.</p></div>
+        <div class="feat reveal"><div class="ic">📈</div><h3>Gráficos prontos</h3><p>Perfis de índices e subtestes que entram direto no documento.</p></div>
+        <div class="feat reveal"><div class="ic">🗂</div><h3>Histórico por paciente</h3><p>Testes realizados, anamnese e laudos organizados e reabríveis.</p></div>
+        <div class="feat reveal"><div class="ic">💳</div><h3>Sem mensalidade</h3><p>Créditos avulsos por Pix, cartão ou boleto. Use no seu ritmo.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTRUMENTOS -->
+  <section class="sec" style="padding-top:20px">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Catálogo</span>
+        <h2><span class="grad-text">71 instrumentos</span> prontos para corrigir.</h2>
+        <p>Escalas de inteligência, memória, atenção, funções executivas, comportamento adaptativo, processamento sensorial e mais.</p>
+      </div>
+    </div>
+    <div class="marquee"><div class="track" id="mq1"></div></div>
+    <div class="marquee rev"><div class="track" id="mq2"></div></div>
+  </section>
+
+  <!-- CALCULADORA -->
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Faça a conta</span>
+        <h2>Quanto vale o seu tempo <span class="grad-text">de volta</span>?</h2>
+        <p>Ajuste com a sua realidade. A estimativa é sua — o tempo economizado depende de cada avaliação.</p>
+      </div>
+      <div class="calc reveal">
+        <div>
+          <label>Avaliações por mês <output id="oAv">8</output><input id="iAv" type="range" min="1" max="40" value="8"></label>
+          <label>Horas que você gasta hoje por avaliação com correção e laudo <output id="oH">6 h</output><input id="iH" type="range" min="1" max="15" value="6"></label>
+          <label>Horas que você estima gastar com o NeuroScore <output id="oN">2 h</output><input id="iN" type="range" min="0.5" max="8" step="0.5" value="2"></label>
+          <label>Valor da sua hora clínica <output id="oV">R$ 150</output><input id="iV" type="range" min="50" max="500" step="10" value="150"></label>
+        </div>
+        <div class="result">
+          <small>Pela sua estimativa, você recupera por mês</small>
+          <div class="big grad-text" id="rH">32 h</div>
+          <small>o equivalente a</small>
+          <div class="big" id="rR" style="font-size:clamp(30px,3.6vw,42px)">R$ 4.800</div>
+          <small id="rC">Custo em créditos (1 laudo + testes): a partir de R$ 20 por crédito.</small>
+          <a class="btn btn-cta btn-block" style="margin-top:12px" href="/login.html?cadastro=1" data-cta>Quero meu tempo de volta →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ÉTICA -->
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Ética e segurança</span>
+        <h2>Tecnologia que <span class="grad-text">respeita a sua assinatura</span>.</h2>
+      </div>
+      <div class="trust">
+        <div class="reveal"><span class="big">✍️</span><h3>Você decide e assina</h3><p>A IA organiza e redige; a análise final, a revisão e a assinatura do laudo são sempre da profissional.</p></div>
+        <div class="reveal"><span class="big">📏</span><h3>A IA não inventa norma</h3><p>Quem corrige é o motor normativo. Relatórios já corrigidos são transcritos como estão, sem recalcular.</p></div>
+        <div class="reveal"><span class="big">🔐</span><h3>Dados protegidos</h3><p>Acesso por login, dados separados por profissional e nada compartilhado com outras contas.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- DEPOIMENTOS (só aparece com depoimentos reais cadastrados no Admin) -->
+  <section class="sec" id="depoimentos" hidden>
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Quem usa, recomenda</span>
+        <h2>Profissionais que <span class="grad-text">recuperaram o seu tempo</span>.</h2>
+      </div>
+      <div class="depos" id="depos"></div>
+    </div>
+  </section>
+
+  <!-- PREÇOS -->
+  <section class="sec" id="precos">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Preços</span>
+        <h2>Comece grátis. Depois, <span class="grad-text">pague só pelo que usar</span>.</h2>
+        <p>Sem mensalidade, sem fidelidade. Créditos não expiram enquanto sua conta estiver ativa.</p>
+      </div>
+      <div class="prices" id="prices"></div>
+      <div class="free-band reveal">🎁 Ao criar sua conta: <b>14 dias de acesso + 3 créditos grátis</b> para corrigir testes e gerar seu primeiro laudo.</div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="sec" id="faq">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="eyebrow"><i></i>Dúvidas frequentes</span>
+        <h2>Tudo o que você precisa saber.</h2>
+      </div>
+      <div class="faq">
+        <details class="reveal"><summary>O laudo sai pronto para assinar?</summary><p>O laudo sai completo, no seu modelo, com tabelas, gráficos, conclusão e orientações. Ele é um rascunho de alta qualidade para a sua revisão: a responsabilidade técnica e a assinatura são sempre suas.</p></details>
+        <details class="reveal"><summary>Quais testes o NeuroScore corrige?</summary><p>São 71 instrumentos no catálogo, entre eles WISC-IV, WAIS-III, WASI, RAVLT, FDT, ETDAH-2, SNAP-IV, SDQ, BRIEF-P e BRIEF-2, Perfil Sensorial 2, Vineland-3 (6 formas), SRS-2, CBCL, SCARED, TDE-2, Stroop, Trilhas, Torre de Londres e muitos outros. Relatórios já corrigidos de outros instrumentos também podem ser enviados e transcritos para o laudo.</p></details>
+        <details class="reveal"><summary>Preciso digitar as perguntas dos testes?</summary><p>Não. Você usa o seu protocolo original impresso e lança os brutos — ou toca 2/1/0 pelo número do item, nos protocolos item a item. O NeuroScore não reproduz o conteúdo protegido dos testes.</p></details>
+        <details class="reveal"><summary>Como funciona o teste grátis?</summary><p>Ao criar a conta você ganha 14 dias de acesso e 3 créditos grátis, sem cartão. Depois, é só comprar o pacote de créditos que fizer sentido para você.</p></details>
+        <details class="reveal"><summary>Quanto custa cada uso?</summary><p>1 crédito (R$ 20) por teste corrigido ou por laudo; a História de Vida custa 0,5 crédito. Recalcular o mesmo teste do mesmo paciente no mesmo dia não cobra de novo.</p></details>
+        <details class="reveal"><summary>Quais formas de pagamento?</summary><p>Pix, cartão de crédito e boleto, pelo Mercado Pago. Os créditos entram na conta assim que o pagamento é aprovado.</p></details>
+        <details class="reveal"><summary>Funciona no celular e no tablet?</summary><p>Sim. A plataforma roda no navegador, no computador, tablet ou celular — os protocolos item a item têm botões de toque pensados para isso.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="sec" style="padding-top:20px">
+    <div class="wrap">
+      <div class="final reveal">
+        <span class="eyebrow"><i></i>Sua próxima avaliação pode ser diferente</span>
+        <h2 style="margin-top:16px">Pare de corrigir à mão. <span class="grad-text">Comece hoje, grátis.</span></h2>
+        <p>Crie a conta em menos de 1 minuto, ganhe 3 créditos e gere seu primeiro laudo ainda nesta semana.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-cta btn-lg" href="/login.html?cadastro=1" data-cta>Criar minha conta grátis →</a>
+          <a class="btn btn-wa btn-lg" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>Tirar dúvidas no WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <footer>
     <div class="wrap">
-      <a href="#" class="logo"><span class="logo-mark">NS</span>NeuroScore</a>
-      <div class="foot-links">
-        <a href="#recursos">Recursos</a><a href="#precos">Preços</a><a href="#faq">Dúvidas</a>
-        <a href="/login.html">Entrar</a>
-        <a id="footEmail" href="#" hidden></a>
-      </div>
+      <a class="logo" href="#topo"><b>NS</b>NeuroScore</a>
+      <div>© <span id="year"></span> NeuroScore · Plataforma clínica de neuropsicologia</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap"><a data-wa href="#">WhatsApp (74) 98825-9925</a><a id="footEmail" hidden></a><a href="/login.html">Entrar</a></div>
     </div>
-    <div class="disclaimer">© <span id="year"></span> NeuroScore · Ferramenta de apoio à correção e redação neuropsicológica. Não substitui o julgamento clínico.</div>
   </footer>
 
-  <a class="wa" id="waBtn" href="#" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" hidden>
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35M12.04 21.5h-.01a9.4 9.4 0 0 1-4.8-1.31l-.34-.2-3.56.93.95-3.47-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.24-9.43 9.44-9.43 2.52 0 4.89.98 6.67 2.77a9.37 9.37 0 0 1 2.76 6.67c0 5.2-4.24 9.43-9.45 9.43m8.04-17.47A11.3 11.3 0 0 0 12.04.7C5.77.7.67 5.8.67 12.06c0 2 .52 3.96 1.52 5.68L.57 23.62l6.02-1.58a11.33 11.33 0 0 0 5.44 1.39h.01c6.26 0 11.36-5.1 11.36-11.37 0-3.04-1.18-5.89-3.32-8.03"/></svg>
-  </a>
+  <a class="wa-float" data-wa href="#" aria-label="Falar no WhatsApp"><span class="tip">Fale com a gente 👋</span><svg style="color:#fff"><use href="#wa"/></svg></a>
+  <div class="m-bar"><a class="btn btn-wa" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>WhatsApp</a><a class="btn btn-cta" href="/login.html?cadastro=1" data-cta>Testar grátis</a></div>
 
   <script>
-  (() => {
+  (function () {
     const $ = (s) => document.querySelector(s);
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const brl = (cents) => (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     $('#year').textContent = new Date().getFullYear();
 
-    // Menu mobile + borda da nav ao rolar
+    // WhatsApp (o admin pode trocar o número em Aparência do site)
+    let WA = '5574988259925';
+    const WA_MSG = 'Olá! Vim pelo site e quero conhecer o NeuroScore.';
+    const setWa = () => document.querySelectorAll('[data-wa]').forEach(a => {
+      a.href = `https://wa.me/${WA}?text=${encodeURIComponent(WA_MSG)}`; a.target = '_blank'; a.rel = 'noopener';
+    });
+    setWa();
+    setTimeout(() => { const f = $('.wa-float'); f.classList.add('hint'); setTimeout(() => f.classList.remove('hint'), 5000); }, 9000);
+
+    // Menu mobile + nav ao rolar
     $('#menuBtn').addEventListener('click', () => $('#navLinks').classList.toggle('open'));
     $('#navLinks').addEventListener('click', (e) => { if (e.target.tagName === 'A') $('#navLinks').classList.remove('open'); });
     const onScroll = () => $('#nav').classList.toggle('scrolled', scrollY > 8);
@@ -382,30 +784,96 @@
     const observe = (root) => root.querySelectorAll('.reveal:not(.in)').forEach(el => io ? io.observe(el) : el.classList.add('in'));
     observe(document);
 
+    // Tour por abas (troca sozinha até a pessoa clicar)
+    const tabs = [...document.querySelectorAll('.tab')];
+    const show = (k) => {
+      tabs.forEach(t => t.classList.toggle('on', t.dataset.tab === k));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.dataset.panel === k));
+    };
+    let auto = setInterval(() => {
+      const i = tabs.findIndex(t => t.classList.contains('on'));
+      show(tabs[(i + 1) % tabs.length].dataset.tab);
+    }, 6500);
+    $('#tabs').addEventListener('click', (e) => {
+      const t = e.target.closest('.tab'); if (!t) return;
+      clearInterval(auto); show(t.dataset.tab);
+    });
+
+    // Letreiro dos instrumentos
+    const INS = ['WISC-IV', 'WAIS-III', 'WASI', 'RAVLT', 'FDT', 'ETDAH-2', 'ETDAH-AD', 'SNAP-IV', 'SDQ', 'BRIEF-P', 'BRIEF-2', 'Vineland-3', 'Perfil Sensorial 2',
+      'SRS-2', 'CBCL', 'SCARED', 'TDE-2', 'Stroop', 'Trilhas', 'Torre de Londres', 'Figura de Rey', 'BVMT-R', 'HVLT-R', 'D2-R', 'BPA', 'AC',
+      'Corsi', 'Hayling', 'Go/No-Go', 'NEPSY-II', 'Neupsilin-Inf', 'Token Test', 'Wisconsin', 'WCST-48', 'PROLEC', 'BFP', 'Pfister', 'PEP-R', 'ATA', 'HADS', 'EFA', 'BAMS'];
+    const half = Math.ceil(INS.length / 2);
+    const fill = (el, arr) => { const h = arr.map(n => `<span>${esc(n)}</span>`).join(''); el.innerHTML = h + h; };
+    fill($('#mq1'), INS.slice(0, half)); fill($('#mq2'), INS.slice(half));
+
+    // Calculadora
+    const fmt = (n) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+    function calc() {
+      const av = +$('#iAv').value, h = +$('#iH').value, n = Math.min(+$('#iN').value, h), v = +$('#iV').value;
+      $('#oAv').textContent = av; $('#oH').textContent = fmt(h) + ' h'; $('#oN').textContent = fmt(n) + ' h'; $('#oV').textContent = 'R$ ' + v;
+      const horas = Math.max(0, (h - n) * av);
+      $('#rH').textContent = fmt(horas) + ' h';
+      $('#rR').textContent = 'R$ ' + Math.round(horas * v).toLocaleString('pt-BR');
+    }
+    ['#iAv', '#iH', '#iN', '#iV'].forEach(id => $(id).addEventListener('input', calc)); calc();
+
+
+    // Vídeo de apresentação: demonstração animada (ou o vídeo cadastrado no Admin)
+    const scenes = [...document.querySelectorAll('#demo .scene')];
+    let sc = 0, playing = true, t0 = performance.now(); const DUR = 5200;
+    const showScene = (i) => { sc = i; scenes.forEach((x, k) => x.classList.toggle('on', k === i)); $('#demoCap').textContent = scenes[i].dataset.cap; t0 = performance.now(); };
+    showScene(0);
+    (function loop(now) {
+      if (playing) {
+        const p = Math.min(1, (now - t0) / DUR);
+        $('#demoProg').style.width = ((sc + p) / scenes.length * 100) + '%';
+        if (p >= 1) showScene((sc + 1) % scenes.length);
+      } else t0 = now - (parseFloat($('#demoProg').style.width) / 100 * scenes.length - sc) * DUR;
+      requestAnimationFrame(loop);
+    })(performance.now());
+    $('#demoPlay').addEventListener('click', (e) => { playing = !playing; e.currentTarget.textContent = playing ? '❚❚' : '▶'; });
+    function videoEmbed(url) {
+      const y = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+      if (y) return `https://www.youtube-nocookie.com/embed/${y[1]}?rel=0&modestbranding=1`;
+      const v = String(url).match(/vimeo\.com\/(\d+)/);
+      if (v) return `https://player.vimeo.com/video/${v[1]}`;
+      return null;
+    }
+    function renderDepos(list) {
+      const ok = (list || []).filter(d => d && d.texto && d.nome);
+      if (!ok.length) return;
+      const ini = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+      $('#depos').innerHTML = ok.map(d => `<figure class="depo reveal"><blockquote>${esc(d.texto)}</blockquote>
+        <figcaption class="who"><span class="av">${/^https:\/\//.test(d.foto || '') ? `<img src="${esc(d.foto)}" alt="" loading="lazy">` : esc(ini(d.nome))}</span>
+        <span><b>${esc(d.nome)}</b><small>${esc([d.cargo, d.cidade].filter(Boolean).join(' · '))}</small></span></figcaption></figure>`).join('');
+      $('#depoimentos').hidden = false; observe($('#depoimentos'));
+    }
+
     // Pacotes (fallback = valores padrão; o admin edita no sistema)
     const FALLBACK = [
-      { key: 'inicial', name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
+      { name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
         features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
-      { key: 'profissional', name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
+      { name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
         features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
-      { key: 'premium', name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
+      { name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
         features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
     ];
     function renderPlans(plans) {
       const box = $('#prices');
-      box.style.gridTemplateColumns = plans.length && plans.length < 3 ? `repeat(${plans.length},minmax(0,360px))` : '';
+      box.style.gridTemplateColumns = plans.length && plans.length < 3 ? `repeat(${plans.length},minmax(0,380px))` : '';
       box.style.justifyContent = 'center';
       box.innerHTML = plans.map(p => {
         const [reais, cents] = brl(p.amount_cents).split(',');
         const unit = p.credits ? brl(Math.round(p.amount_cents / p.credits)) : '';
         return `<div class="price reveal${p.featured ? ' featured' : ''}">
-          ${p.featured ? '<span class="badge">Mais escolhido</span>' : ''}
+          ${p.featured ? '<span class="badge">⚡ Mais escolhido</span>' : ''}
           <h3>${esc(p.name)}</h3>
           <div class="credits">${p.credits} créditos</div>
           <div class="amount"><small>R$</small><b>${reais}</b><small>,${cents}</small></div>
           <div class="unit">${unit ? `R$ ${unit} por crédito · pagamento único` : 'pagamento único'}</div>
-          <ul>${(p.features || []).map(f => `<li><i class="check">✓</i>${esc(f)}</li>`).join('')}</ul>
-          <a class="btn ${p.featured ? 'btn-cta' : 'btn-primary'} btn-block" href="/login.html?next=planos">Comprar ${p.credits} créditos</a>
+          <ul>${(p.features || []).map(f => `<li><i>✓</i>${esc(f)}</li>`).join('')}</ul>
+          <a class="btn ${p.featured ? 'btn-cta' : 'btn-glass'} btn-block" href="/login.html?next=planos">Comprar ${p.credits} créditos</a>
         </div>`;
       }).join('');
       observe(box);
@@ -418,12 +886,19 @@
     fetch('/api/site').then(r => r.ok ? r.json() : null).then(d => {
       const s = (d && d.site) || {};
       const c = s.colors || {}, root = document.documentElement.style;
-      for (const k of ['primary', 'accent', 'secondary', 'dark']) if (/^#[0-9a-f]{3,8}$/i.test(c[k] || '')) root.setProperty('--' + k, c[k]);
-      if (c.primary) document.querySelector('meta[name=theme-color]').content = c.primary;
+      // cores padrão antigas do painel (#4f46e5/#f97316/#06b6d4) não substituem a paleta desta página
+      const OLD = ['#4f46e5', '#f97316', '#06b6d4'];
+      for (const k of ['primary', 'accent', 'secondary']) if (/^#[0-9a-f]{3,8}$/i.test(c[k] || '') && !OLD.includes(c[k].toLowerCase())) root.setProperty('--' + k, c[k]);
+      const emb = s.video_url && videoEmbed(s.video_url);
+      if (emb) {
+        $('#videoIn').innerHTML = `<iframe src="${esc(emb)}" title="Apresentação do NeuroScore" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        $('#videoNote').textContent = '';
+      }
+      renderDepos(s.depoimentos);
       if (s.hero_title) $('#heroTitle').textContent = s.hero_title;
       if (s.hero_subtitle) $('#heroSub').textContent = s.hero_subtitle;
-      if (s.cta_text) document.querySelectorAll('[data-cta]').forEach(a => { a.textContent = s.cta_text; });
-      if (s.whatsapp) { const w = $('#waBtn'); w.href = 'https://wa.me/' + s.whatsapp.replace(/\D/g, ''); w.hidden = false; }
+      if (s.cta_text) document.querySelectorAll('.hero [data-cta]').forEach(a => { a.textContent = s.cta_text; });
+      if (s.whatsapp && s.whatsapp.replace(/\D/g, '').length >= 10) { WA = s.whatsapp.replace(/\D/g, ''); if (WA.length <= 11) WA = '55' + WA; setWa(); }
       if (s.email) { const e = $('#footEmail'); e.href = 'mailto:' + s.email; e.textContent = s.email; e.hidden = false; }
     }).catch(() => {});
   })();

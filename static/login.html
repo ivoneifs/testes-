@@ -150,6 +150,8 @@
         : 'Não tem conta? <a id="toggle">Criar conta</a>';
       $('#msg').className = 'msg';
     });
+    // landing: "Testar grátis" abre direto em "Criar conta"
+    if (new URLSearchParams(location.search).get('cadastro')) $('#toggle')?.click();
 
     $('#form').addEventListener('submit', async (e) => {
       e.preventDefault();

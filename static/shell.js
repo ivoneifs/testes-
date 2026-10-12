@@ -348,6 +348,13 @@
     $('#siteHeroTitle').value = site.hero_title || ''; $('#siteHeroSub').value = site.hero_subtitle || '';
     $('#siteCta').value = site.cta_text || ''; $('#siteWhats').value = site.whatsapp || '';
     $('#siteEmail').value = site.email || '';
+    $('#siteVideo').value = site.video_url || '';
+    $('#siteDepo').value = (site.depoimentos || []).map(d => [d.nome, d.cargo, d.cidade, d.texto].map(x => x || '').join(' | ')).join('\n');
+  }
+  function parseDepos(txt) {
+    return txt.split('\n').map(l => l.split('|').map(x => x.trim())).filter(p => p.length >= 2 && p[0] && p[p.length - 1])
+      .map(p => p.length >= 4 ? { nome: p[0], cargo: p[1], cidade: p[2], texto: p.slice(3).join(' | ') }
+        : { nome: p[0], cargo: p.length === 3 ? p[1] : '', cidade: '', texto: p[p.length - 1] });
   }
   async function saveSite(colors) {
     const msg = $('#siteMsg');
@@ -359,6 +366,7 @@
       hero_title: $('#siteHeroTitle').value.trim(), hero_subtitle: $('#siteHeroSub').value.trim(),
       cta_text: $('#siteCta').value.trim(), whatsapp: $('#siteWhats').value.replace(/\D/g, ''),
       email: $('#siteEmail').value.trim(),
+      video_url: $('#siteVideo').value.trim(), depoimentos: parseDepos($('#siteDepo').value),
     };
     try {
       const { site } = await NS.api('/api/admin/site', {

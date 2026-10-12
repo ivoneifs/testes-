@@ -890,6 +890,16 @@ async def mp_webhook(request: Request):
     except HTTPException:
         return {'ok': False}  # 200 p/ o MP não reenfileirar em loop
 
+@app.middleware('http')
+async def _video_no_cdn_cache(request: Request, call_next):
+    """Vídeos: a Cloudflare não repassa pedidos por partes (Range → 206) de conteúdo em cache,
+    e o Safari/iPhone só toca vídeo com 206. 'private' faz a Cloudflare repassar ao servidor."""
+    resp = await call_next(request)
+    if request.url.path.startswith('/assets/video/'):
+        resp.headers['Cache-Control'] = 'private, max-age=3600'
+    return resp
+
+
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
 
 

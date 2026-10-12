@@ -344,3 +344,8 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   (`_start_job`, guardada na memória do processo por até 3 h) e devolvem `{job}`. O front usa `apiJob(url, fd)` (app.js),
   que consulta `GET /api/jobs/{id}` a cada 3 s. As rotas antigas, sem `/start`, continuam funcionando. Um deploy
   reinicia o processo e perde as tarefas em andamento.
+- **Quem libera o acesso é o administrador** (migração **0016**, rodada): cadastro novo entra com `profiles.status='pending'`
+  e os 3 créditos. `access_state` dá `blocked='pending'`; `active_user` responde 403 `pending:` e o checkout também é
+  bloqueado. Na tela aparece "Cadastro recebido", com botão para avisar no WhatsApp. No Admin, os cadastros aguardando
+  aparecem primeiro: o botão "✓ Liberar" grava status active com teste de 14 dias; em Editar dá para escolher Pro ou outro
+  prazo. O Supabase não tem SMTP, então `ENABLE_EMAIL_AUTOCONFIRM=true` (sem e-mail de confirmação).

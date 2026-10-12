@@ -154,6 +154,9 @@ def access_state(profile: dict) -> dict:
         return out
     if profile.get('status') == 'suspended':
         out['blocked'] = 'suspended'
+    elif profile.get('status') == 'pending':
+        out['blocked'] = 'pending'      # cadastro novo: aguardando o administrador liberar
+        return out
     ends = profile.get('trial_ends_at')
     if ends:
         end = datetime.fromisoformat(str(ends).replace('Z', '+00:00'))

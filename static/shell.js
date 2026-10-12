@@ -486,14 +486,19 @@
   function renderPros() {
     const q = ($('#proSearch').value || '').toLowerCase();
     const rows = (state.pros || []).filter(p =>
-      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q));
+      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q))
+      .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
+    const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
+    const pend = $('#prosPending');
+    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando liberação`; }
     $('#prosBody').innerHTML = rows.map(p => `<tr>
       <td>${NS.esc(p.full_name || '—')}</td><td>${NS.esc(p.email || '—')}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
-      <td><span class="pill${p.status === 'suspended' ? ' pill--off' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : 'Ativo'}</span></td>
+      <td><span class="pill${p.status === 'suspended' ? ' pill--off' : p.status === 'pending' ? ' pill--trial' : ' pill--ok'}">${p.status === 'suspended' ? 'Suspenso' : p.status === 'pending' ? 'Aguardando liberação' : 'Ativo'}</span></td>
       <td>${NS.esc(p.plan || '—')}</td><td>${p.role === 'admin' ? '∞' : fmtCred(p.credits)}</td>
       <td class="row-acts">
+        ${p.status === 'pending' ? `<button class="btn primary xs" data-approve-pro="${p.id}" title="Libera com 14 dias de teste">✓ Liberar</button>` : ''}
         <button class="btn ghost xs" data-grant-pro="${p.id}">+ créditos</button>
         <button class="btn ghost xs" data-edit-pro="${p.id}">Editar</button>
         <button class="btn ghost xs" data-pw-pro="${p.id}">Senha</button>
@@ -503,6 +508,19 @@
   $('#proSearch')?.addEventListener('input', renderPros);
   $('#prosBody')?.addEventListener('click', async (e) => {
     const t = e.target;
+    if (t.dataset.approvePro) {
+      const p = state.pros.find(x => x.id === t.dataset.approvePro); if (!p) return;
+      t.disabled = true;
+      try {
+        await NS.api('/api/admin/professionals/' + p.id, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'active', access: 'trial', trial_days: 14 }),
+        });
+        NS.toast(`${p.full_name || p.email} liberado(a): teste de 14 dias. Para Pro ou outro prazo, use Editar.`);
+        loadAdmin();
+      } catch (err) { t.disabled = false; NS.toast(err.message, true); }
+      return;
+    }
     if (t.dataset.grantPro) {
       const p = state.pros.find(x => x.id === t.dataset.grantPro); if (!p) return;
       const v = prompt(`Créditos para ${p.full_name || p.email} (use número negativo para debitar):`, '20');
@@ -542,7 +560,8 @@
         <label class="field">CRP<input id="f_crp" value="${NS.esc(p.professional_id || '')}"></label>
         ${ACCESS_FIELDS(accessOf(p).key, accessOf(p).key === 'trial' ? accessOf(p).left : 14)}
         <label class="field">Status<select id="f_status">
-          <option value="active"${p.status !== 'suspended' ? ' selected' : ''}>Ativo</option>
+          <option value="active"${p.status !== 'suspended' && p.status !== 'pending' ? ' selected' : ''}>Ativo (liberado)</option>
+          <option value="pending"${p.status === 'pending' ? ' selected' : ''}>Aguardando liberação</option>
           <option value="suspended"${p.status === 'suspended' ? ' selected' : ''}>Suspenso</option></select></label>
         <label class="field">Plano<input id="f_plan" value="${NS.esc(p.plan || '')}"></label>
         <label class="field">Créditos<input id="f_credits" type="number" step="0.5" value="${p.credits ?? 0}"></label>`,
@@ -829,6 +848,20 @@
       $('#blockedTitle').textContent = 'Conta suspensa';
       $('#blockedText').textContent = 'Seu acesso foi suspenso pelo administrador. Entre em contato para reativar.';
       $('#blockedBuy').hidden = true;
+    }
+    if (acc.blocked === 'pending') {
+      $('#blockedTitle').textContent = 'Cadastro recebido! 🎉';
+      $('#blockedText').textContent = 'Sua conta foi criada e está aguardando a liberação do administrador. Assim que for liberada, você entra com 14 dias de teste e 3 créditos grátis. Quer agilizar? Avise pelo WhatsApp.';
+      $('#blockedBuy').hidden = true;
+    }
+    const wa = $('#blockedWa');
+    if (wa) {
+      const num = String((state.site || {}).whatsapp || '5574988259925').replace(/\D/g, '');
+      const msg = acc.blocked === 'pending'
+        ? `Olá! Criei minha conta no NeuroScore (${state.profile?.email || ''}) e aguardo a liberação.`
+        : `Olá! Preciso de ajuda com o acesso ao NeuroScore (${state.profile?.email || ''}).`;
+      wa.href = `https://wa.me/${num.length <= 11 ? '55' + num : num}?text=${encodeURIComponent(msg)}`;
+      wa.hidden = !acc.blocked;
     }
     if (acc.blocked) $('#blockedScreen').hidden = false;
   }

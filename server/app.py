@@ -131,6 +131,8 @@ async def active_user(user: dict = Depends(current_user)) -> dict:
         raise HTTPException(403, 'trial_expired: seu período de teste terminou. Adquira créditos para continuar.')
     if st['blocked'] == 'suspended':
         raise HTTPException(403, 'suspended: sua conta está suspensa. Fale com o administrador.')
+    if st['blocked'] == 'pending':
+        raise HTTPException(403, 'pending: cadastro recebido. Aguarde o administrador liberar o seu acesso.')
     return user
 
 
@@ -862,6 +864,8 @@ async def credits_get(user: dict = Depends(current_user)):
 
 @app.post('/api/checkout')
 async def checkout(req: CheckoutRequest, user: dict = Depends(current_user)):
+    if not user.get('anon') and store.access_state(await store.get_profile(user))['blocked'] == 'pending':
+        raise HTTPException(403, 'pending: aguarde o administrador liberar o seu acesso antes de comprar créditos.')
     return await store.create_order(user, req.pack)
 
 @app.post('/api/webhooks/mercadopago')

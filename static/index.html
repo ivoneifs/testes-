@@ -489,7 +489,8 @@
       <section class="view" id="view-admin" hidden>
         <div class="card">
           <div class="section-heading">
-            <div><h2>Usuários &amp; Acessos</h2><span class="muted">Acesso total do administrador mestre.</span></div>
+            <div><h2>Usuários &amp; Acessos</h2><span class="muted">Acesso total do administrador mestre. Cadastros novos só entram depois que você liberar.</span>
+              <div><span class="pill pill--trial" id="prosPending" hidden></span></div></div>
             <div class="row-acts">
               <input id="proSearch" type="search" placeholder="Buscar…" class="instrument-search" style="max-width:200px" />
               <button type="button" class="btn primary" id="proNewBtn">+ Novo usuário</button>
@@ -582,6 +583,7 @@
       <p id="blockedText">Os 14 dias de teste gratuito acabaram e o acesso ao sistema foi bloqueado. Adquira um pacote de créditos para liberar sua conta na hora, ou fale com o administrador.</p>
       <div class="blocked-acts">
         <button type="button" class="btn primary" id="blockedBuy">Ver pacotes de créditos</button>
+        <a class="btn ghost" id="blockedWa" target="_blank" rel="noopener" hidden>💬 Avisar no WhatsApp</a>
         <button type="button" class="btn ghost" id="blockedLogout">Sair</button>
       </div>
     </div>

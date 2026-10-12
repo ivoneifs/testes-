@@ -143,6 +143,7 @@
       cpf: v('#gl_cpf'), filiacao: { mae: v('#gl_mae'), pai: v('#gl_pai') }, cidade: v('#gl_cidade'),
       historico_familiar_transtornos: v('#gl_famhist'), medicacoes_em_uso: v('#gl_meds'),
       testes_realizados_ids: saved.filter(r => sel.has(r.id)).map(r => r.id),
+      patient_id: ((state.patients || []).find(x => (x.name || '').trim().toLowerCase() === v('#gl_nome').toLowerCase()) || {}).id || null,
       tipo_laudo: (document.querySelector('[name="gl_tipo"]:checked') || {}).value || 'completo',
       data_aplicacao: fmtDate(v('#gl_aplic')),
       arquivos_enviados: files.map((f) => f.name),
@@ -286,7 +287,13 @@
       anamFiles.forEach((f) => fd.append('anamnese_files', f));
       laudo = await api('/api/ai/laudo-neuro', { method: 'POST', body: fd });
       showLaudo();
-      toast('Laudo neuropsicológico gerado.');
+      const novos = laudo.salvos_em_testes_realizados || [];
+      toast(novos.length ? `Laudo gerado. Salvos em Testes realizados: ${novos.join(', ')}.` : 'Laudo neuropsicológico gerado.');
+      if (novos.length) {
+        const keep = new Set(sel);
+        anamFiles.length = 0; files.length = 0; renderFiles();   // já estão salvos; não reenviar
+        await loadSaved(); saved.forEach(r => { if (keep.has(r.id) || novos.includes(r.test)) sel.add(r.id); }); renderSaved();
+      }
       try { window.afterLaudo && window.afterLaudo(); } catch {}
     } catch (e) {
       toast(e.message, true);

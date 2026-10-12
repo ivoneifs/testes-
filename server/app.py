@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -355,11 +356,16 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
             raise HTTPException(422,f'{f.filename}: não foi possível ler o arquivo ({type(exc).__name__})')
     # anamnese: só para a história de vida (seção 06) — não passa pela triagem/motor
     anamnese_items=[]
+    anamnese_ocr=[]   # PDF/foto → OCR da História de Vida (vai para Testes realizados)
     for f in anamnese_files:
         data=await f.read()
         total+=len(data)
         if len(data)>25*1024*1024:
             raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
+        mime=f.content_type or 'application/octet-stream'
+        if mime=='application/pdf' or mime.startswith('image/') or (f.filename or '').lower().endswith('.pdf'):
+            anamnese_ocr.append((f.filename or 'anamnese',mime if mime!='application/octet-stream' else 'application/pdf',data))
+            continue
         try:
             anamnese_items.extend(file_to_content(f.filename or 'anamnese', f.content_type or '', data))
         except ValueError as exc:
@@ -397,16 +403,53 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
         raise HTTPException(400,'Envie os arquivos dos testes, escolha testes realizados ou digite os escores.')
     if auth.AUTH_ENABLED and not await store.can_laudo(user):
         raise HTTPException(402, store.NO_CREDITS.format(need='1'))
-    # 1) testes com escores brutos que o NeuroScore conhece: corrige pelo motor (normas das planilhas)
-    alertas_correcao, corrigidos = [], []
-    if groups:
+    # 1) em paralelo: OCR da anamnese (→ História de Vida) e correção pelo motor dos testes com escores brutos
+    pac=dados.pop('paciente_motor', None) or {}
+    alertas_correcao, corrigidos, salvos_agora = [], [], []
+    async def _corrigir():
+        if not groups:
+            return [], []
         try:
-            corrigidos, _triagem, alertas_correcao = await run_in_threadpool(
-                auto_score.run, engine, groups, dados.pop('paciente_motor', None) or {})
+            c, _triagem, al = await run_in_threadpool(auto_score.run, engine, groups, pac)
+            return c, al
         except Exception as exc:
-            alertas_correcao = [f'Correção automática indisponível ({type(exc).__name__}); '
-                                'o laudo usou só os escores já corrigidos nos arquivos.']
-    dados.pop('paciente_motor', None)
+            return [], [f'Correção automática indisponível ({type(exc).__name__}); '
+                        'o laudo usou só os escores já corrigidos nos arquivos.']
+    async def _ocr():
+        if not anamnese_ocr:
+            return None
+        try:
+            p={'name':pac.get('name'),'birth_date':pac.get('birth_date'),'sex':pac.get('sex')}
+            return await run_in_threadpool(analyze_anamnesis, anamnese_ocr, p)
+        except Exception as exc:
+            alertas_correcao.append(f'Leitura (OCR) da anamnese falhou ({type(exc).__name__}); '
+                                    'o laudo usou os arquivos diretamente.')
+            return None
+    (corrigidos, al), hv = await asyncio.gather(_corrigir(), _ocr())
+    alertas_correcao += al
+    if anamnese_ocr and hv is None:
+        anamnese_items += [it for n, m, d in anamnese_ocr for it in file_to_content(n, m, d)]
+    pac_rec={k: pac.get(k) for k in ('name','birth_date','application_date','sex','education') if pac.get(k)}
+    gravar=auth.AUTH_ENABLED and bool(pac_rec.get('name'))
+    if hv:
+        dados['historia_de_vida_salva']={'historia_modelo':hv.get('historia_modelo'),'resumo':hv.get('resumo'),
+                                         'historia_de_vida':hv.get('historia_de_vida')}
+        if gravar:
+            try:
+                await store.save_test_result(user,{'patient':pac_rec,'patient_id':dados.get('patient_id'),'test':store.HISTORIA_TEST,
+                                                  'inputs':{'arquivos':[n for n,_,_ in anamnese_ocr]},'result':hv})
+                salvos_agora.append(store.HISTORIA_TEST)
+            except Exception:
+                alertas_correcao.append('A História de Vida não pôde ser salva em Testes realizados.')
+    for c in corrigidos:
+        raw, res = c.pop('_raw', {}), c.pop('_resultado', None)
+        if gravar and res and res.get('tables'):
+            try:
+                await store.save_test_result(user,{'patient':pac_rec,'patient_id':dados.get('patient_id'),'test':c['teste'],
+                                                  'inputs':{'raw_scores':raw,'parameters':{}},'result':res})
+                salvos_agora.append(c['teste'])
+            except Exception:
+                alertas_correcao.append(f"{c['teste']}: não pôde ser salvo em Testes realizados.")
     if corrigidos or salvos:
         dados['resultados_corrigidos_pelo_sistema'] = salvos + corrigidos
     # 2) laudo
@@ -419,6 +462,26 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
                                                       or (dados.get('identificacao') or {}).get('nome'))
     laudo['correcao_automatica'] = [{'teste': c['teste'], 'escores_brutos_usados': c['escores_brutos_usados']}
                                     for c in corrigidos]
+    # relatórios já corrigidos (ex.: Pearson) também vão para Testes realizados, com as tabelas transcritas
+    if gravar:
+        def _norm(x):
+            return re.sub(r'[^a-z0-9]','',unicodedata.normalize('NFKD',str(x or '')).encode('ascii','ignore').decode().lower())
+        ja=[_norm(n) for n in salvos_agora+[x['teste'] for x in salvos] if n!=store.HISTORIA_TEST]
+        for t in laudo.get('analise_testes') or []:
+            nome=str(t.get('instrumento') or '').strip()
+            tabs=[tb for tb in t.get('tabelas') or [] if tb.get('colunas') and tb.get('linhas')]
+            if not nome or not tabs or any(j and (j in _norm(nome) or _norm(nome) in j) for j in ja):
+                continue
+            res={'test':nome,'externo':True,'interpretacao':t.get('interpretacao'),
+                 'tables':[{'title':tb.get('titulo') or nome,'columns':[{'label':c} for c in tb['colunas']],
+                            'rows':[{'values':r} for r in tb['linhas']]} for tb in tabs]}
+            try:
+                await store.save_test_result(user,{'patient':pac_rec,'patient_id':dados.get('patient_id'),'test':nome,
+                                                  'inputs':{'arquivos':[n for n,_ in groups]},'result':res})
+                salvos_agora.append(nome)
+            except Exception:
+                pass
+    laudo['salvos_em_testes_realizados'] = salvos_agora
     if auth.AUTH_ENABLED:
         try:
             await store.spend_laudo(user, (dados.get('identificacao') or {}).get('nome'))

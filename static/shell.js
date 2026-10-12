@@ -605,7 +605,7 @@
         </div>
         <div class="row-acts">
           ${r.test !== HV ? `<button class="btn ghost xs" data-tr-solo="${r.id}" title="Laudo neuropsicológico só deste teste (+ História de Vida)">Laudo deste teste</button>` : ''}
-          <button class="btn ghost xs" data-tr-open="${r.id}">Abrir / editar</button>
+          ${(r.result || {}).externo ? '<span class="muted small" title="Relatório já corrigido (transcrito do arquivo enviado)">relatório enviado</span>' : `<button class="btn ghost xs" data-tr-open="${r.id}">Abrir / editar</button>`}
           <button class="btn ghost xs danger" data-tr-del="${r.id}">Excluir</button>
         </div></article>`;
     }).join('') || `<div class="empty-state">Nenhum teste salvo para este paciente. Corrija um teste em <a href="#laudos">Laudos</a> ou leia a anamnese em <a href="#historia">História de Vida</a>: ele aparece aqui.</div>`;

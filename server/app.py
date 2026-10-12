@@ -133,6 +133,8 @@ async def active_user(user: dict = Depends(current_user)) -> dict:
         raise HTTPException(403, 'suspended: sua conta está suspensa. Fale com o administrador.')
     if st['blocked'] == 'pending':
         raise HTTPException(403, 'pending: cadastro recebido. Aguarde o administrador liberar o seu acesso.')
+    if st['blocked'] == 'rejected':
+        raise HTTPException(403, 'rejected: seu cadastro não foi aprovado. Fale com o administrador.')
     return user
 
 

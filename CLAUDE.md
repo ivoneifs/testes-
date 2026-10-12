@@ -349,3 +349,6 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
   bloqueado. Na tela aparece "Cadastro recebido", com botão para avisar no WhatsApp. No Admin, os cadastros aguardando
   aparecem primeiro: o botão "✓ Liberar" grava status active com teste de 14 dias; em Editar dá para escolher Pro ou outro
   prazo. O Supabase não tem SMTP, então `ENABLE_EMAIL_AUTOCONFIRM=true` (sem e-mail de confirmação).
+- **Migração 0017** (rodada): o cadastro pede nome, CRP, WhatsApp e cidade (`profiles.phone`/`city`, vindos do
+  `raw_user_meta_data`). Status `rejected` = recusado (botão "✕ Recusar" no Admin). Com SMTP configurado, desligar o
+  autoconfirm: a tela de cadastro já avisa "confirme o e-mail" e `?confirmado=1` mostra o aviso de e-mail confirmado.

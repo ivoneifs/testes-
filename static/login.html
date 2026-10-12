@@ -90,6 +90,12 @@
       <div id="nameRow" hidden>
         <label for="fullName">Nome completo</label>
         <input id="fullName" type="text" autocomplete="name" />
+        <label for="crp">CRP</label>
+        <input id="crp" type="text" placeholder="00/00000" autocomplete="off" />
+        <label for="phone">WhatsApp</label>
+        <input id="phone" type="tel" placeholder="(00) 00000-0000" autocomplete="tel" />
+        <label for="city">Cidade / UF</label>
+        <input id="city" type="text" placeholder="Salvador - BA" autocomplete="address-level2" />
       </div>
       <label for="email">E-mail</label>
       <input id="email" type="email" autocomplete="email" placeholder="voce@clinica.com.br" required />
@@ -99,7 +105,7 @@
     </form>
 
     <div class="msg" id="msg"></div>
-    <div class="trialnote" id="trialNote" hidden>🎁 Sua conta começa com 14 dias de teste e 3 créditos grátis.</div>
+    <div class="trialnote" id="trialNote" hidden>🎁 Após a aprovação do administrador, sua conta começa com 14 dias de teste e 3 créditos grátis.</div>
     <div class="switch" id="switch">
       Não tem conta? <a id="toggle">Criar conta</a>
     </div>
@@ -139,7 +145,7 @@
       if (e.target.id !== 'toggle') return;
       signup = !signup;
       $('#nameRow').hidden = !signup;
-      $('#fullName').required = signup;
+      ['#fullName', '#crp', '#phone', '#city'].forEach(id => { $(id).required = signup; });
       $('#password').autocomplete = signup ? 'new-password' : 'current-password';
       $('#modeLabel').textContent = signup ? 'Crie sua conta em menos de 1 minuto' : 'Entre na sua conta para continuar';
       document.querySelector('h1').textContent = signup ? 'Criar conta' : 'Bem-vindo de volta';
@@ -150,6 +156,7 @@
         : 'Não tem conta? <a id="toggle">Criar conta</a>';
       $('#msg').className = 'msg';
     });
+    if (new URLSearchParams(location.search).get('confirmado')) msg('✅ E-mail confirmado! Entre com a sua senha. Seu acesso será liberado após a aprovação do administrador.', true);
     // landing: "Testar grátis" abre direto em "Criar conta"
     if (new URLSearchParams(location.search).get('cadastro')) $('#toggle')?.click();
 
@@ -162,19 +169,27 @@
         if (signup) {
           const { error } = await sb.auth.signUp({
             email, password,
-            options: { data: { full_name: $('#fullName').value.trim() } },
+            options: {
+              emailRedirectTo: location.origin + '/login.html?confirmado=1',
+              data: { full_name: $('#fullName').value.trim(), professional_id: $('#crp').value.trim(),
+                      phone: $('#phone').value.replace(/\D/g, ''), city: $('#city').value.trim() },
+            },
           });
           if (error) throw error;
           const { data: { session: s } } = await sb.auth.getSession();
           if (s) { location.replace(DEST); return; }
-          msg('Conta criada. Confirme o e-mail (se exigido) e faça login.', true);
+          $('#form').hidden = true; $('#switch').hidden = true; $('#trialNote').hidden = true;
+          msg(`✅ Conta criada! Enviamos um link de confirmação para ${email}. Abra o e-mail (veja também o spam), confirme e aguarde a aprovação do administrador.`, true);
         } else {
           const { error } = await sb.auth.signInWithPassword({ email, password });
           if (error) throw error;
           location.replace(DEST);
         }
       } catch (err) {
-        msg(err.message || 'Falha na autenticação.');
+        const PT = { 'Email not confirmed': 'E-mail ainda não confirmado. Abra o link que enviamos para o seu e-mail (veja também o spam).',
+                     'Invalid login credentials': 'E-mail ou senha incorretos.',
+                     'User already registered': 'Este e-mail já tem cadastro. Faça login.' };
+        msg(PT[err.message] || err.message || 'Falha na autenticação.');
       } finally {
         btn.disabled = false;
       }

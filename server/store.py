@@ -117,7 +117,7 @@ async def _require_admin(user: dict) -> None:
 
 
 # ---------- administração: profissionais ----------
-_PRO_FIELDS = 'id,full_name,email,professional_id,role,status,plan,credits,trial_ends_at,created_at,updated_at'
+_PRO_FIELDS = 'id,full_name,email,professional_id,phone,city,role,status,plan,credits,trial_ends_at,created_at,updated_at'
 _PRO_EDITABLE = ('full_name', 'professional_id', 'role', 'status', 'plan', 'credits')
 
 
@@ -156,6 +156,9 @@ def access_state(profile: dict) -> dict:
         out['blocked'] = 'suspended'
     elif profile.get('status') == 'pending':
         out['blocked'] = 'pending'      # cadastro novo: aguardando o administrador liberar
+        return out
+    elif profile.get('status') == 'rejected':
+        out['blocked'] = 'rejected'     # cadastro recusado pelo administrador
         return out
     ends = profile.get('trial_ends_at')
     if ends:

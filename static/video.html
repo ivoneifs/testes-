@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NeuroScore — Vídeo de apresentação</title>
+  <meta name="description" content="Veja em 1 minuto como o NeuroScore corrige testes pelas normas, lê a anamnese por OCR e gera o laudo neuropsicológico no seu modelo." />
+  <meta name="theme-color" content="#070a17" />
+  <meta property="og:type" content="video.other" />
+  <meta property="og:title" content="NeuroScore — do protocolo ao laudo em minutos" />
+  <meta property="og:description" content="Veja em 1 minuto: correção pelas normas, anamnese por OCR e laudo completo no seu modelo." />
+  <meta property="og:image" content="https://neuro-testes.appsbrasil.store/assets/video/neuroscore-apresentacao.jpg" />
+  <meta property="og:video" content="https://neuro-testes.appsbrasil.store/assets/video/neuroscore-apresentacao.mp4" />
+  <meta property="og:video:type" content="video/mp4" />
+  <meta property="og:video:width" content="1280" />
+  <meta property="og:video:height" content="720" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%237c5cff'/%3E%3Ctext x='50' y='67' font-size='48' font-family='Arial,sans-serif' font-weight='800' text-anchor='middle' fill='white'%3ENS%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" />
+  <style>
+    :root{--p1:#7c5cff;--p2:#00e0ff;--acc:#ff7a3d;--bg:#070a17;--ink:#eef1ff;--ink2:#b7bfdc;--muted:#8089ab;--wa:#25d366;--line:rgba(255,255,255,.1)}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:
+      radial-gradient(50% 40% at 20% 10%,rgba(124,92,255,.35),transparent 70%),radial-gradient(40% 35% at 85% 15%,rgba(0,224,255,.18),transparent 70%),var(--bg);
+      display:flex;flex-direction:column;align-items:center;padding:28px 16px 40px}
+    a{color:inherit;text-decoration:none}
+    .logo{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:21px}
+    .logo b{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:linear-gradient(120deg,var(--p1),var(--p2));font-size:15px}
+    h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(26px,4vw,42px);text-align:center;margin:22px 0 8px;letter-spacing:-.02em;line-height:1.1}
+    h1 span{background:linear-gradient(110deg,var(--p1),var(--p2));-webkit-background-clip:text;background-clip:text;color:transparent}
+    p.sub{color:var(--ink2);text-align:center;max-width:640px;margin:0 0 24px}
+    .player{width:100%;max-width:1000px;border-radius:22px;padding:1px;background:linear-gradient(140deg,rgba(124,92,255,.8),transparent 45%,rgba(0,224,255,.7));
+      box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 90px rgba(124,92,255,.25)}
+    video{display:block;width:100%;aspect-ratio:16/9;border-radius:21px;background:#060915}
+    .ctas{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:26px}
+    .btn{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:16.5px;padding:15px 26px;border-radius:15px;transition:transform .15s}
+    .btn:hover{transform:translateY(-2px)}
+    .cta{background:linear-gradient(115deg,var(--acc),#ff3d77);box-shadow:0 10px 30px rgba(255,122,61,.4)}
+    .wa{background:var(--wa);color:#05210f}
+    .ghost{border:1px solid var(--line);background:rgba(255,255,255,.05)}
+    .share{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px;font-size:14px;color:var(--muted)}
+    .share button,.share a{font:inherit;color:var(--ink2);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer}
+    .note{color:var(--muted);font-size:12.5px;margin-top:22px;text-align:center}
+  </style>
+</head>
+<body>
+  <a class="logo" href="/page"><b>NS</b>NeuroScore</a>
+  <h1>Do protocolo ao <span>laudo pronto</span> — em 1 minuto</h1>
+  <p class="sub">Correção pelas normas em 71 instrumentos, anamnese lida por OCR e laudo neuropsicológico completo no seu modelo.</p>
+  <div class="player">
+    <video id="v" src="/assets/video/neuroscore-apresentacao.mp4" poster="/assets/video/neuroscore-apresentacao.jpg" controls playsinline preload="metadata"></video>
+  </div>
+  <div class="ctas">
+    <a class="btn cta" href="/login.html?cadastro=1">Quero testar grátis →</a>
+    <a class="btn wa" data-wa href="#">WhatsApp (74) 98825-9925</a>
+    <a class="btn ghost" href="/page">Conhecer a plataforma</a>
+  </div>
+  <div class="share">
+    <button type="button" id="copy">🔗 Copiar link do vídeo</button>
+    <a data-share-wa href="#">Compartilhar no WhatsApp</a>
+    <a href="/assets/video/neuroscore-apresentacao.mp4" download>⬇ Baixar MP4</a>
+  </div>
+  <p class="note">Narração gerada por IA. Telas ilustrativas com dados fictícios.</p>
+  <script>
+    (function () {
+      const UTM = new URLSearchParams([...new URLSearchParams(location.search)].filter(([k]) => /^(utm_|gclid|fbclid)/.test(k))).toString();
+      if (UTM) document.querySelectorAll('a[href^="/login.html"],a[href="/page"]').forEach(a => { a.href += (a.href.includes('?') ? '&' : '?') + UTM; });
+      const wa = (n, t) => `https://wa.me/${n}?text=${encodeURIComponent(t)}`;
+      document.querySelectorAll('[data-wa]').forEach(a => { a.href = wa('5574988259925', 'Olá! Vi o vídeo do NeuroScore e quero saber mais.'); a.target = '_blank'; a.rel = 'noopener'; });
+      const url = location.origin + '/video';
+      const sh = document.querySelector('[data-share-wa]');
+      sh.href = 'https://wa.me/?text=' + encodeURIComponent('Veja em 1 minuto o NeuroScore: do protocolo ao laudo neuropsicológico em minutos 👉 ' + url);
+      sh.target = '_blank'; sh.rel = 'noopener';
+      document.getElementById('copy').addEventListener('click', async (e) => {
+        try { await navigator.clipboard.writeText(url); e.target.textContent = '✓ Link copiado'; } catch { prompt('Copie o link:', url); }
+      });
+    })();
+  </script>
+</body>
+</html>

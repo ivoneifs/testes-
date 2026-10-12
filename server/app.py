@@ -928,6 +928,15 @@ def landing():
         return _index_html()
     return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
 
+@app.get('/video')
+def video_page():
+    # página do vídeo publicitário (link para compartilhar)
+    try:
+        html = (STATIC/'video.html').read_text(encoding='utf-8')
+    except OSError:
+        return landing()
+    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
+
 @app.get('/page')
 @app.get('/apresentacao')
 def apresentacao():

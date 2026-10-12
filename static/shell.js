@@ -596,7 +596,7 @@
     const recs = (state.tr || []).filter(r => r.patient_key === state.trKey);
     $('#trList').innerHTML = recs.map(r => {
       const on = state.trSel[r.id] !== false;
-      return `<article class="tr-card${on ? ' on' : ''}${r.test === HV ? ' hv' : ''}">
+      return `<article class="tr-card${on ? ' on' : ''}${r.test === HV ? ' hv' : ''}${state.trNew && state.trNew.has(r.id) ? ' tr-new' : ''}">
         <label class="tr-check" title="Incluir no laudo completo"><input type="checkbox" data-tr-sel="${r.id}"${on ? ' checked' : ''}><span></span></label>
         <div class="tr-body">
           <h3>${NS.esc(NS.testLabel ? NS.testLabel(r.test) : r.test)}</h3>
@@ -614,7 +614,43 @@
     $('#trFinalInfo').textContent = `${n} de ${recs.length} teste(s) selecionado(s). Gera o Laudo Neuropsicológico completo no seu modelo, com a História de Vida e os testes marcados (1 crédito).`;
     $('#trLaudoBtn').disabled = !n;
   }
-  $('#trPatient')?.addEventListener('change', (e) => { state.trKey = e.target.value; renderRealizados(); });
+  // ---- upload de testes: OCR → triagem → corrigidos pelo motor / relatórios transcritos ----
+  function trUpFill() {
+    const g = state.trGroups && state.trGroups.get(state.trKey); const p = (g && g.p) || {};
+    $('#trUpName').value = p.name || ''; $('#trUpBirth').value = p.birth_date || '';
+    $('#trUpApp').value = p.application_date || new Date().toISOString().slice(0, 10);
+    $('#trUpSex').value = p.sex || ''; $('#trUpEdu').value = p.education || '';
+  }
+  $('#trUp')?.addEventListener('toggle', (e) => { if (e.target.open && !$('#trUpName').value) trUpFill(); });
+  $('#trUpFiles')?.addEventListener('change', () => {
+    const fs = [...$('#trUpFiles').files];
+    $('#trUpList').innerHTML = fs.map(f => `<div>• ${NS.esc(f.name)} (${(f.size / 1024 / 1024).toFixed(1)} MB)</div>`).join('');
+    $('#trUpBtn').disabled = !fs.length;
+  });
+  $('#trUpBtn')?.addEventListener('click', async () => {
+    const fs = [...$('#trUpFiles').files]; if (!fs.length) return;
+    const p = { name: $('#trUpName').value.trim(), birth_date: $('#trUpBirth').value, application_date: $('#trUpApp').value,
+                sex: $('#trUpSex').value, education: $('#trUpEdu').value.trim() };
+    if (!p.name) { NS.toast('Informe o nome do paciente.', true); return; }
+    if (!p.birth_date || !p.application_date) NS.toast('Sem nascimento e data de aplicação, os escores brutos não podem ser corrigidos pelas normas.', true);
+    const fd = new FormData(); fd.append('patient_json', JSON.stringify(p)); fs.forEach(f => fd.append('files', f));
+    const btn = $('#trUpBtn'), msg = $('#trUpMsg');
+    btn.disabled = true; btn.textContent = 'Lendo arquivos… (pode levar 1–3 min)'; msg.innerHTML = '';
+    try {
+      const r = await NS.api('/api/test-results/import', { method: 'POST', body: fd });
+      state.trSel = state.trSel || {};
+      (r.salvos || []).forEach(x => { state.trSel[x.id] = true; });
+      state.trKey = r.patient_key || state.trKey;
+      state.trNew = new Set((r.salvos || []).map(x => x.id));
+      await loadRealizados();
+      const ok = (r.salvos || []).map(x => NS.esc(NS.testLabel ? NS.testLabel(x.test) : x.test));
+      msg.innerHTML = (ok.length ? `<div class="inline-msg ok">✓ Acrescentado(s) e selecionado(s): <b>${ok.join(', ')}</b></div>` : '')
+        + (r.alertas || []).map(a => `<div class="inline-msg err">⚠ ${NS.esc(a)}</div>`).join('');
+      if (ok.length) { $('#trUpFiles').value = ''; $('#trUpList').innerHTML = ''; NS.toast(`${ok.length} teste(s) acrescentado(s).`); }
+    } catch (e) { msg.innerHTML = `<div class="inline-msg err">${NS.esc(e.message)}</div>`; }
+    finally { btn.textContent = '🔎 Ler (OCR) e acrescentar'; btn.disabled = !$('#trUpFiles').files.length; }
+  });
+  $('#trPatient')?.addEventListener('change', (e) => { state.trKey = e.target.value; renderRealizados(); trUpFill(); });
   $('#trList')?.addEventListener('change', (e) => {
     const c = e.target.closest('[data-tr-sel]'); if (!c) return;
     state.trSel[c.dataset.trSel] = c.checked; renderRealizados();

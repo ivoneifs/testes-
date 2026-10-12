@@ -663,6 +663,37 @@ def triage_instruments(file_items: list[dict], catalog: list[str]):
                     timeout=240.0)
 
 
+def transcribe_corrected(file_items: list[dict], instrumentos: list[str]):
+    """Relatórios JÁ CORRIGIDOS (ex.: Pearson): transcreve as tabelas de resultado como estão.
+    NÃO calcula nada — só copia escores, percentis e classificações do documento."""
+    schema = {
+        'type': 'object',
+        'properties': {'instrumentos': {'type': 'array', 'items': {
+            'type': 'object',
+            'properties': {
+                'instrumento': _S,
+                'tabelas': {'type': 'array', 'items': {
+                    'type': 'object',
+                    'properties': {'titulo': _S, 'colunas': _SL,
+                                   'linhas': {'type': 'array', 'items': _SL}},
+                    'required': ['titulo', 'colunas', 'linhas'], 'additionalProperties': False}},
+                'observacoes': _S,
+            },
+            'required': ['instrumento', 'tabelas', 'observacoes'], 'additionalProperties': False}}},
+        'required': ['instrumentos'], 'additionalProperties': False,
+    }
+    instructions = (
+        'Transcreva dos documentos as tabelas de RESULTADO de cada instrumento listado, exatamente como '
+        'estão (escores brutos, padronizados/ponderados/compostos, percentis, intervalos, classificações). '
+        'Uma tabela por quadro do relatório; "colunas" = cabeçalhos; "linhas" = uma lista por linha, na '
+        'ordem das colunas. NÃO calcule, NÃO complete valores ausentes, NÃO consulte normas. Valor '
+        'ilegível: escreva [ilegível]. Em "observacoes", anote só o que estiver escrito sobre o resultado.'
+    )
+    content = [{'type': 'input_text', 'text': 'INSTRUMENTOS JÁ CORRIGIDOS NOS ARQUIVOS:\n' + '\n'.join(instrumentos)}] + file_items
+    return _request([{'role': 'user', 'content': content}], 'transcricao_resultados', schema, instructions,
+                    timeout=300.0)
+
+
 def extract_raw_scores(test_name: str, fields: list[dict], file_items: list[dict]):
     """Extrai do documento os escores BRUTOS de um teste, nos campos de entrada do motor."""
     schema = {

@@ -27,7 +27,8 @@ from .openai_service import (analyze_anamnesis, analyze_anamnesis_form, analyze_
 from .docx_report import build_integrated_docx, build_laudo_neuro_docx
 from .file_content import to_content as file_to_content, accepted as file_accepted, FORMATS_LABEL
 from . import auto_score
-from .openai_service import generate_laudo_neuro
+from .openai_service import generate_laudo_neuro, transcribe_corrected
+from .ocr_prep import prepare_image
 from . import auth, payments, store, scales, qplataforma, laudo_modelo, vineland
 from .auth import current_user
 
@@ -494,6 +495,88 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
         except Exception:
             pass
     return laudo
+
+@app.post('/api/test-results/import')
+async def test_results_import(patient_json: str=Form('{}'), patient_id: str|None=Form(None),
+                              files: list[UploadFile]=File(...), user: dict = Depends(active_user)):
+    """Testes realizados → upload: lê os arquivos (OCR), identifica os testes e salva cada um.
+    Escores brutos de teste do catálogo → corrigidos pelo motor (1 crédito por teste, como em Laudos).
+    Relatório já corrigido → tabelas transcritas, sem custo."""
+    try:
+        patient=json.loads(patient_json or '{}')
+    except json.JSONDecodeError:
+        raise HTTPException(400,'patient_json inválido')
+    pac={k: patient.get(k) for k in ('name','birth_date','application_date','sex','education') if patient.get(k)}
+    if not str(pac.get('name') or '').strip():
+        raise HTTPException(400,'Informe o nome do paciente.')
+    groups, nomes, total = [], [], 0
+    for f in files:
+        data=await f.read()
+        total+=len(data)
+        name=f.filename or 'arquivo'
+        mime=f.content_type or ''
+        if len(data)>25*1024*1024:
+            raise HTTPException(413,f'{name}: arquivo acima de 25 MB')
+        if not file_accepted(name,mime):
+            raise HTTPException(415,f'{name}: formato não suportado (use {FORMATS_LABEL})')
+        try:
+            if mime.startswith('image/'):
+                data,mime=prepare_image(data,mime)
+            groups.append((name, file_to_content(name, mime, data)))
+        except ValueError as exc:
+            raise HTTPException(415,str(exc))
+        except Exception as exc:
+            raise HTTPException(422,f'{name}: não foi possível ler o arquivo ({type(exc).__name__})')
+        nomes.append(name)
+    if total>60*1024*1024:
+        raise HTTPException(413,'Total de anexos acima de 60 MB')
+    if auth.AUTH_ENABLED and not await store.can_spend(user, store.COST_TESTE):
+        raise HTTPException(402, store.NO_CREDITS.format(need='1'))
+    try:
+        corrigidos, triagem, alertas = await run_in_threadpool(auto_score.run, engine, groups, pac)
+    except Exception as exc:
+        raise HTTPException(502,f'Não foi possível ler os arquivos: {exc}')
+    salvos=[]
+    async def _save(test, inputs, res):
+        rec=await store.save_test_result(user,{'patient':pac,'patient_id':patient_id or None,'test':test,
+                                              'inputs':inputs,'result':res})
+        salvos.append({'id':rec.get('id'),'test':test,'patient_key':rec.get('patient_key')})
+    for c in corrigidos:
+        raw, res = c.pop('_raw', {}), c.pop('_resultado', None)
+        if not (res and res.get('tables')):
+            continue
+        if auth.AUTH_ENABLED:
+            who=_slug(str(pac.get('name') or ''))+'|'+str(pac.get('birth_date') or '')
+            try:
+                await store.spend_credits(user, store.COST_TESTE, 'teste', f"{c['teste']}|{who}"[:300])
+            except HTTPException as exc:
+                if exc.status_code==402:
+                    alertas.append(f"{c['teste']}: créditos insuficientes para corrigir; não foi salvo.")
+                    continue
+                raise
+        await _save(c['teste'], {'raw_scores':raw,'parameters':{},'arquivos':nomes}, res)
+    prontos=[t for t in triagem if t.get('situacao')=='corrigido']
+    if prontos:
+        try:
+            tr=await run_in_threadpool(transcribe_corrected, [it for _, its in groups for it in its],
+                                       [t.get('instrumento') or t.get('teste_catalogo') for t in prontos])
+        except Exception as exc:
+            tr={'instrumentos':[]}
+            alertas.append(f'Não foi possível transcrever os relatórios já corrigidos ({type(exc).__name__}).')
+        for t in tr.get('instrumentos') or []:
+            tabs=[tb for tb in t.get('tabelas') or [] if tb.get('colunas') and tb.get('linhas')]
+            nome=str(t.get('instrumento') or '').strip()
+            if not nome or not tabs:
+                continue
+            res={'test':nome,'externo':True,'interpretacao':t.get('observacoes') or '',
+                 'tables':[{'title':tb.get('titulo') or nome,'columns':[{'label':x} for x in tb['colunas']],
+                            'rows':[{'values':r} for r in tb['linhas']]} for tb in tabs]}
+            await _save(nome, {'arquivos':nomes}, res)
+    if not salvos and not alertas:
+        alertas.append('Nenhum teste com escores foi encontrado nos arquivos.')
+    return {'salvos':salvos,'alertas':alertas,'patient_key':store.patient_key(pac),
+            'triagem':[{k:t.get(k) for k in ('instrumento','teste_catalogo','situacao')} for t in triagem]}
+
 
 class LaudoNeuroDocxRequest(BaseModel):
     laudo: dict[str,Any]

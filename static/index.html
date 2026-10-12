@@ -414,6 +414,24 @@
             <label class="field span-2">Paciente<select id="trPatient"></select></label>
           </div>
         </div>
+        <details class="card tr-up" id="trUp">
+          <summary><b>📥 Enviar testes (upload)</b> <span class="muted small">PDF, DOCX, DOC, JPEG, PNG, XLSX, CSV, PPTX, TXT, JSON — lidos por OCR e acrescentados aqui</span></summary>
+          <p class="muted small">Os testes com escores brutos são corrigidos pelo NeuroScore (1 crédito por teste, como em Laudos). Os relatórios já corrigidos (ex.: Pearson) têm as tabelas transcritas, sem custo. Todos entram na lista abaixo, já marcados para o laudo.</p>
+          <div class="form-grid">
+            <label class="field span-2">Nome do paciente<input id="trUpName" type="text" autocomplete="off" placeholder="Nome completo"></label>
+            <label class="field">Nascimento<input id="trUpBirth" type="date"></label>
+            <label class="field">Data de aplicação<input id="trUpApp" type="date"></label>
+            <label class="field">Sexo<select id="trUpSex"><option value="">—</option><option>Masculino</option><option>Feminino</option></select></label>
+            <label class="field">Escolaridade<input id="trUpEdu" type="text"></label>
+          </div>
+          <label class="upload-zone gl-zone-sm" id="trUpZone">
+            <input id="trUpFiles" type="file" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.pptx,.txt,.json,application/pdf,image/*" />
+            <span class="upload-icon">⇧</span><strong>Selecionar testes</strong><small>PDF, DOCX, DOC, JPEG, PNG, XLSX, CSV, PPTX, TXT, JSON</small>
+          </label>
+          <div id="trUpList" class="file-list"></div>
+          <div class="action-row"><button type="button" class="btn primary" id="trUpBtn" disabled>🔎 Ler (OCR) e acrescentar</button></div>
+          <div id="trUpMsg" class="small"></div>
+        </details>
         <div id="trList" class="tr-list"><p class="muted small">Carregando…</p></div>
         <div class="card tr-final" id="trFinal" hidden>
           <div><h3>Laudo completo</h3>

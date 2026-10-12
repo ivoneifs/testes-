@@ -130,14 +130,14 @@
             <label>Nascimento<input id="hvBirth" type="date" /></label>
           </div>
           <div class="hv-modes" role="tablist">
-            <button type="button" class="hv-mode on" data-hv-mode="upload" role="tab">📎 Enviar anamnese <small>PDF ou foto (OCR)</small></button>
+            <button type="button" class="hv-mode on" data-hv-mode="upload" role="tab">📎 Enviar anamnese <small>PDF, Word, foto, planilha… (OCR)</small></button>
             <button type="button" class="hv-mode" data-hv-mode="form" role="tab">☑️ Preencher anamnese <small>só marcando, sem escrever</small></button>
           </div>
           <div id="hvPanelUpload">
             <label class="upload-zone" id="uploadZone">
-              <input id="anamnesisFiles" type="file" multiple accept="application/pdf,image/*" />
+              <input id="anamnesisFiles" type="file" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.pptx,.txt,.json,application/pdf,image/*" />
               <span class="upload-icon">⇧</span><strong>Selecionar anamnese</strong>
-              <small>PDF, JPG, PNG</small>
+              <small>PDF, DOCX, JPEG, PNG, XLSX, CSV, PPTX, TXT, JSON</small>
             </label>
             <div id="fileList" class="file-list"></div>
             <button type="button" class="btn ai-btn" id="analyzeAnamnesisBtn" disabled>Analisar e gerar história</button>
@@ -318,8 +318,8 @@
             <label class="field">Queixa principal<textarea id="gl_queixa" rows="3" placeholder="Queixa, contexto do encaminhamento e objetivo da avaliação"></textarea></label>
             <div class="field">Anamnese (arquivos) — lida por OCR e salva como História de Vida em Testes realizados
               <label class="upload-zone gl-zone-sm" id="gl_anamZone">
-                <input id="gl_anamFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,application/pdf,image/*" />
-                <span class="upload-icon">📇</span><strong>Enviar anamnese</strong><small>PDF, JPG, PNG, DOC, DOCX</small>
+                <input id="gl_anamFiles" type="file" multiple accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.pptx,.txt,.json,application/pdf,image/*" />
+                <span class="upload-icon">📇</span><strong>Enviar anamnese</strong><small>PDF, DOCX, JPEG, PNG, XLSX, CSV, PPTX, TXT, JSON</small>
               </label>
               <div id="gl_anamList" class="file-list"></div>
             </div>

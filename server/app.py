@@ -25,7 +25,7 @@ from .workbook_engine import WorkbookEngine
 from .openai_service import (analyze_anamnesis, analyze_anamnesis_form, analyze_laudo_model, extract_external_instrument,
                              generate_integrated_report, generate_test_report)
 from .docx_report import build_integrated_docx, build_laudo_neuro_docx
-from .file_content import to_content as file_to_content
+from .file_content import to_content as file_to_content, accepted as file_accepted, FORMATS_LABEL
 from . import auto_score
 from .openai_service import generate_laudo_neuro
 from . import auth, payments, store, scales, qplataforma, laudo_modelo, vineland
@@ -210,8 +210,10 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
         if len(data)>25*1024*1024:
             raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
         mime=f.content_type or 'application/octet-stream'
-        if mime!='application/pdf' and not mime.startswith('image/'):
-            raise HTTPException(415,f'{f.filename}: envie PDF ou imagem')
+        if not file_accepted(f.filename or '',mime):
+            raise HTTPException(415,f'{f.filename}: formato não suportado (use {FORMATS_LABEL})')
+        if (f.filename or '').lower().endswith('.pdf') and not mime.startswith('image/'):
+            mime='application/pdf'
         parsed.append((f.filename or 'arquivo',mime,data))
     if total>45*1024*1024:
         raise HTTPException(413,'Total de anexos acima de 45 MB')
@@ -219,6 +221,8 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
         raise HTTPException(402, store.NO_CREDITS.format(need='0,5'))
     try:
         rep=await run_in_threadpool(analyze_anamnesis,parsed,patient)
+    except ValueError as exc:
+        raise HTTPException(422,str(exc))
     except Exception as exc:
         raise HTTPException(502,str(exc))
     if auth.AUTH_ENABLED:
@@ -363,15 +367,11 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
         if len(data)>25*1024*1024:
             raise HTTPException(413,f'{f.filename}: arquivo acima de 25 MB')
         mime=f.content_type or 'application/octet-stream'
-        if mime=='application/pdf' or mime.startswith('image/') or (f.filename or '').lower().endswith('.pdf'):
-            anamnese_ocr.append((f.filename or 'anamnese',mime if mime!='application/octet-stream' else 'application/pdf',data))
-            continue
-        try:
-            anamnese_items.extend(file_to_content(f.filename or 'anamnese', f.content_type or '', data))
-        except ValueError as exc:
-            raise HTTPException(415,str(exc))
-        except Exception as exc:
-            raise HTTPException(422,f'{f.filename}: não foi possível ler o arquivo ({type(exc).__name__})')
+        if not file_accepted(f.filename or '',mime):
+            raise HTTPException(415,f'{f.filename}: formato não suportado (use {FORMATS_LABEL})')
+        if (f.filename or '').lower().endswith('.pdf') and not mime.startswith('image/'):
+            mime='application/pdf'
+        anamnese_ocr.append((f.filename or 'anamnese',mime,data))
     if total>60*1024*1024:
         raise HTTPException(413,'Total de anexos acima de 60 MB')
     if str(dados.get('escores_digitados') or '').strip():
@@ -428,7 +428,11 @@ async def ai_laudo_neuro(dados_json: str=Form('{}'), files: list[UploadFile]=Fil
     (corrigidos, al), hv = await asyncio.gather(_corrigir(), _ocr())
     alertas_correcao += al
     if anamnese_ocr and hv is None:
-        anamnese_items += [it for n, m, d in anamnese_ocr for it in file_to_content(n, m, d)]
+        for n, m, d in anamnese_ocr:
+            try:
+                anamnese_items += file_to_content(n, m, d)
+            except Exception:
+                alertas_correcao.append(f'{n}: não foi possível ler o arquivo da anamnese.')
     pac_rec={k: pac.get(k) for k in ('name','birth_date','application_date','sex','education') if pac.get(k)}
     gravar=auth.AUTH_ENABLED and bool(pac_rec.get('name'))
     if hv:

@@ -1,4 +1,4 @@
-"""Converte arquivos enviados (PDF, imagem, DOC/DOCX, XLS/XLSX, texto) em itens
+"""Converte arquivos enviados (PDF, imagem, DOC/DOCX, XLS/XLSX, PPTX, CSV/TXT/JSON) em itens
 de conteúdo da OpenAI Responses API.
 
 PDF e imagem vão como arquivo/imagem (o modelo lê direto). Word e Excel viram
@@ -9,12 +9,20 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import re
+import zipfile
 
 MAX_TEXT = 60_000  # caracteres por arquivo
 
 ACCEPTED_EXT = ('.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif',
-                '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv', '.md')
+                '.doc', '.docx', '.xls', '.xlsx', '.pptx', '.txt', '.csv', '.md', '.json')
+FORMATS_LABEL = 'PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, PPTX, CSV, TXT ou JSON'
+
+
+def accepted(filename: str, mime: str = '') -> bool:
+    name = (filename or '').lower()
+    return name.endswith(ACCEPTED_EXT) or (mime or '').startswith(('image/', 'text/')) or mime == 'application/pdf'
 
 
 def _cell(v) -> str:
@@ -68,6 +76,43 @@ def xls_text(data: bytes) -> str:
     return '\n\n'.join(parts)
 
 
+def pptx_text(data: bytes) -> str:
+    """Texto de cada slide (e das anotações), sem dependência: lê o XML do .pptx."""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        def num(n):
+            m = re.search(r'(\d+)\.xml$', n)
+            return int(m.group(1)) if m else 0
+        def runs(n):
+            xml = z.read(n).decode('utf-8', 'ignore')
+            paras = re.findall(r'<a:p\b.*?</a:p>', xml, re.S)
+            out = [''.join(re.findall(r'<a:t[^>]*>(.*?)</a:t>', p, re.S)) for p in paras]
+            return '\n'.join(_unxml(t) for t in out if t.strip())
+        slides = sorted((n for n in z.namelist() if re.match(r'ppt/slides/slide\d+\.xml$', n)), key=num)
+        notes = {num(n): n for n in z.namelist() if re.match(r'ppt/notesSlides/notesSlide\d+\.xml$', n)}
+        parts = []
+        for n in slides:
+            body = runs(n)
+            if num(n) in notes:
+                nt = runs(notes[num(n)])
+                body += f'\n[Anotações] {nt}' if nt else ''
+            if body.strip():
+                parts.append(f'[Slide {num(n)}]\n{body}')
+        return '\n\n'.join(parts)
+
+
+def _unxml(t: str) -> str:
+    return (t.replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
+             .replace('&apos;', "'").replace('&amp;', '&'))
+
+
+def json_text(data: bytes) -> str:
+    raw = data.decode('utf-8-sig', 'replace')
+    try:
+        return json.dumps(json.loads(raw), ensure_ascii=False, indent=1)
+    except ValueError:
+        return raw
+
+
 def doc_text(data: bytes) -> str:
     """.doc (Word 97-2003) sem dependência: recupera os trechos de texto
     legíveis (UTF-16 e 8-bit). Perde formatação, mas mantém os números."""
@@ -99,10 +144,14 @@ def to_content(filename: str, mime: str, data: bytes) -> list[dict]:
         text = xls_text(data)
     elif name.endswith('.doc'):
         text = doc_text(data)
+    elif name.endswith('.pptx'):
+        text = pptx_text(data)
+    elif name.endswith('.json') or mime == 'application/json':
+        text = json_text(data)
     elif mime.startswith('text/') or name.endswith(('.txt', '.csv', '.md')):
-        text = data.decode('utf-8', 'replace')
+        text = data.decode('utf-8-sig', 'replace')
     else:
-        raise ValueError(f'{filename}: formato não suportado (use PDF, JPG, PNG, DOC, DOCX, XLS ou XLSX)')
+        raise ValueError(f'{filename}: formato não suportado (use {FORMATS_LABEL})')
     text = text.strip()
     if not text:
         raise ValueError(f'{filename}: não foi possível ler texto do arquivo')

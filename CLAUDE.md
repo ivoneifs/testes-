@@ -254,3 +254,6 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **Créditos por uso** (custos em `store.COST_*`): teste corrigido (`/api/score`) = 1, ref = teste+paciente+nascimento
   (recalcular no mesmo dia não cobra); História de Vida (`/api/ai/anamnesis`) = 0,5; laudo = 1. Saldo < custo → 402
   e o app leva para Planos; faixa vermelha "créditos acabaram" quando o saldo < 0,5.
+- **Q-Plataforma (Pearson)** (`server/qplataforma.py`): só os NOMES dos 62 testes da conta da usuária + mapa `nativo` para
+  o catálogo do motor. Card na Geração de Laudo (atalho + lista); a triagem e o laudo tratam relatório da Pearson como
+  já corrigido (escores da Pearson prevalecem). **Decisão:** não copiar itens/normas/correção da Pearson nem entrar na conta dela.

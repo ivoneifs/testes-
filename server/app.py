@@ -464,6 +464,30 @@ async def admin_password(pid: str, req: PasswordRequest, user: dict = Depends(ac
 async def admin_site_update(req: dict[str, Any], user: dict = Depends(active_user)):
     return {'site': await store.update_site(user, req)}
 
+class VideoRequest(BaseModel):
+    title: str|None=None
+    test: str|None=None
+    url: str|None=None
+    description: str|None=None
+    sort: int|None=None
+
+@app.get('/api/videos')
+async def videos_list(user: dict = Depends(active_user)):
+    return {'videos': await store.list_videos(user), 'platform_url': 'https://aluno.serneuropsi.com.br/'}
+
+@app.post('/api/admin/videos')
+async def admin_video_create(req: VideoRequest, user: dict = Depends(active_user)):
+    return await store.admin_save_video(user, req.model_dump())
+
+@app.put('/api/admin/videos/{vid}')
+async def admin_video_update(vid: str, req: VideoRequest, user: dict = Depends(active_user)):
+    return await store.admin_save_video(user, req.model_dump(), vid)
+
+@app.delete('/api/admin/videos/{vid}')
+async def admin_video_delete(vid: str, user: dict = Depends(active_user)):
+    await store.admin_delete_video(user, vid)
+    return {'ok': True}
+
 @app.get('/api/qplataforma')
 async def qplataforma_list(user: dict = Depends(current_user)):
     return qplataforma.public_list()

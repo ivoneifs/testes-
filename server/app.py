@@ -221,7 +221,7 @@ async def ai_anamnesis(patient_json: str=Form('{}'), files: list[UploadFile]=Fil
     if total>45*1024*1024:
         raise HTTPException(413,'Total de anexos acima de 45 MB')
     if auth.AUTH_ENABLED and not await store.can_spend(user, store.COST_HISTORIA):
-        raise HTTPException(402, store.NO_CREDITS.format(need='0,5'))
+        raise HTTPException(402, store.NO_CREDITS.format(need='1'))
     try:
         rep=await run_in_threadpool(analyze_anamnesis,parsed,patient)
     except ValueError as exc:
@@ -253,12 +253,12 @@ class AnamnesisFormRequest(BaseModel):
 
 @app.post('/api/ai/anamnesis-form')
 async def ai_anamnesis_form(req: AnamnesisFormRequest, user: dict = Depends(active_user)):
-    """Anamnese preenchida por marcação → história de vida organizada (0,5 crédito)."""
+    """Anamnese preenchida por marcação → história de vida organizada (1 crédito)."""
     texto=req.texto.strip()[:30000]
     if len(texto)<20:
         raise HTTPException(400,'Marque as respostas da anamnese antes de gerar a história.')
     if auth.AUTH_ENABLED and not await store.can_spend(user, store.COST_HISTORIA):
-        raise HTTPException(402, store.NO_CREDITS.format(need='0,5'))
+        raise HTTPException(402, store.NO_CREDITS.format(need='1'))
     try:
         rep=await run_in_threadpool(analyze_anamnesis_form,texto,req.patient)
     except Exception as exc:

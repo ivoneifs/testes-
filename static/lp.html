@@ -639,7 +639,7 @@
       </div>
       <div class="free-band reveal" style="margin:0 auto 30px;max-width:760px;font-size:17px">🎁 <b>Hoje: 14 dias de acesso + 3 créditos grátis</b> — dá para corrigir testes e gerar o seu primeiro laudo antes de pagar qualquer coisa.</div>
       <div class="prices" id="prices"></div>
-      <p class="video-note">1 crédito = 1 teste corrigido ou 1 laudo · História de Vida = 0,5 crédito · Pix, cartão ou boleto</p>
+      <p class="video-note">1 crédito = 1 teste corrigido ou 1 laudo · História de Vida = 1 crédito · Pix, cartão ou boleto</p>
     </div>
   </section>
 
@@ -655,7 +655,7 @@
         <details class="reveal"><summary>“E se a IA errar uma norma?”</summary><p>A IA não calcula norma. Quem corrige é o motor normativo, com as tabelas por idade. A IA lê documentos e redige; os números vêm do motor ou do relatório que você enviou.</p></details>
         <details class="reveal"><summary>“Preciso digitar as perguntas dos testes?”</summary><p>Não. Você usa o seu protocolo original e lança os brutos — ou toca 2/1/0 pelo número do item. O NeuroScore não reproduz conteúdo protegido dos testes.</p></details>
         <details class="reveal"><summary>“Não tenho tempo de aprender um sistema novo.”</summary><p>Se você sabe usar o WhatsApp, sabe usar o NeuroScore. Escolha o teste, lance os escores, clique em calcular. E a gente te ajuda pelo WhatsApp.</p></details>
-        <details class="reveal"><summary>“Quanto vou gastar por mês?”</summary><p>Só o que usar: R$ 20 por teste corrigido ou por laudo, e R$ 10 pela História de Vida. Recalcular o mesmo teste no mesmo dia não cobra de novo. Sem mensalidade.</p></details>
+        <details class="reveal"><summary>“Quanto vou gastar por mês?”</summary><p>Só o que usar: R$ 20 por teste corrigido, por laudo ou pela História de Vida. Recalcular o mesmo teste no mesmo dia não cobra de novo. Sem mensalidade.</p></details>
         <details class="reveal"><summary>“Preciso de cartão para testar?”</summary><p>Não. Crie a conta, ganhe 14 dias e 3 créditos e use. Só compra créditos se quiser continuar.</p></details>
         <details class="reveal"><summary>“Funciona no celular?”</summary><p>Sim. Roda no navegador do computador, tablet ou celular, com botões de toque nos protocolos.</p></details>
       </div>
@@ -790,11 +790,11 @@
     // pacotes (do sistema; fallback = valores padrão)
     const FALLBACK = [
       { name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
-        features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
+        features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
       { name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
-        features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
+        features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
       { name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
-        features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
+        features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
     ];
     function renderPlans(plans) {
       const box = $('#prices');

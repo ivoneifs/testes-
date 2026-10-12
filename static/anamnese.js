@@ -283,7 +283,7 @@
         body: JSON.stringify({ patient: p, patient_id: id, respostas: { ...respostas, ...Object.fromEntries(Object.entries(answers).filter(([k]) => k.startsWith('d_'))) }, texto: toText() }) });
       NS.applyAnamnesis(res);
     } catch (err) { NS.toast(err.message, true); }
-    finally { busy(b, false, 'Salvar e gerar história (0,5 crédito)'); }
+    finally { busy(b, false, 'Salvar e gerar história (1 crédito)'); }
   });
   $('#anamClear')?.addEventListener('click', () => { if (confirm('Limpar todas as marcações?')) { answers = {}; render(); } });
 

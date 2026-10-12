@@ -583,11 +583,11 @@
       <div class="panel" data-panel="cred">
         <div><span class="tag">Créditos</span><h3>Pague só pelo que usar.</h3>
           <p>Sem mensalidade e sem fidelidade. Compre créditos por Pix, cartão ou boleto e use quando quiser.</p>
-          <ul><li>1 crédito = 1 teste corrigido ou 1 laudo</li><li>História de Vida por 0,5 crédito</li><li>Recalcular o mesmo teste no mesmo dia não cobra de novo</li></ul></div>
+          <ul><li>1 crédito = 1 teste corrigido ou 1 laudo</li><li>História de Vida por 1 crédito</li><li>Recalcular o mesmo teste no mesmo dia não cobra de novo</li></ul></div>
         <div class="mock">
           <div class="row"><span class="grow">Teste corrigido</span><b>1 crédito</b></div>
           <div class="row"><span class="grow">Laudo neuropsicológico</span><b>1 crédito</b></div>
-          <div class="row"><span class="grow">História de Vida (anamnese)</span><b>0,5 crédito</b></div>
+          <div class="row"><span class="grow">História de Vida (anamnese)</span><b>1 crédito</b></div>
           <div class="row"><span class="grow">Relatório já corrigido transcrito</span><span class="pill ok">sem custo</span></div>
           <div class="row" style="justify-content:center"><span class="pill">Pix</span><span class="pill">Cartão</span><span class="pill">Boleto</span></div>
         </div>
@@ -722,7 +722,7 @@
         <details class="reveal"><summary>Quais testes o NeuroScore corrige?</summary><p>São 71 instrumentos no catálogo, entre eles WISC-IV, WAIS-III, WASI, RAVLT, FDT, ETDAH-2, SNAP-IV, SDQ, BRIEF-P e BRIEF-2, Perfil Sensorial 2, Vineland-3 (6 formas), SRS-2, CBCL, SCARED, TDE-2, Stroop, Trilhas, Torre de Londres e muitos outros. Relatórios já corrigidos de outros instrumentos também podem ser enviados e transcritos para o laudo.</p></details>
         <details class="reveal"><summary>Preciso digitar as perguntas dos testes?</summary><p>Não. Você usa o seu protocolo original impresso e lança os brutos — ou toca 2/1/0 pelo número do item, nos protocolos item a item. O NeuroScore não reproduz o conteúdo protegido dos testes.</p></details>
         <details class="reveal"><summary>Como funciona o teste grátis?</summary><p>Ao criar a conta você ganha 14 dias de acesso e 3 créditos grátis, sem cartão. Depois, é só comprar o pacote de créditos que fizer sentido para você.</p></details>
-        <details class="reveal"><summary>Quanto custa cada uso?</summary><p>1 crédito (R$ 20) por teste corrigido ou por laudo; a História de Vida custa 0,5 crédito. Recalcular o mesmo teste do mesmo paciente no mesmo dia não cobra de novo.</p></details>
+        <details class="reveal"><summary>Quanto custa cada uso?</summary><p>1 crédito (R$ 20) por teste corrigido ou por laudo; a História de Vida também custa 1 crédito. Recalcular o mesmo teste do mesmo paciente no mesmo dia não cobra de novo.</p></details>
         <details class="reveal"><summary>Quais formas de pagamento?</summary><p>Pix, cartão de crédito e boleto, pelo Mercado Pago. Os créditos entram na conta assim que o pagamento é aprovado.</p></details>
         <details class="reveal"><summary>Funciona no celular e no tablet?</summary><p>Sim. A plataforma roda no navegador, no computador, tablet ou celular — os protocolos item a item têm botões de toque pensados para isso.</p></details>
       </div>
@@ -853,11 +853,11 @@
     // Pacotes (fallback = valores padrão; o admin edita no sistema)
     const FALLBACK = [
       { name: 'Pack 10 créditos', credits: 10, amount_cents: 20000, featured: false,
-        features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
+        features: ['10 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte por e-mail'] },
       { name: 'Pack 20 créditos', credits: 20, amount_cents: 40000, featured: true,
-        features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
+        features: ['20 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte prioritário via WhatsApp'] },
       { name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
-        features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 0,5 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
+        features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
     ];
     function renderPlans(plans) {
       const box = $('#prices');

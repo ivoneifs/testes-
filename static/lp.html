@@ -320,6 +320,19 @@
     .depo .av{width:46px;height:46px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font-weight:800;font-family:var(--display);flex:none;overflow:hidden}
     .depo .av img{width:100%;height:100%;object-fit:cover}
     .depo .who b{display:block}.depo .who small{color:var(--muted)}
+
+    .catalog{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+    .catalog > div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+    .catalog h4{font-size:16px;margin-bottom:10px}
+    .catalog ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+    .catalog li{font-size:13px;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2);background:rgba(255,255,255,.03)}
+    .cat-more{max-width:1080px;margin:26px auto 0}
+    .cat-more > summary{list-style:none;cursor:pointer;display:flex;justify-content:center}
+    .cat-more > summary::-webkit-details-marker{display:none}
+    .cat-more[open] > summary .btn::after{content:" ▲"}
+    .cat-more:not([open]) > summary .btn::after{content:" ▼"}
+    @media(max-width:900px){.catalog{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:560px){.catalog{grid-template-columns:1fr}}
     /* animação de entrada */
     .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
     .reveal.in{opacity:1;transform:none}
@@ -574,7 +587,7 @@
         <h2>O que você tem <span class="grad-text">a partir do primeiro dia</span>.</h2>
       </div>
       <div class="stack">
-        <div class="reveal"><i>1</i><p><b>Correção de 71 instrumentos pelas normas</b><span>WISC-IV, WAIS-III, WASI, RAVLT, FDT, ETDAH-2, SNAP-IV, SDQ, BRIEF, Perfil Sensorial 2, Vineland-3 (6 formas), SRS-2, CBCL e muito mais.</span></p></div>
+        <div class="reveal"><i>1</i><p><b>Correção de 71 instrumentos pelas normas</b><span>Inteligência (WISC-IV, WAIS-III, WASI), memória (RAVLT, HVLT-R, BVMT-R, Rey, Corsi), atenção (BPA, d2-R, FDT, Stroop, Trilhas), funções executivas (Torre de Londres, Wisconsin, Hayling, BRIEF-2, BRIEF-P), linguagem e aprendizagem (TDE-II, PROLEC, Token, NEPSY-II), TDAH e comportamento (ETDAH-2, SNAP-IV, CBCL, SDQ, SCARED), TEA e adaptativo (SRS-2, ATA, PEP-R, Vineland-3 em 6 formas, EFA), Perfil Sensorial 2 (6 formas), personalidade (BFP, Pfister) e mais.</span></p></div>
         <div class="reveal"><i>2</i><p><b>Protocolos item a item com botões de toque</b><span>Marque 2/1/0 pelo número do item, com basal e teto automáticos — no computador, tablet ou celular.</span></p></div>
         <div class="reveal"><i>3</i><p><b>História de Vida por OCR ou por marcação</b><span>Envie a anamnese em qualquer formato ou preencha a ficha só marcando opções.</span></p></div>
         <div class="reveal"><i>4</i><p><b>Laudo neuropsicológico completo no seu modelo</b><span>Completo ou de teste isolado, em Times New Roman 12, com tabelas e gráficos. Exporta em Word e PDF.</span></p></div>
@@ -583,6 +596,7 @@
         <div class="reveal"><i>7</i><p><b>Biblioteca de vídeos por teste</b><span>Aplicação, correção e interpretação organizadas por instrumento.</span></p></div>
         <div class="reveal"><i>8</i><p><b>Dashboard e cadastro de pacientes</b><span>Indicadores da sua rotina e ficha completa do paciente, reaproveitada no laudo.</span></p></div>
       </div>
+      <details class="cat-more reveal"><summary><span class="btn btn-glass">Ver os 71 instrumentos por área</span></summary><div class="catalog"><div><h4>🧠 Inteligência</h4><ul><li>WISC-IV</li><li>WISC-IV (reavaliação)</li><li>WISC-IV (comparação)</li><li>WAIS-III</li><li>WASI</li></ul></div><div><h4>📚 Memória</h4><ul><li>RAVLT</li><li>HVLT-R</li><li>BVMT-R</li><li>Figura Complexa de Rey</li><li>Blocos de Corsi (2 versões)</li><li>7 Figuras / 7 Palavras</li></ul></div><div><h4>🎯 Atenção</h4><ul><li>BPA</li><li>AC</li><li>AC-15</li><li>d2-R</li><li>FDT</li><li>Stroop</li><li>Trilhas</li><li>Go/No-Go</li></ul></div><div><h4>🧩 Funções executivas</h4><ul><li>Torre de Londres</li><li>Hayling</li><li>Wisconsin (WCST)</li><li>WCST-48</li><li>WCST-48-R</li><li>BRIEF-2</li><li>BRIEF-P</li><li>Fluência Verbal (TFV)</li></ul></div><div><h4>🗣️ Linguagem e aprendizagem</h4><ul><li>TDE-II</li><li>PROLEC</li><li>Token Test</li><li>Nomeação</li><li>Prova de Aritmética</li><li>NEPSY-II</li><li>NEUPSILIN-Inf</li></ul></div><div><h4>⚡ TDAH e comportamento</h4><ul><li>ETDAH-2</li><li>ETDAH-AD</li><li>ETDAH-CriAd</li><li>ETDAH-Pais</li><li>SNAP-IV</li><li>CBCL</li><li>SDQ</li><li>SCARED</li><li>HADS</li><li>BAMS</li></ul></div><div><h4>🧭 TEA e comportamento adaptativo</h4><ul><li>SRS-2 Pré-escolar</li><li>SRS-2 Escolar</li><li>SRS-2 Adultos</li><li>ATA</li><li>PEP-R</li><li>EFA</li><li>Vineland-3 Extensivo (Entrevista, Pais, Professores)</li><li>Vineland-3 Nível de Domínio (Entrevista, Pais, Professores)</li><li>Vineland-3 Resumo</li></ul></div><div><h4>🌀 Processamento sensorial</h4><ul><li>Perfil Sensorial 2 — Bebê</li><li>Perfil Sensorial 2 — Criança Pequena</li><li>Perfil Sensorial 2 — Criança</li><li>Perfil Sensorial 2 — Professor</li><li>Perfil Sensorial 2 — Abreviado</li><li>Perfil Sensorial 2 — Consolidado</li></ul></div><div><h4>🎭 Personalidade e outros</h4><ul><li>BFP</li><li>Pfister</li><li>QEDP</li><li>IEP</li><li>PED-vr</li><li>THCP</li><li>ROSETTA</li></ul></div></div><p class="video-note">Você aplica com o seu protocolo original e lança os escores; o NeuroScore corrige pelas normas.</p></details>
     </div>
   </section>
 

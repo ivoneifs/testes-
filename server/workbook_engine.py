@@ -17,6 +17,7 @@ import schedula as sh
 import formulas
 
 from . import xl_compat
+from . import ravlt_sheet
 xl_compat.patch()  # coerção Excel de texto->número nos operadores (antes de compilar)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1036,6 +1037,11 @@ class WorkbookEngine:
                 'tables':tables,
                 'chart_type':self.chart_type(canonical),
             }
+            if canonical==ravlt_sheet.SHEET:
+                # Ficha do RAVLT: a planilha recebe a ordem das palavras, intrusões e
+                # reconhecimento e faz a contagem sozinha (fórmulas inalteradas).
+                meta['answer_sheet']=ravlt_sheet.layout(rows)
+                meta['extra_inputs']=sorted(ravlt_sheet.input_cells(meta['answer_sheet']))
             self._meta_cache[canonical]=meta
             return meta
 
@@ -1088,7 +1094,7 @@ class WorkbookEngine:
             for f in (meta.get('raw_fields',[]) + meta.get('detail_fields',[]))
             if f.get('allow_override_formula')
         }
-        allowed_raw={f['cell'] for f in meta.get('raw_fields',[])} | formula_backed
+        allowed_raw={f['cell'] for f in meta.get('raw_fields',[])} | formula_backed | set(meta.get('extra_inputs',[]))
         invalid_raw=sorted(set(raw_scores or {}) - allowed_raw)
         if invalid_raw:
             raise ValueError(f'Campos de pontos brutos inválidos: {", ".join(invalid_raw[:8])}')

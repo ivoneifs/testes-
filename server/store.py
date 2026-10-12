@@ -256,23 +256,49 @@ def _scalar(v):
     return v[0] if isinstance(v, list) and v else v
 
 
-async def credit_balance(user: dict) -> int:
-    return int((await get_profile(user)).get('credits') or 0)
+# Custo de cada serviço, em créditos (1 crédito = R$ 20).
+COST_TESTE = 1.0      # correção de um teste
+COST_HISTORIA = 0.5   # História de Vida (análise da anamnese)
+COST_LAUDO = 1.0      # laudo (Avaliação Completa ou Geração de Laudo)
+NO_CREDITS = 'Créditos insuficientes: {need} crédito(s) para este serviço. Compre um pacote em Planos para continuar.'
 
 
-async def spend_laudo(user: dict, ref: str | None = None) -> int:
+def _num(v) -> float:
+    return float(v or 0)
+
+
+async def credit_balance(user: dict) -> float:
+    return _num((await get_profile(user)).get('credits'))
+
+
+async def spend_laudo(user: dict, ref: str | None = None) -> float:
     """Consome 1 crédito (admin é ilimitado). 402 se não houver saldo."""
     try:
-        return int(_scalar(await _req('POST', '/rpc/spend_laudo', user, json={'p_ref': ref}, write=True)) or 0)
+        return _num(_scalar(await _req('POST', '/rpc/spend_laudo', user, json={'p_ref': ref}, write=True)))
     except HTTPException as e:
         if 'insufficient_credits' in str(e.detail):
-            raise HTTPException(402, 'Créditos insuficientes. Compre um pacote em Planos para gerar o laudo.')
+            raise HTTPException(402, NO_CREDITS.format(need='1'))
         raise
 
 
-async def can_laudo(user: dict) -> bool:
+async def spend_credits(user: dict, amount: float, reason: str, ref: str | None = None) -> float:
+    """Debita `amount` créditos. Com `ref`, o mesmo serviço repetido no mesmo dia sai de graça."""
+    try:
+        return _num(_scalar(await _req('POST', '/rpc/spend_credits', user, write=True, json={
+            'p_amount': amount, 'p_reason': reason, 'p_ref': ref})))
+    except HTTPException as e:
+        if 'insufficient_credits' in str(e.detail):
+            raise HTTPException(402, NO_CREDITS.format(need=f'{amount:g}'.replace('.', ',')))
+        raise
+
+
+async def can_spend(user: dict, amount: float) -> bool:
     p = await get_profile(user)
-    return p.get('role') == 'admin' or int(p.get('credits') or 0) > 0
+    return p.get('role') == 'admin' or _num(p.get('credits')) >= amount
+
+
+async def can_laudo(user: dict) -> bool:
+    return await can_spend(user, COST_LAUDO)
 
 
 async def list_ledger(user: dict) -> list[dict]:
@@ -341,7 +367,7 @@ async def admin_create_professional(user: dict, data: dict) -> dict:
         if data.get(k):
             patch[k] = data[k]
     if data.get('credits') is not None:
-        patch['credits'] = int(data['credits'])
+        patch['credits'] = float(data['credits'])
     if data.get('full_name'):
         patch['full_name'] = data['full_name']
     if patch:
@@ -395,9 +421,9 @@ async def fulfill_payment(payment_id: str) -> dict:
     return {'ok': True, 'credits': order['credits']}
 
 
-async def admin_grant_credits(user: dict, pid: str, delta: int) -> int:
+async def admin_grant_credits(user: dict, pid: str, delta: float) -> float:
     await _require_admin(user)
-    return int(_scalar(await _service_req('POST', '/rpc/apply_credits', json={
+    return _num(_scalar(await _service_req('POST', '/rpc/apply_credits', json={
         'p_owner': pid, 'p_delta': int(delta), 'p_reason': 'admin_grant',
     })) or 0)
 

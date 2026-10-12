@@ -266,3 +266,10 @@ ATA/HADS aparecem só no catálogo `/api/tests`, total exibido no app = 70).
 - **Testes realizados** (`#realizados`, migração **0013** `test_results`, único por owner+patient_key+test): todo cálculo
   bem-sucedido no corretor é salvo (entradas + resultado). Aba lista por paciente; Abrir/editar reabre no corretor
   (inclusive a ficha do RAVLT); Excluir; seleção → "Gerar laudo completo" monta `state.results` e dispara a Avaliação Completa.
+- **Protocolo item a item lido da planilha** (`server/item_sheet.py`): `detect()` acha células de resposta pelas
+  fórmulas `IF(H17="DT",6,…)` (códigos ≤3 letras), texto/número do item, seção e a célula de identificação do
+  respondente (`IF($J$11="","",$J$11)` — sem ela a planilha não calcula os fatores). Liberado só em `ENABLED`
+  (ETDAH-2, SNAP-IV, SDQ-Pr, BRIEF-P) depois de conferido; PEP-R ficou de fora (itens não alteram resultado),
+  BRIEF-2 também (leitura ambígua). ETDAH-2: itens × PB digitado = tabela final idêntica.
+- `detect_selectors()`: seletores de tabela normativa/amostra das abas (ex.: ETDAH-2 Q3 "Amostra Geral") viram
+  parâmetros com lista; valor inicial = o salvo na planilha (nada muda até escolher). Antes o ETDAH-2 saía sem percentil.

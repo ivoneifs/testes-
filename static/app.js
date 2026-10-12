@@ -218,7 +218,8 @@ function renderInputs(){
     for(const f of m.raw_fields){const k=f.ps_section||f.group||'Itens avulsos';if(!map.has(k))map.set(k,[]);map.get(k).push(f);}
     groups=[...map.values()]; titles=[...map.keys()];
   }else{
-    groups=groupFields(m.raw_fields); titles=null;
+    const pc=m.item_protocol?new Set(protoCells(m.item_protocol)):null;
+    groups=groupFields(pc?m.raw_fields.filter(f=>!pc.has(f.cell)):m.raw_fields).filter(g=>g.length); titles=null;
   }
   els.raw.innerHTML=groups.map((g,i)=>{
     const auto=!bySection && g.every(f=>f.allow_override_formula);
@@ -248,18 +249,77 @@ function renderInputs(){
     return `<section class="raw-section${auto?' raw-section--auto':''}"><div class="raw-section-title">${esc(title)}${prog}</div><div class="raw-grid">${cells}</div></section>`;
   }).join('');
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+  if(m.item_protocol){
+    const rest=els.raw.innerHTML;
+    els.raw.innerHTML=protocolHtml(m.item_protocol)
+      +(rest.trim()?`<details class="ravlt-manual"><summary>Ou digite só os pontos brutos / outros campos da planilha (opcional)</summary>${rest}</details>`:'');
+    protoSetInformant(0);
+  }
   if(m.answer_sheet){
     els.raw.innerHTML=ravltSheetHtml(m.answer_sheet)
       +`<details class="ravlt-manual"><summary>Ou digite só os totais de cada tentativa (opcional)</summary>${els.raw.innerHTML}</details>`;
   }
   const params=m.parameters||[]; els.paramsPanel.hidden=!params.length;
   const keepParam=m.input_mode!=='itens';
-  els.params.innerHTML=params.map(p=>`<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${keepParam?esc(p.current??''):''}" /></label>`).join('');
+  els.params.innerHTML=params.map(p=>p.options
+    // seletor da planilha (tabela normativa, amostra…): lista com as opções que ela aceita
+    ? `<label class="field">${esc(p.label)}<select data-param="${esc(p.cell)}"><option value="">Selecione…</option>${p.options.map(o=>`<option${o===p.current?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`
+    : `<label class="field">${esc(p.label)}<input data-param="${esc(p.cell)}" value="${keepParam?esc(p.current??''):''}" /></label>`).join('');
+  // tabela normativa fica visível (aberta) quando existir
+  if(params.some(p=>p.selector)) els.paramsPanel.open=true;
   els.calc.disabled=!m.raw_fields.length; els.results.hidden=true; els.testReportBtn.disabled=true;
 }
 // Campos [data-calc] (somas/índices/totais com fórmula) são calculados pela
 // planilha por padrão e só são enviados quando a pessoa digita um valor (override).
 // Ao digitar, o campo é marcado com data-touched; ao esvaziar, volta a ser automático.
+// ---------- Protocolo item a item (lido da planilha; ela pontua) ----------
+function protoCells(p){return p.items.flatMap(i=>i.cells).concat((p.informant_cells||[]).filter(Boolean));}
+function protocolHtml(p){
+  const multi=p.informants>1;
+  const inf=multi?`<div class="proto-inf"><span class="muted small">Respondente:</span><div class="seg" id="protoInf">${p.informant_names.map((n,k)=>
+      `<button type="button" class="seg-btn${k?'':' active'}" data-inf="${k}">${esc(n)}</button>`).join('')}</div></div>`:'';
+  const ids=(p.informant_cells||[]).map((c,k)=>c?`<label class="field proto-id" data-inf-id="${k}"${k?' hidden':''}>Identificação do respondente (nome / disciplina / parentesco)
+      <input type="text" data-raw="${esc(c)}" data-text placeholder="obrigatório para a planilha calcular os fatores"></label>`:'').join('');
+  let html='', sec=null;
+  p.items.forEach((it,ix)=>{
+    if(it.section!==sec){ if(sec!==null) html+='</div></section>'; sec=it.section;
+      html+=`<section class="raw-section proto-sec"><div class="raw-section-title">${esc(sec||'Itens')} <span class="sec-prog" data-prog>0/0</span></div><div class="proto-items">`; }
+    html+=`<div class="proto-item"><div class="proto-label">${esc(it.label)}</div>`
+      +it.cells.map((c,k)=>`<div class="score-seg proto-seg" data-inf-row="${k}"${k?' hidden':''}>${it.options.map(o=>`<button type="button" data-pset="${esc(o)}">${esc(o)}</button>`).join('')}</div>`
+        +`<input type="hidden" data-raw="${esc(c)}" data-text data-inf-cell="${k}">`).join('')
+      +`</div>`;
+  });
+  if(sec!==null) html+='</div></section>';
+  return `<section class="proto"><div class="ravlt-head"><b>Protocolo — item a item</b><span class="muted small">Toque na resposta de cada item. Toque de novo para limpar. A planilha pontua (inclusive itens invertidos).</span></div>${inf}${ids}${html}</section>`;
+}
+function protoSetInformant(k){
+  state.protoInf=k;
+  els.raw.querySelectorAll('[data-inf]').forEach(b=>b.classList.toggle('active',Number(b.dataset.inf)===k));
+  els.raw.querySelectorAll('[data-inf-row]').forEach(x=>{x.hidden=Number(x.dataset.infRow)!==k;});
+  els.raw.querySelectorAll('[data-inf-id]').forEach(x=>{x.hidden=Number(x.dataset.infId)!==k;});
+  protoProgress();
+}
+function protoProgress(){
+  const k=state.protoInf||0;
+  els.raw.querySelectorAll('.proto-sec').forEach(sec=>{
+    const ins=[...sec.querySelectorAll(`[data-inf-cell="${k}"]`)], n=ins.filter(i=>i.value!=='').length;
+    const p=sec.querySelector('[data-prog]'); if(p){p.textContent=`${n}/${ins.length}`;p.classList.toggle('done',ins.length&&n===ins.length);}
+  });
+}
+function protoSync(){
+  els.raw.querySelectorAll('.proto-seg').forEach(seg=>{
+    const inp=seg.parentElement.querySelector(`[data-inf-cell="${seg.dataset.infRow}"]`);
+    seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',inp.value!==''&&b.dataset.pset===inp.value));
+  });
+  protoProgress();
+}
+els.raw.addEventListener('click',e=>{
+  const inf=e.target.closest('[data-inf]'); if(inf){protoSetInformant(Number(inf.dataset.inf));return;}
+  const b=e.target.closest('[data-pset]'); if(!b) return;
+  const seg=b.parentElement, inp=seg.parentElement.querySelector(`[data-inf-cell="${seg.dataset.infRow}"]`);
+  inp.value=inp.value===b.dataset.pset?'':b.dataset.pset; protoSync();
+});
+
 // ---------- Ficha do RAVLT (igual à folha de respostas) ----------
 // Cada toque numa palavra grava a ORDEM de evocação na célula da planilha; a
 // planilha conta (COUNT), calcula efeitos, reconhecimento e falsos positivos.
@@ -357,6 +417,7 @@ els.clear.addEventListener('click',()=>{
   els.raw.querySelectorAll('[data-rv-total]').forEach(t=>{t.textContent='0';});
   els.raw.querySelectorAll('.rv-rec').forEach(r=>{r.dataset.sn='';r.querySelector('.rv-sn').textContent='';});
   els.raw.querySelectorAll('[data-rv-intr]').forEach(i=>{i.value='';});
+  protoSync();
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
 });
 
@@ -949,6 +1010,7 @@ async function openSavedTest(rec){
   const params=(rec.inputs||{}).parameters||{};
   els.params.querySelectorAll('[data-param]').forEach(i=>{ if(params[i.dataset.param]!==undefined) i.value=params[i.dataset.param]; });
   els.raw.querySelectorAll('.raw-section').forEach(syncSection);
+  protoSync();
   if(rec.result && rec.result.tables){ state.result=rec.result; renderResults(rec.result); fillAutoFields(rec.result); els.testReportBtn.disabled=!state.openaiConfigured; renderArchive(); }
 }
 // Monta a Avaliação Completa com os testes escolhidos e gera o laudo integrado.

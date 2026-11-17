@@ -483,6 +483,8 @@ async def get_site() -> dict:
 
 async def update_site(user: dict, data: dict) -> dict:
     await _require_admin(user)
+    # mescla com o que já existe: cada card do Admin salva só os próprios campos
+    data = {**(await get_site()), **(data or {})}
     rows = await _req('PATCH', '/site_settings', user, params={'id': 'eq.site'},
                       json={'data': data}, write=True)
     await log(user, 'admin_update', 'site', 'site')

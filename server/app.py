@@ -782,7 +782,8 @@ class ResetConfirm(BaseModel):
 
 @app.get('/api/auth/recovery')
 def recovery_options():
-    return {'whatsapp': recovery.available()}
+    # e-mail: link pelo Supabase Auth (SMTP configurado no serviço de login); EMAIL_RECOVERY=0 desliga
+    return {'whatsapp': recovery.available(), 'email': os.getenv('EMAIL_RECOVERY', '1') not in ('0', 'false', 'no')}
 
 @app.post('/api/auth/reset/start')
 async def reset_start(req: ResetStart, request: Request):
@@ -802,7 +803,8 @@ async def admin_status(user: dict = Depends(active_user)):
     out: dict[str, Any] = {'app': {'ok': True, 'version': app.version},
                            'openai': bool(os.getenv('OPENAI_API_KEY')),
                            'payments': payments.enabled(), 'whatsapp': notify.enabled(),
-                           'recovery_whatsapp': recovery.available(), 'smtp': False}
+                           'recovery_whatsapp': recovery.available(),
+                           'smtp': os.getenv('EMAIL_RECOVERY', '1') not in ('0', 'false', 'no')}
     try:
         t0 = time.time()
         rows = await store._service_req('GET', '/profiles', params={'select': 'status'}) or []

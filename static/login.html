@@ -71,6 +71,7 @@
   .consent input{width:auto!important;margin-top:3px}
   .forgot{display:block;text-align:right;font-size:13px;margin:8px 0 0;cursor:pointer;color:var(--primary);text-decoration:none;font-weight:600}
   [hidden]{display:none!important}
+  .btn-alt{background:transparent!important;color:var(--primary)!important;border:1.5px solid var(--primary)!important;margin-top:10px!important;box-shadow:none!important}
   .reset-intro{font-size:14px;color:var(--muted);margin:4px 0 0}
 </style>
 </head>
@@ -116,11 +117,20 @@
       <button id="submitBtn" type="submit">Entrar</button>
     </form>
 
+    <div id="newPassBox" hidden>
+      <label for="npPass">Nova senha</label>
+      <div class="pw"><input id="npPass" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" /></div>
+      <label for="npPass2">Repita a nova senha</label>
+      <input id="npPass2" type="password" autocomplete="new-password" minlength="8" />
+      <button type="button" id="npSave">Salvar e entrar</button>
+    </div>
+
     <div id="resetBox" hidden>
-      <p class="reset-intro">Enviaremos um código de 6 dígitos para o <b>WhatsApp do seu cadastro</b>.</p>
+      <p class="reset-intro">Digite o e-mail da sua conta e escolha como receber a recuperação.</p>
       <label for="rEmail">E-mail da conta</label>
       <input id="rEmail" type="email" autocomplete="email" placeholder="voce@clinica.com.br" />
-      <button type="button" id="rSend">Enviar código no WhatsApp</button>
+      <button type="button" id="rMail" hidden>Receber link por e-mail</button>
+      <button type="button" id="rSend" class="btn-alt" hidden>Receber código no WhatsApp</button>
       <div id="rStep2" hidden>
         <label for="rCode">Código recebido</label>
         <input id="rCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
@@ -166,8 +176,30 @@
     if (!cfg.auth_enabled) { location.replace(DEST); return; }
     const sb = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
 
+    // Link "criar nova senha" do e-mail: o Supabase devolve #...type=recovery e já abre uma sessão temporária
+    const isRecovery = /type=recovery/.test(location.hash) || new URLSearchParams(location.search).has('recuperar');
     const { data: { session } } = await sb.auth.getSession();
-    if (session) { location.replace(DEST); return; }
+    if (isRecovery && session) {
+      $('#form').hidden = true; $('#switch').hidden = true; $('#newPassBox').hidden = false;
+      document.querySelector('h1').textContent = 'Criar nova senha';
+      $('#modeLabel').textContent = 'Defina a nova senha da sua conta';
+      history.replaceState(null, '', location.pathname);
+      $('#npSave').addEventListener('click', async () => {
+        const a = $('#npPass').value, b = $('#npPass2').value;
+        if (a.length < 8) { msg('A nova senha precisa ter pelo menos 8 caracteres.'); return; }
+        if (a !== b) { msg('As duas senhas não são iguais.'); return; }
+        $('#npSave').disabled = true;
+        const { error } = await sb.auth.updateUser({ password: a });
+        if (error) { msg(error.message || 'Não foi possível salvar.'); $('#npSave').disabled = false; return; }
+        msg('✅ Senha alterada! Entrando…', true);
+        setTimeout(() => location.replace(DEST), 900);
+      });
+      return;
+    }
+    if (isRecovery && /error/.test(location.hash)) {
+      msg('Este link de recuperação expirou ou já foi usado. Peça um novo em "Esqueci minha senha".');
+      history.replaceState(null, '', location.pathname);
+    } else if (session) { location.replace(DEST); return; }
 
     let signup = false;
     $('#switch').addEventListener('click', (e) => {
@@ -207,9 +239,11 @@
     };
     $('#forgot').addEventListener('click', async (e) => {
       e.preventDefault();
-      let ok = false;
-      try { ok = (await (await fetch('/api/auth/recovery')).json()).whatsapp; } catch {}
-      if (ok) showReset(true); else supportWA();
+      let o = {};
+      try { o = await (await fetch('/api/auth/recovery')).json(); } catch {}
+      if (!o.email && !o.whatsapp) { supportWA(); return; }
+      $('#rMail').hidden = !o.email; $('#rSend').hidden = !o.whatsapp;
+      showReset(true);
     });
     $('#rBack').addEventListener('click', (e) => { e.preventDefault(); showReset(false); });
     $('#rHelp').addEventListener('click', (e) => { e.preventDefault(); supportWA(); });
@@ -229,6 +263,15 @@
         $('#rStep2').hidden = false; $('#rCode').focus(); b.textContent = 'Reenviar código';
       } catch (err) { msg(err.message); }
       finally { setTimeout(() => { b.disabled = false; }, 30000); }
+    });
+    $('#rMail').addEventListener('click', async () => {
+      const email = $('#rEmail').value.trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)) { msg('Digite o e-mail da sua conta.'); return; }
+      const b = $('#rMail'); b.disabled = true;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/login.html?recuperar=1' });
+      if (error && !/rate|seconds/i.test(error.message)) msg(error.message);
+      else msg(error ? '⏳ Aguarde um minuto antes de pedir outro link.' : `✅ Se ${email} tiver cadastro, enviamos um link para criar a nova senha. Veja também a caixa de spam.`, !error);
+      setTimeout(() => { b.disabled = false; }, 60000);
     });
     $('#rSave').addEventListener('click', async () => {
       const b = $('#rSave'); b.disabled = true;
@@ -277,6 +320,13 @@
                      'Password should be at least 6 characters.': 'A senha precisa ter pelo menos 6 caracteres.',
                      'Failed to fetch': 'Sem conexão com o servidor. Verifique a internet e tente de novo.' };
         msg(PT[err.message] || err.message || 'Falha na autenticação.');
+        if (err.message === 'Email not confirmed') {
+          const a = document.createElement('a'); a.href = '#'; a.textContent = ' Reenviar e-mail de confirmação';
+          a.style.cssText = 'font-weight:700;color:inherit;text-decoration:underline';
+          a.onclick = async (ev) => { ev.preventDefault(); const { error: e2 } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + '/login.html?confirmado=1' } });
+            msg(e2 ? 'Aguarde um minuto e tente de novo.' : `✅ Enviamos um novo link de confirmação para ${email}.`, !e2); };
+          $('#msg').appendChild(a);
+        }
       } finally {
         btn.disabled = false;
       }

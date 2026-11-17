@@ -297,7 +297,7 @@
       const btn = $('#submitBtn'); btn.disabled = true;
       try {
         if (signup) {
-          const { error } = await sb.auth.signUp({
+          const { data: su, error } = await sb.auth.signUp({
             email, password,
             options: {
               emailRedirectTo: location.origin + '/login.html?confirmado=1',
@@ -307,6 +307,10 @@
             },
           });
           if (error) throw error;
+          // registra o IP de quem pediu a liberação (o admin vê em Usuários & Acessos)
+          if (su && su.user && su.user.id) {
+            try { await fetch('/api/auth/signup-ip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: su.user.id }) }); } catch {}
+          }
           const { data: { session: s } } = await sb.auth.getSession();
           if (s) { location.replace(DEST); return; }
           $('#form').hidden = true; $('#switch').hidden = true; $('#trialNote').hidden = true;

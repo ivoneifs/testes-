@@ -635,17 +635,37 @@
       ? { access, trial_days: Math.max(0, parseInt($('#f_days').value, 10) || 0) }
       : { access };
   };
+  // IP de quem pediu a liberação do cadastro (e do último acesso, se mudou)
+  function ipInfo(p) {
+    const dt = (v) => v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const look = (ip) => `<a href="https://ipinfo.io/${encodeURIComponent(ip)}" target="_blank" rel="noopener noreferrer" title="Ver provedor e localização aproximada">${NS.esc(ip)}</a>`;
+    let h = '';
+    if (p.signup_ip) h += `<div class="muted small" title="${NS.esc(p.signup_user_agent || '')}">🌐 IP do pedido: ${look(p.signup_ip)}${p.signup_ip_at ? ` · ${dt(p.signup_ip_at)}` : ''}</div>`;
+    if (p.last_ip && p.last_ip !== p.signup_ip) h += `<div class="muted small">↻ Último acesso: ${look(p.last_ip)}${p.last_ip_at ? ` · ${dt(p.last_ip_at)}` : ''}</div>`;
+    if (!h && p.status === 'pending') h = '<div class="muted small">🌐 IP do pedido: ainda não registrado</div>';
+    const dup = sameIp(p);
+    if (dup.length) h += `<div class="small ip-alert" title="${NS.esc(dup.map(o => `${o.full_name || '—'} (${o.email || '—'})`).join('\n'))}">⚠️ Mesmo IP de: ${dup.map(o => NS.esc(o.full_name || o.email || '—')).join(', ')}</div>`;
+    return h;
+  }
+  // outras contas com o mesmo IP (do pedido ou do último acesso)
+  function sameIp(p) {
+    const mine = [p.signup_ip, p.last_ip].filter(Boolean);
+    if (!mine.length) return [];
+    return (state.pros || []).filter(o => o.id !== p.id && [o.signup_ip, o.last_ip].some(ip => ip && mine.includes(ip)));
+  }
   function renderPros() {
     const q = ($('#proSearch').value || '').toLowerCase();
     const rows = (state.pros || []).filter(p =>
-      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q))
+      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)
+        || (p.signup_ip || '').includes(q) || (p.last_ip || '').includes(q))
       .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
     const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
     const pend = $('#prosPending');
-    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação`; }
+    const nDup = (state.pros || []).filter(p => p.status === 'pending' && sameIp(p).length).length;
+    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação` + (nDup ? ` · ⚠️ ${nDup} com IP igual ao de outra conta` : ''); }
     setAdminBadge(nPend);
-    $('#prosBody').innerHTML = rows.map(p => `<tr>
-      <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}</td>
+    $('#prosBody').innerHTML = rows.map(p => `<tr${sameIp(p).length ? ' class="row-ip-alert"' : ''}>
+      <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}${ipInfo(p)}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
       <td><span class="pill${p.status === 'suspended' || p.status === 'rejected' ? ' pill--off' : p.status === 'pending' ? ' pill--trial' : ' pill--ok'}">${{ suspended: 'Suspenso', pending: 'Aguardando aprovação', rejected: 'Recusado' }[p.status] || 'Ativo'}</span></td>
@@ -664,6 +684,8 @@
     const t = e.target;
     if (t.dataset.approvePro) {
       const p = state.pros.find(x => x.id === t.dataset.approvePro); if (!p) return;
+      const dup = sameIp(p);
+      if (dup.length && !confirm(`⚠️ ALERTA: ${p.full_name || p.email} usa o mesmo IP de:\n${dup.map(o => `• ${o.full_name || '—'} (${o.email || '—'})`).join('\n')}\n\nPode ser a mesma pessoa criando outra conta para ganhar o teste grátis de novo. Aprovar mesmo assim?`)) return;
       t.disabled = true;
       try {
         await NS.api('/api/admin/professionals/' + p.id, {

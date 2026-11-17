@@ -1148,3 +1148,9 @@ a.btn,a.btn:hover{text-decoration:none}
 .admin-jump button.hl{background:var(--primary-soft);border-color:color-mix(in srgb,var(--primary) 35%,var(--line));color:var(--primary)}
 .card.flash{animation:cardflash 1.6s ease}
 @keyframes cardflash{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 45%,transparent)}100%{box-shadow:var(--shadow-sm)}}
+
+/* Usuários & Acessos: cadastro com IP igual ao de outra conta */
+.ip-alert { color: #b91c1c; font-weight: 700; margin-top: 2px; }
+tr.row-ip-alert > td { background: rgba(220, 38, 38, .07); }
+tr.row-ip-alert > td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
+@media (prefers-color-scheme: dark) { .ip-alert { color: #f87171; } }

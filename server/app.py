@@ -737,12 +737,106 @@ async def evaluations_delete(eval_id: str, user: dict = Depends(active_user)):
     return {'ok': True}
 
 @app.get('/api/profile')
-async def profile_get(user: dict = Depends(current_user)):
+async def profile_get(request: Request, user: dict = Depends(current_user)):
     # Liberado mesmo com o teste expirado: o app usa para mostrar o bloqueio e o contador.
     p = await store.get_profile(user)
+    ip = client_ip(request)
+    patch: dict[str, Any] = {}
+    if ip and ip != p.get('last_ip'):
+        patch.update(last_ip=ip, last_ip_at='now()')
+    if ip and not p.get('signup_ip') and p.get('status') == 'pending':
+        # cadastro feito antes do registro de IP (ou o aviso do navegador falhou): usa o IP do 1º acesso
+        patch.update(signup_ip=ip, signup_ip_at='now()', signup_user_agent=(request.headers.get('user-agent') or '')[:300])
+    if patch:
+        patch = {k: (_now_iso() if v == 'now()' else v) for k, v in patch.items()}
+        try:
+            await store._service_req('PATCH', '/profiles', params={'id': f'eq.{p["id"]}'}, json=patch)
+            p.update(patch)
+        except Exception as exc:  # registro de IP nunca quebra o login
+            log.warning('Registro de IP falhou: %s', exc)
     if p.get('status') == 'pending' and not (p.get('prefs') or {}).get('_admin_notified') and notify.enabled():
         asyncio.create_task(_notify_signup(p))
     return {**p, 'access': store.access_state(p)}
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def client_ip(request: Request) -> str:
+    """IP real de quem fez a requisição. O site passa pela Cloudflare (CF-Connecting-IP);
+    depois pelo Traefik (X-Forwarded-For, o primeiro da lista é o cliente)."""
+    ip = (request.headers.get('cf-connecting-ip') or request.headers.get('x-real-ip') or '').strip()
+    if not ip:
+        ip = (request.headers.get('x-forwarded-for') or '').split(',')[0].strip()
+    if not ip and request.client:
+        ip = request.client.host
+    return re.sub(r'[^0-9a-fA-F:.]', '', ip)[:64]
+
+
+async def same_ip_accounts(pid: str, ip: str | None) -> list[dict]:
+    """Outras contas cujo IP do cadastro ou do último acesso é igual a `ip`."""
+    ip = re.sub(r'[^0-9a-fA-F:.]', '', ip or '')
+    if not ip:
+        return []
+    rows = await store._service_req('GET', '/profiles', params={
+        'select': 'id,full_name,email,status',
+        'or': f'(signup_ip.eq."{ip}",last_ip.eq."{ip}")', 'id': f'neq.{pid}', 'limit': '20'}) or []
+    return rows
+
+
+def _fmt_same_ip(rows: list[dict]) -> str:
+    st = {'pending': 'aguardando', 'rejected': 'recusado', 'suspended': 'suspenso'}
+    return '\n'.join(f'• {r.get("full_name") or "—"} ({r.get("email") or "—"}) — {st.get(r.get("status"), "ativo")}'
+                     for r in rows[:10])
+
+
+async def _alert_same_ip(pid: str, ip: str, who: dict) -> None:
+    """Aviso imediato ao admin: cadastro novo vindo de um IP que já tem outra conta."""
+    try:
+        others = await same_ip_accounts(pid, ip)
+        if not others or not notify.enabled():
+            return
+        await notify.notify_admin(
+            '⚠️ *NeuroScore — ALERTA: cadastro do mesmo IP*\n\n'
+            f'Novo pedido: {who.get("full_name") or "—"} ({who.get("email") or "—"})\nIP: {ip}\n\n'
+            f'Já existe(m) conta(s) com este IP:\n{_fmt_same_ip(others)}\n\n'
+            f'Confira antes de aprovar: {PUBLIC_URL}/app#admin')
+    except Exception as exc:
+        log.warning('Alerta de IP repetido falhou: %s', exc)
+
+
+class SignupIp(BaseModel):
+    user_id: str
+
+
+@app.post('/api/auth/signup-ip')
+async def signup_ip(req: SignupIp, request: Request):
+    """Chamado pelo login.html logo depois do signUp: grava o IP de quem pediu a liberação.
+    Só vale para cadastro pendente, criado há menos de 15 min e ainda sem IP."""
+    _rate_limit(request, 'signup-ip', 20)
+    if not re.fullmatch(r'[0-9a-fA-F-]{36}', req.user_id or ''):
+        return {'ok': False}
+    try:
+        rows = await store._service_req('GET', '/profiles', params={
+            'id': f'eq.{req.user_id}', 'select': 'id,full_name,email,status,signup_ip,created_at', 'limit': '1'}) or []
+        r = rows[0] if rows else None
+        if not r or r.get('status') != 'pending' or r.get('signup_ip'):
+            return {'ok': False}
+        from datetime import datetime, timezone
+        created = datetime.fromisoformat(str(r['created_at']).replace('Z', '+00:00'))
+        if (datetime.now(timezone.utc) - created).total_seconds() > 900:
+            return {'ok': False}
+        ip = client_ip(request)
+        await store._service_req('PATCH', '/profiles', params={'id': f'eq.{r["id"]}', 'signup_ip': 'is.null'}, json={
+            'signup_ip': ip, 'signup_ip_at': _now_iso(),
+            'signup_user_agent': (request.headers.get('user-agent') or '')[:300]})
+        asyncio.create_task(_alert_same_ip(r['id'], ip, r))
+        return {'ok': True}
+    except Exception as exc:
+        log.warning('IP do cadastro falhou: %s', exc)
+        return {'ok': False}
 
 
 async def _notify_signup(p: dict) -> None:
@@ -750,10 +844,14 @@ async def _notify_signup(p: dict) -> None:
     try:
         prefs = {**(p.get('prefs') or {}), '_admin_notified': True}
         await store._service_req('PATCH', '/profiles', params={'id': f'eq.{p["id"]}'}, json={'prefs': prefs})
+        ip = p.get('signup_ip') or p.get('last_ip')
+        others = await same_ip_accounts(p['id'], ip)
+        alerta = (f'⚠️ *ALERTA: mesmo IP de outra(s) conta(s):*\n{_fmt_same_ip(others)}\n\n' if others else '')
         await notify.notify_admin(
-            '🆕 *NeuroScore — novo cadastro aguardando aprovação*\n\n'
+            ('⚠️ ' if others else '🆕 ') + '*NeuroScore — novo cadastro aguardando aprovação*\n\n'
             f'Nome: {p.get("full_name") or "—"}\nCRP: {p.get("professional_id") or "—"}\n'
-            f'E-mail: {p.get("email") or "—"}\nWhatsApp: {p.get("phone") or "—"}\nCidade: {p.get("city") or "—"}\n\n'
+            f'E-mail: {p.get("email") or "—"}\nWhatsApp: {p.get("phone") or "—"}\nCidade: {p.get("city") or "—"}\n'
+            f'IP do pedido: {ip or "—"}\n\n' + alerta +
             f'Aprovar: {PUBLIC_URL}/app#admin')
     except Exception as exc:  # aviso nunca quebra o login
         log.warning('Aviso de cadastro falhou: %s', exc)
@@ -763,7 +861,7 @@ async def _notify_signup(p: dict) -> None:
 _RL: dict[str, list[float]] = {}
 
 def _rate_limit(request: Request, bucket: str, limit: int, window: int = 3600) -> None:
-    ip = request.headers.get('cf-connecting-ip') or (request.client.host if request.client else '?')
+    ip = client_ip(request) or '?'
     k, now = f'{bucket}:{ip}', time.time()
     hits = [t for t in _RL.get(k, []) if now - t < window]
     if len(hits) >= limit:

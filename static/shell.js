@@ -527,7 +527,7 @@
     openEdit('Novo pacote', `
       <label class="field">Código (sem espaços)<input id="f_key" placeholder="pack40"></label>
       <label class="field">Nome<input id="f_name" placeholder="Pack 40 créditos"></label>
-      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="0.5" value="10"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="1" min="1" value="10"></label>
       <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="200.00"></label>
       <label class="field">Ordem<input id="f_sort" type="number" value="${(state.plans || []).length + 1}"></label>
       <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4"></textarea></label>
@@ -583,7 +583,7 @@
     const p = (state.plans || []).find(x => x.key === b.dataset.editPlan); if (!p) return;
     openEdit('Editar ' + p.name, `
       <label class="field span-2">Nome<input id="f_name" value="${NS.esc(p.name)}"></label>
-      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="0.5" value="${p.credits}"></label>
+      <label class="field">Créditos (laudos)<input id="f_credits" type="number" step="1" min="1" value="${p.credits}"></label>
       <label class="field">Preço R$<input id="f_price" type="number" step="0.01" value="${(p.amount_cents / 100).toFixed(2)}"></label>
       <label class="field">Ordem<input id="f_sort" type="number" value="${p.sort ?? 0}"></label>
       <label class="field span-2">Itens (um por linha)<textarea id="f_feat" rows="4">${NS.esc((p.features || []).join('\n'))}</textarea></label>

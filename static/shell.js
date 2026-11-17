@@ -347,6 +347,43 @@
   $('#plResetBtn')?.addEventListener('click', () => {
     if (confirm('Voltar os textos da página Planos e Recargas ao padrão?')) savePlanosTexts({ ...PL_DEFAULT });
   });
+  // Textos do site (landing /#precos e /apresentacao): guardados em site.precos (+ site.cta_text)
+  const PR_DEFAULT = {
+    title: 'Comece grátis. Depois,', title_hl: 'pague só pelo que usar.',
+    subtitle: 'Sem mensalidade, sem fidelidade. Créditos não expiram enquanto sua conta estiver ativa.',
+    badge: '⚡ Mais escolhido', unit: 'pagamento único', buy: 'Comprar {creditos} créditos',
+    free_band: 'Ao criar sua conta: **14 dias de acesso + 3 créditos grátis** para corrigir testes e gerar seu primeiro laudo.',
+    micro: ['3 créditos grátis', 'Sem cartão para começar', 'Sem mensalidade'], cta_short: 'Testar grátis', trial_days: 14,
+  };
+  const PR_CTA = 'Começar teste grátis de 14 dias →';
+  function fillPrecosForm() {
+    if (!$('#prTitle')) return;
+    const site = state.site || {}, c = { ...PR_DEFAULT, ...(site.precos || {}) };
+    $('#prCta').value = site.cta_text || PR_CTA; $('#prCtaShort').value = c.cta_short; $('#prMicro').value = (c.micro || []).join('\n');
+    $('#prTitle').value = c.title; $('#prTitleHl').value = c.title_hl; $('#prSub').value = c.subtitle;
+    $('#prTrialDays').value = c.trial_days; $('#prBadge').value = c.badge; $('#prUnit').value = c.unit; $('#prBuy').value = c.buy; $('#prFree').value = c.free_band;
+  }
+  async function savePrecos(precos, cta_text) {
+    const m = $('#prMsg');
+    try {
+      const { site } = await NS.api('/api/admin/site', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precos, cta_text }),
+      });
+      state.site = site; fillPrecosForm(); fillSiteForm(site);
+      m.textContent = 'Salvo. Já aparece no site (atualize a página inicial).'; m.className = 'inline-msg ok';
+    } catch (e) { m.textContent = e.message; m.className = 'inline-msg err'; }
+  }
+  $('#prSaveBtn')?.addEventListener('click', () => {
+    const v = (id) => $(id).value.trim();
+    savePrecos({
+      title: v('#prTitle'), title_hl: v('#prTitleHl'), subtitle: v('#prSub'), badge: v('#prBadge'), unit: v('#prUnit'),
+      buy: v('#prBuy') || PR_DEFAULT.buy, free_band: v('#prFree'), trial_days: parseInt(v('#prTrialDays'), 10) || 14, cta_short: v('#prCtaShort') || PR_DEFAULT.cta_short,
+      micro: $('#prMicro').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 6),
+    }, v('#prCta') || PR_CTA);
+  });
+  $('#prResetBtn')?.addEventListener('click', () => {
+    if (confirm('Voltar os textos de preços e teste grátis do site ao padrão?')) savePrecos({ ...PR_DEFAULT }, PR_CTA);
+  });
   $('#plEditLink')?.addEventListener('click', () => setTimeout(() => $('#plPageCard')?.scrollIntoView({ behavior: 'smooth' }), 300));
   $('#planosGrid')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-buy]'); if (!b) return;
@@ -441,7 +478,7 @@
     } catch (e) { $('#plansBody').innerHTML = `<tr><td colspan="6" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
     try {
       const { site = {} } = await NS.api('/api/site');
-      state.site = site; fillSiteForm(site); fillPlanosForm();
+      state.site = site; fillSiteForm(site); fillPlanosForm(); fillPrecosForm();
     } catch {}
   }
 

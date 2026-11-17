@@ -551,6 +551,29 @@
             <span class="inline-msg" id="plMsg"></span></div>
         </div>
 
+        <div class="card" id="precosCard">
+          <div class="section-heading"><div><h2>Site: preços e teste grátis</h2>
+            <span class="muted">Textos da página inicial (seção Preços e botões de teste grátis) e da página de apresentação. Os pacotes e valores vêm do card "Planos &amp; Preços".</span></div>
+            <a class="btn ghost" href="/#precos" target="_blank" rel="noopener">Ver no site ↗</a></div>
+          <div class="form-grid">
+            <label class="field span-2">Botão principal do topo<input id="prCta" placeholder="Começar teste grátis de 14 dias →" maxlength="80"></label>
+            <label class="field">Botões curtos (menu e celular)<input id="prCtaShort" placeholder="Testar grátis" maxlength="30"></label>
+            <label class="field">Dias grátis no destaque "dias grátis para testar"<input id="prTrialDays" type="number" min="1" max="365" placeholder="14"></label>
+            <label class="field">Selos abaixo do botão (um por linha)<textarea id="prMicro" rows="3" placeholder="3 créditos grátis&#10;Sem cartão para começar&#10;Sem mensalidade"></textarea></label>
+            <label class="field">Título da seção Preços<input id="prTitle" placeholder="Comece grátis. Depois," maxlength="120"></label>
+            <label class="field">Parte do título em destaque (colorida)<input id="prTitleHl" placeholder="pague só pelo que usar." maxlength="80"></label>
+            <label class="field span-2">Subtítulo da seção Preços<input id="prSub" placeholder="Sem mensalidade, sem fidelidade. Créditos não expiram enquanto sua conta estiver ativa." maxlength="300"></label>
+            <label class="field">Selo do pacote em destaque<input id="prBadge" placeholder="⚡ Mais escolhido" maxlength="40"></label>
+            <label class="field">Texto após o preço por crédito<input id="prUnit" placeholder="pagamento único" maxlength="60"></label>
+            <label class="field">Botão de compra (use {creditos})<input id="prBuy" placeholder="Comprar {creditos} créditos" maxlength="60"></label>
+            <label class="field span-2">Faixa do teste grátis (use **texto** para negrito; vazio = esconder)<input id="prFree" placeholder="Ao criar sua conta: **14 dias de acesso + 3 créditos grátis** para corrigir testes e gerar seu primeiro laudo." maxlength="300"></label>
+          </div>
+          <p class="muted small">Atenção: estes campos mudam só os textos. A duração real do teste (14 dias) e os créditos grátis (3) são definidos pelo sistema; se mudar a oferta, me avise para ajustar também.</p>
+          <div class="action-row"><button type="button" class="btn primary" id="prSaveBtn">Salvar textos do site</button>
+            <button type="button" class="btn ghost" id="prResetBtn">Restaurar padrão</button>
+            <span class="inline-msg" id="prMsg"></span></div>
+        </div>
+
         <div class="card">
           <div class="section-heading"><div><h2>Aparência do Site</h2>
             <span class="muted">Cores e textos da landing page (e cores do sistema). Vale para todos os visitantes.</span></div>

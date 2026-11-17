@@ -813,6 +813,7 @@ async def admin_status(user: dict = Depends(active_user)):
         out['users'] = len(rows)
     except Exception as exc:
         out['db'] = {'ok': False, 'error': str(exc)[:120]}
+    out['whatsapp_conn'] = await notify.connection_state() if notify.enabled() else {}
     try:
         st = await store._service_req('GET', '/system_status', params={'select': 'key,value,updated_at'}) or []
         out['host'] = {r['key']: {**(r.get('value') or {}), 'updated_at': r['updated_at']} for r in st}

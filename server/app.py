@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
 import json
@@ -13,7 +14,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
@@ -37,7 +38,14 @@ from .auth import current_user
 STATIC=ROOT/'static'
 DB=ROOT/'data'/'neuro_normas.db'
 
-app=FastAPI(title='Correção Neuropsicológica Automática',version='1.0.0')
+log=logging.getLogger('neuroscore')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+
+# Documentação interativa da API (/docs, /redoc, /openapi.json) só quando pedida (dev).
+_DOCS=os.getenv('ENABLE_API_DOCS','').lower() in ('1','true','yes')
+app=FastAPI(title='NeuroScore API',version='1.1.0',
+            docs_url='/docs' if _DOCS else None, redoc_url='/redoc' if _DOCS else None,
+            openapi_url='/openapi.json' if _DOCS else None)
 engine=WorkbookEngine(DB)
 
 class ScoreRequest(BaseModel):
@@ -138,6 +146,13 @@ async def active_user(user: dict = Depends(current_user)) -> dict:
     return user
 
 
+def _internal(msg: str, exc: Exception, code: int = 500) -> HTTPException:
+    """Registra o erro completo no log e devolve ao usuário só uma mensagem limpa + código de suporte."""
+    ref=uuid.uuid4().hex[:8]
+    log.exception('%s [ref %s]', msg, ref, exc_info=exc)
+    return HTTPException(code, f'{msg} Se persistir, informe ao suporte o código {ref}.')
+
+
 def _slug(text: str) -> str:
     text=unicodedata.normalize('NFKD',text or '').encode('ascii','ignore').decode()
     text=re.sub(r'[^A-Za-z0-9]+','_',text).strip('_').lower()
@@ -167,7 +182,7 @@ def test_meta(test_name: str, user: dict = Depends(active_user)):
     except KeyError:
         raise HTTPException(404,'Teste não encontrado')
     except Exception as exc:
-        raise HTTPException(500,f'Falha ao preparar o teste: {type(exc).__name__}: {exc}')
+        raise _internal('Falha ao preparar o teste.', exc)
 
 def _score_ref(req: ScoreRequest) -> str:
     """Identifica "o mesmo teste do mesmo paciente" (recalcular no mesmo dia não cobra de novo)."""
@@ -190,7 +205,7 @@ async def score(req: ScoreRequest, user: dict = Depends(active_user)):
     except ValueError as exc:
         raise HTTPException(400,str(exc))
     except Exception as exc:
-        raise HTTPException(500,f'Erro de correção: {type(exc).__name__}: {exc}')
+        raise _internal('Erro ao corrigir o teste.', exc)
     if charge:
         result['credits_balance']=await store.spend_credits(user, store.COST_TESTE, 'teste', _score_ref(req))
     return result
@@ -359,8 +374,21 @@ class _MemFile:
         return self._data
 
 
+MAX_FILE_MB=int(os.getenv('MAX_FILE_MB','25'))
+MAX_FILES=int(os.getenv('MAX_FILES','30'))
+
+
 async def _mem(files: list[UploadFile]) -> list[_MemFile]:
-    return [_MemFile(f.filename or 'arquivo', f.content_type or '', await f.read()) for f in files or []]
+    files=files or []
+    if len(files) > MAX_FILES:
+        raise HTTPException(413, f'Envie no máximo {MAX_FILES} arquivos por vez.')
+    out=[]
+    for f in files:
+        data=await f.read()
+        if len(data) > MAX_FILE_MB*1024*1024:
+            raise HTTPException(413, f'O arquivo "{f.filename}" passa de {MAX_FILE_MB} MB. Reduza a resolução ou divida o PDF.')
+        out.append(_MemFile(f.filename or 'arquivo', f.content_type or '', data))
+    return out
 
 
 def _start_job(user: dict, make_coro) -> dict:
@@ -377,7 +405,8 @@ def _start_job(user: dict, make_coro) -> dict:
         except HTTPException as exc:
             job.update(status='error', code=exc.status_code, detail=str(exc.detail))
         except Exception as exc:
-            job.update(status='error', code=500, detail=f'{type(exc).__name__}: {exc}')
+            e=_internal('A tarefa falhou inesperadamente.', exc)
+            job.update(status='error', code=500, detail=e.detail)
 
     job['task'] = asyncio.create_task(run())
     return {'job': jid}
@@ -660,7 +689,7 @@ def laudo_neuro_docx(req: LaudoNeuroDocxRequest, user: dict = Depends(active_use
     try:
         data=build_laudo_neuro_docx(req.laudo,req.charts)
     except Exception as exc:
-        raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
+        raise _internal('Falha ao gerar o arquivo .docx.', exc)
     nome=(req.laudo.get('identificacao') or {}).get('nome_paciente','')
     name=f"laudo_neuropsicologico_{_slug(nome)}_{date.today().isoformat()}.docx"
     return Response(
@@ -676,7 +705,7 @@ def laudo_integrated_docx(req: IntegratedDocxRequest, user: dict = Depends(activ
     try:
         data=build_integrated_docx(req.patient,req.report,req.tests,req.charts)
     except Exception as exc:
-        raise HTTPException(500,f'Falha ao gerar o .docx: {type(exc).__name__}: {exc}')
+        raise _internal('Falha ao gerar o arquivo .docx.', exc)
     name=f"avaliacao_neuropsicologica_completa_{_slug(req.patient.get('name',''))}_{date.today().isoformat()}.docx"
     return Response(
         content=data,
@@ -890,14 +919,41 @@ async def mp_webhook(request: Request):
     except HTTPException:
         return {'ok': False}  # 200 p/ o MP não reenfileirar em loop
 
+_MAX_BODY=int(os.getenv('MAX_BODY_MB','120'))*1024*1024
+_NOINDEX=('/app','/login.html','/api/')
+
+
 @app.middleware('http')
-async def _video_no_cdn_cache(request: Request, call_next):
-    """Vídeos: a Cloudflare não repassa pedidos por partes (Range → 206) de conteúdo em cache,
-    e o Safari/iPhone só toca vídeo com 206. 'private' faz a Cloudflare repassar ao servidor."""
+async def _hardening(request: Request, call_next):
+    """Cabeçalhos de segurança, limite de upload e regras de cache/indexação."""
+    path=request.url.path
+    cl=request.headers.get('content-length')
+    if cl and cl.isdigit() and int(cl) > _MAX_BODY:
+        return JSONResponse({'detail': 'Envio grande demais. Divida os arquivos em lotes menores.'}, status_code=413)
     resp = await call_next(request)
-    if request.url.path.startswith('/assets/video/'):
-        resp.headers['Cache-Control'] = 'private, max-age=3600'
+    h=resp.headers
+    h.setdefault('X-Content-Type-Options', 'nosniff')
+    h.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    h.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    h.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
+    h.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    h.setdefault('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+    if path.startswith(_NOINDEX):
+        h.setdefault('X-Robots-Tag', 'noindex, nofollow')
+    if path.startswith('/api/') and 'cache-control' not in h:
+        h['Cache-Control'] = 'no-store'   # dados clínicos nunca ficam em cache
+    # Vídeos: a Cloudflare não repassa pedidos por partes (Range → 206) de conteúdo em cache,
+    # e o Safari/iPhone só toca vídeo com 206. 'private' faz a Cloudflare repassar ao servidor.
+    if path.startswith('/assets/video/'):
+        h['Cache-Control'] = 'private, max-age=3600'
     return resp
+
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception):
+    ref=uuid.uuid4().hex[:8]
+    log.exception('Erro não tratado em %s %s [ref %s]', request.method, request.url.path, ref, exc_info=exc)
+    return JSONResponse({'detail': f'Erro interno. Se persistir, informe ao suporte o código {ref}.'}, status_code=500)
 
 
 app.mount('/assets',StaticFiles(directory=STATIC),name='assets')
@@ -930,52 +986,87 @@ def _index_html() -> Response:
                     headers={'Cache-Control': 'no-cache'})
 
 
-@app.get('/')
+def _page(name: str, status: int = 200) -> Response:
+    try:
+        html = (STATIC/name).read_text(encoding='utf-8')
+    except OSError:
+        raise HTTPException(404, 'Página não encontrada')
+    return Response(html, status_code=status, media_type='text/html; charset=utf-8',
+                    headers={'Cache-Control': 'no-cache'})
+
+
+def _not_found() -> Response:
+    try:
+        return _page('404.html', 404)
+    except HTTPException:
+        return Response('Página não encontrada', status_code=404, media_type='text/plain; charset=utf-8')
+
+
+# HEAD também (monitores de disponibilidade e pré-visualização de links usam HEAD).
+@app.api_route('/', methods=['GET', 'HEAD'])
 def landing():
     try:
-        html = (STATIC/'landing.html').read_text(encoding='utf-8')
-    except OSError:
+        return _page('landing.html')
+    except HTTPException:
         return _index_html()
-    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
 
-@app.get('/video')
+@app.api_route('/video', methods=['GET', 'HEAD'])
 def video_page():
-    # página do vídeo publicitário (link para compartilhar)
-    try:
-        html = (STATIC/'video.html').read_text(encoding='utf-8')
-    except OSError:
-        return landing()
-    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
+    return _page('video.html')  # vídeo publicitário (link para compartilhar)
 
-@app.get('/page')
-@app.get('/apresentacao')
+@app.api_route('/page', methods=['GET', 'HEAD'])
+@app.api_route('/apresentacao', methods=['GET', 'HEAD'])
 def apresentacao():
-    # peça publicitária (link próprio para anúncios); cai na landing se o arquivo faltar
-    try:
-        html = (STATIC/'lp.html').read_text(encoding='utf-8')
-    except OSError:
-        return landing()
-    return Response(html, media_type='text/html; charset=utf-8', headers={'Cache-Control': 'no-cache'})
+    return _page('lp.html')  # peça publicitária (link próprio para anúncios)
 
-@app.get('/app')
+@app.api_route('/privacidade', methods=['GET', 'HEAD'])
+def privacidade():
+    return _page('privacidade.html')
+
+@app.api_route('/termos', methods=['GET', 'HEAD'])
+def termos():
+    return _page('termos.html')
+
+@app.api_route('/app', methods=['GET', 'HEAD'])
 def index():
     return _index_html()
 
+PUBLIC_URL=(os.getenv('PUBLIC_URL') or 'https://neuro-testes.appsbrasil.store').rstrip('/')
+
+@app.get('/robots.txt')
+def robots():
+    body=('User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api/\nDisallow: /login.html\n\n'
+          f'Sitemap: {PUBLIC_URL}/sitemap.xml\n')
+    return Response(body, media_type='text/plain; charset=utf-8', headers={'Cache-Control': 'public, max-age=86400'})
+
+@app.get('/sitemap.xml')
+def sitemap():
+    today=date.today().isoformat()
+    urls=[('/', '1.0'), ('/apresentacao', '0.8'), ('/video', '0.6'), ('/privacidade', '0.3'), ('/termos', '0.3')]
+    items=''.join(f'<url><loc>{PUBLIC_URL}{u}</loc><lastmod>{today}</lastmod><priority>{pr}</priority></url>' for u, pr in urls)
+    xml=f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>'
+    return Response(xml, media_type='application/xml', headers={'Cache-Control': 'public, max-age=86400'})
+
+@app.get('/favicon.ico')
+def favicon():
+    return FileResponse(STATIC/'favicon.svg', media_type='image/svg+xml',
+                        headers={'Cache-Control': 'public, max-age=604800'})
+
 @app.get('/{path:path}')
 def spa(path: str):
-    # Unknown API routes must 404 as JSON, not silently fall back to index.html
-    # (which would make the frontend fetch helper choke on an HTML body).
+    # Rotas de API desconhecidas: 404 em JSON (o fetch do front espera JSON).
     if path == 'api' or path.startswith('api/'):
         raise HTTPException(404, 'Recurso não encontrado')
-    # Never allow the catch-all SPA route to escape the static directory.
-    # Path.resolve() normalizes '..' segments; relative_to() then rejects any
-    # resolved path outside STATIC (including files such as .env and the DB).
+    # Nunca deixar a rota coringa sair da pasta static (resolve() + relative_to()
+    # barram '..', .env, o banco etc.).
     static_root = STATIC.resolve()
     try:
         target = (static_root / path).resolve()
         target.relative_to(static_root)
     except (OSError, ValueError):
+        return _not_found()
+    if path == 'index.html':
         return _index_html()
-    if target.is_file():
+    if target.is_file() and target.suffix.lower() not in ('.py', '.sh', '.json', '.md', '.db'):
         return FileResponse(target)
-    return _index_html()
+    return _not_found()

@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
+  <meta name="robots" content="noindex" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light" />
   <meta name="theme-color" content="#4f46e5" />
@@ -62,7 +63,15 @@
       .formside{padding:24px 16px 40px}
       .card{padding:26px 20px}
     }
-  </style>
+    .pw{position:relative}
+  .pw input{padding-right:46px}
+  .pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:auto!important;margin:0!important;padding:6px 8px!important;background:transparent!important;border:0!important;box-shadow:none!important;cursor:pointer;font-size:16px;opacity:.65}
+  .pw-eye:hover{opacity:1;transform:translateY(-50%)!important;filter:none!important}
+  .consent{display:flex!important;gap:10px;align-items:flex-start;font-size:13px!important;font-weight:400!important;line-height:1.45;margin:12px 0 4px}
+  .consent input{width:auto!important;margin-top:3px}
+  .forgot{display:block;text-align:right;font-size:13px;margin:8px 0 0;cursor:pointer;color:var(--primary);text-decoration:none;font-weight:600}
+  [hidden]{display:none!important}
+</style>
 </head>
 <body>
   <aside class="side">
@@ -100,7 +109,9 @@
       <label for="email">E-mail</label>
       <input id="email" type="email" autocomplete="email" placeholder="voce@clinica.com.br" required />
       <label for="password">Senha</label>
-      <input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres" required />
+      <div class="pw"><input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="Sua senha" required /><button type="button" id="pwToggle" class="pw-eye" aria-label="Mostrar senha" title="Mostrar senha">👁</button></div>
+      <label class="consent" id="consentRow" hidden><input type="checkbox" id="consent" /> <span>Li e aceito os <a href="/termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a>, e declaro ser profissional habilitado(a) (CRP ativo).</span></label>
+      <a class="forgot" id="forgot" href="#">Esqueci minha senha</a>
       <button id="submitBtn" type="submit">Entrar</button>
     </form>
 
@@ -112,7 +123,8 @@
     <a class="back" href="/">← Voltar para o site</a>
 
     <div class="foot">
-      Todo laudo exige revisão e assinatura de profissional habilitado.
+      Todo laudo exige revisão e assinatura de profissional habilitado.<br>
+      <a href="/privacidade">Privacidade</a> · <a href="/termos">Termos de uso</a>
     </div>
   </div>
   </main>
@@ -145,7 +157,10 @@
       if (e.target.id !== 'toggle') return;
       signup = !signup;
       $('#nameRow').hidden = !signup;
-      ['#fullName', '#crp', '#phone', '#city'].forEach(id => { $(id).required = signup; });
+      ['#fullName', '#crp', '#phone', '#city', '#consent'].forEach(id => { $(id).required = signup; });
+      $('#consentRow').hidden = !signup; $('#forgot').hidden = signup;
+      $('#password').minLength = signup ? 8 : 6;
+      $('#password').placeholder = signup ? 'Crie uma senha (mínimo 8 caracteres)' : 'Sua senha';
       $('#password').autocomplete = signup ? 'new-password' : 'current-password';
       $('#modeLabel').textContent = signup ? 'Crie sua conta em menos de 1 minuto' : 'Entre na sua conta para continuar';
       document.querySelector('h1').textContent = signup ? 'Criar conta' : 'Bem-vindo de volta';
@@ -155,6 +170,18 @@
         ? 'Já tem conta? <a id="toggle">Entrar</a>'
         : 'Não tem conta? <a id="toggle">Criar conta</a>';
       $('#msg').className = 'msg';
+    });
+    $('#pwToggle').addEventListener('click', () => {
+      const i = $('#password'), show = i.type === 'password';
+      i.type = show ? 'text' : 'password';
+      $('#pwToggle').setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+    });
+    // sem SMTP configurado a redefinição é feita pelo suporte (o admin troca a senha no painel)
+    $('#forgot').addEventListener('click', (e) => {
+      e.preventDefault();
+      const em = $('#email').value.trim();
+      const t = 'Olá! Esqueci minha senha do NeuroScore' + (em ? ' (e-mail: ' + em + ')' : '') + '. Pode me ajudar a redefinir?';
+      window.open('https://wa.me/5574988259925?text=' + encodeURIComponent(t), '_blank', 'noopener');
     });
     if (new URLSearchParams(location.search).get('confirmado')) msg('✅ E-mail confirmado! Entre com a sua senha. Seu acesso será liberado após a aprovação do administrador.', true);
     // landing: "Testar grátis" abre direto em "Criar conta"
@@ -172,7 +199,8 @@
             options: {
               emailRedirectTo: location.origin + '/login.html?confirmado=1',
               data: { full_name: $('#fullName').value.trim(), professional_id: $('#crp').value.trim(),
-                      phone: $('#phone').value.replace(/\D/g, ''), city: $('#city').value.trim() },
+                      phone: $('#phone').value.replace(/\D/g, ''), city: $('#city').value.trim(),
+                      terms_accepted_at: new Date().toISOString(), terms_version: '2026-11-17' },
             },
           });
           if (error) throw error;
@@ -188,7 +216,9 @@
       } catch (err) {
         const PT = { 'Email not confirmed': 'E-mail ainda não confirmado. Abra o link que enviamos para o seu e-mail (veja também o spam).',
                      'Invalid login credentials': 'E-mail ou senha incorretos.',
-                     'User already registered': 'Este e-mail já tem cadastro. Faça login.' };
+                     'User already registered': 'Este e-mail já tem cadastro. Faça login.',
+                     'Password should be at least 6 characters.': 'A senha precisa ter pelo menos 6 caracteres.',
+                     'Failed to fetch': 'Sem conexão com o servidor. Verifique a internet e tente de novo.' };
         msg(PT[err.message] || err.message || 'Falha na autenticação.');
       } finally {
         btn.disabled = false;

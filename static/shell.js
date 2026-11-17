@@ -635,17 +635,60 @@
       ? { access, trial_days: Math.max(0, parseInt($('#f_days').value, 10) || 0) }
       : { access };
   };
+  // IP e aparelho de quem pediu a liberação do cadastro (o MAC não chega pela web: usamos o código do navegador)
+  function ipInfo(p) {
+    const dt = (v) => v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const look = (ip) => `<a href="https://ipinfo.io/${encodeURIComponent(ip)}" target="_blank" rel="noopener noreferrer" title="Ver provedor e localização aproximada">${NS.esc(ip)}</a>`;
+    let h = '';
+    if (p.signup_ip) h += `<div class="muted small" title="${NS.esc(p.signup_user_agent || '')}">🌐 IP do pedido: ${look(p.signup_ip)}${p.signup_ip_at ? ` · ${dt(p.signup_ip_at)}` : ''}</div>`;
+    if (p.last_ip && p.last_ip !== p.signup_ip) h += `<div class="muted small">↻ Último acesso: ${look(p.last_ip)}${p.last_ip_at ? ` · ${dt(p.last_ip_at)}` : ''}</div>`;
+    const dev = p.signup_device_id || p.last_device_id;
+    if (dev) h += `<div class="muted small" title="Código do aparelho: ${NS.esc(dev)}\nImpressão digital: ${NS.esc(p.signup_device_fp || p.last_device_fp || '—')}">💻 Aparelho: ${NS.esc(dev.slice(0, 8))}${p.last_device_id && p.signup_device_id && p.last_device_id !== p.signup_device_id ? ' · trocou de aparelho' : ''}</div>`;
+    if (!h && p.status === 'pending') h = '<div class="muted small">🌐 IP do pedido: ainda não registrado</div>';
+    const lv = ipLevel(p), dup = sameIp(p);
+    const LBL = { ip: 'mesmo IP', aparelho: 'mesmo aparelho', digital: 'aparelho parecido' };
+    const names = dup.map(o => `${NS.esc(o.full_name || o.email || '—')} (${o._match.map(m => LBL[m]).join(', ')})`).join('; ');
+    if (lv === 'red') h += `<div class="small ip-badge ip-red">🔴 Já teve teste grátis · ${names}</div>`;
+    else if (lv === 'amber') h += `<div class="small ip-badge ip-amber">🟡 Coincide com outro cadastro · ${names}</div>`;
+    else if (lv === 'green') h += '<div class="small ip-badge ip-green">🟢 IP e aparelho novos</div>';
+    return h;
+  }
+  // já teve o teste grátis = conta profissional que já foi liberada
+  const hadTrial = (o) => o.role !== 'admin' && !['pending', 'rejected'].includes(o.status);
+  // green: nada em comum · red: mesmo IP ou aparelho de conta que já teve teste grátis · amber: demais coincidências
+  // (a impressão digital sozinha não dá vermelho: aparelhos do mesmo modelo podem coincidir)
+  function ipLevel(p) {
+    if (!p.signup_ip && !p.last_ip && !p.signup_device_id && !p.last_device_id) return '';
+    const dup = sameIp(p);
+    if (!dup.length) return 'green';
+    return dup.some(o => hadTrial(o) && o._match.some(m => m !== 'digital')) ? 'red' : 'amber';
+  }
+  // outras contas com o mesmo IP, o mesmo aparelho ou a mesma impressão digital
+  function sameIp(p) {
+    const keys = { ip: [p.signup_ip, p.last_ip], aparelho: [p.signup_device_id, p.last_device_id], digital: [p.signup_device_fp, p.last_device_fp] };
+    const cols = { ip: ['signup_ip', 'last_ip'], aparelho: ['signup_device_id', 'last_device_id'], digital: ['signup_device_fp', 'last_device_fp'] };
+    const out = [];
+    for (const o of state.pros || []) {
+      if (o.id === p.id) continue;
+      const m = Object.keys(keys).filter(k => { const mine = keys[k].filter(Boolean); return mine.length && cols[k].some(c => o[c] && mine.includes(o[c])); });
+      if (m.length) out.push({ ...o, _match: m });
+    }
+    return out;
+  }
   function renderPros() {
     const q = ($('#proSearch').value || '').toLowerCase();
     const rows = (state.pros || []).filter(p =>
-      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q))
+      !q || (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)
+        || (p.signup_ip || '').includes(q) || (p.last_ip || '').includes(q)
+        || (p.signup_device_id || '').toLowerCase().startsWith(q) || (p.last_device_id || '').toLowerCase().startsWith(q))
       .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
     const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
     const pend = $('#prosPending');
-    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação`; }
+    const nRed = (state.pros || []).filter(p => p.status === 'pending' && ipLevel(p) === 'red').length;
+    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação` + (nRed ? ` · 🔴 ${nRed} de IP que já teve teste grátis` : ''); }
     setAdminBadge(nPend);
-    $('#prosBody').innerHTML = rows.map(p => `<tr>
-      <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}</td>
+    $('#prosBody').innerHTML = rows.map(p => `<tr${p.status === 'pending' && ipLevel(p) === 'red' ? ' class="row-ip-alert"' : ''}>
+      <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}${ipInfo(p)}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
       <td><span class="pill${p.status === 'suspended' || p.status === 'rejected' ? ' pill--off' : p.status === 'pending' ? ' pill--trial' : ' pill--ok'}">${{ suspended: 'Suspenso', pending: 'Aguardando aprovação', rejected: 'Recusado' }[p.status] || 'Ativo'}</span></td>
@@ -664,6 +707,8 @@
     const t = e.target;
     if (t.dataset.approvePro) {
       const p = state.pros.find(x => x.id === t.dataset.approvePro); if (!p) return;
+      const dup = sameIp(p);
+      if (dup.length && !confirm(`${ipLevel(p) === 'red' ? '🔴 ALERTA VERMELHO: IP/aparelho que já teve o teste grátis.' : '🟡 Atenção: coincide com outro cadastro.'}\n\n${p.full_name || p.email} coincide (IP ou aparelho) com:\n${dup.map(o => `• ${o.full_name || '—'} (${o.email || '—'})`).join('\n')}\n\nPode ser a mesma pessoa criando outra conta para ganhar o teste grátis de novo. Aprovar mesmo assim?`)) return;
       t.disabled = true;
       try {
         await NS.api('/api/admin/professionals/' + p.id, {

@@ -114,6 +114,7 @@ function syncHv(){const n=$('#hvName'),b=$('#hvBirth');if(n)n.value=$('#patientN
 async function api(url, options={}){
   const opt={...options, headers:{...(options.headers||{})}};
   if(state.token) opt.headers['Authorization']=`Bearer ${state.token}`;
+  try{ const dv=window.NSDevice?.header(); if(dv) opt.headers['X-NS-Device']=dv; }catch{}
   const r=await fetch(url,opt); let data; try{data=await r.json();}catch{data={detail:await r.text()};}
   if(r.status===401 && state.authEnabled){ location.replace('/login.html'); throw new Error('Sessão expirada.'); }
   if(r.status===402){ setTimeout(()=>{ try{ window.showView ? window.showView('planos') : (location.hash='#planos'); }catch{} },1200); }

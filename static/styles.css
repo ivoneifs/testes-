@@ -1138,3 +1138,13 @@ a.btn,a.btn:hover{text-decoration:none}
   .kpi-ico{left:14px;width:40px;height:40px}
   .kpi strong{font-size:24px}
 }
+
+/* atalhos da Administração */
+.admin-jump{position:sticky;top:0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 12px;margin-bottom:6px;
+  background:linear-gradient(var(--bg) 75%,transparent)}
+.admin-jump button{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;
+  padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-sm);transition:border-color .15s,color .15s}
+.admin-jump button:hover{border-color:var(--primary);color:var(--primary)}
+.admin-jump button.hl{background:var(--primary-soft);border-color:color-mix(in srgb,var(--primary) 35%,var(--line));color:var(--primary)}
+.card.flash{animation:cardflash 1.6s ease}
+@keyframes cardflash{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 45%,transparent)}100%{box-shadow:var(--shadow-sm)}}

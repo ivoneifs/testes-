@@ -551,6 +551,13 @@
       });
   });
   $('#sysRefresh')?.addEventListener('click', loadStatus);
+  $('#adminJump')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-jump]'); if (!b) return;
+    const c = document.getElementById(b.dataset.jump); if (!c) return;
+    c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+    if (b.dataset.jump === 'precosCard') setTimeout(() => $('#prCta')?.focus({ preventScroll: true }), 500);
+  });
   $('#proNewBtn')?.addEventListener('click', () => {
     openEdit('Novo profissional', `
       <label class="field span-2">E-mail<input id="f_email" type="email"></label>

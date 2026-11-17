@@ -492,6 +492,14 @@
 
       <!-- ================= ADMINISTRAÇÃO ================= -->
       <section class="view" id="view-admin" hidden>
+        <nav class="admin-jump" id="adminJump" aria-label="Seções da administração">
+          <button type="button" data-jump="sysCard">Status</button>
+          <button type="button" data-jump="usersCard">Usuários</button>
+          <button type="button" data-jump="plansCard">Pacotes e preços</button>
+          <button type="button" data-jump="plPageCard">Tela Planos e Recargas</button>
+          <button type="button" data-jump="precosCard" class="hl">Site: teste grátis e preços</button>
+          <button type="button" data-jump="aparenciaCard">Aparência do site</button>
+        </nav>
         <div class="card" id="sysCard">
           <div class="section-heading"><div><h2>Status do sistema</h2>
             <span class="muted">Site, banco de dados, backup diário, disco e integrações.</span></div>
@@ -499,7 +507,7 @@
           <div class="sys-grid" id="sysGrid"><div class="muted small">Carregando…</div></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="usersCard">
           <div class="section-heading">
             <div><h2>Usuários &amp; Acessos</h2><span class="muted">Acesso total do administrador mestre. Cadastros novos só entram depois que você liberar.</span>
               <div><span class="pill pill--trial" id="prosPending" hidden></span></div></div>
@@ -516,7 +524,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="plansCard">
           <div class="section-heading"><div><h2>Planos &amp; Preços</h2>
             <span class="muted">Valores e créditos vendidos na landing page e na tela de Planos.</span></div>
             <button type="button" class="btn primary" id="planNewBtn">+ Novo pacote</button></div>
@@ -552,11 +560,11 @@
         </div>
 
         <div class="card" id="precosCard">
-          <div class="section-heading"><div><h2>Site: preços e teste grátis</h2>
+          <div class="section-heading"><div><h2>Site: botão de teste grátis e preços</h2>
             <span class="muted">Textos da página inicial (seção Preços e botões de teste grátis) e da página de apresentação. Os pacotes e valores vêm do card "Planos &amp; Preços".</span></div>
             <a class="btn ghost" href="/#precos" target="_blank" rel="noopener">Ver no site ↗</a></div>
           <div class="form-grid">
-            <label class="field span-2">Botão principal do topo<input id="prCta" placeholder="Começar teste grátis de 14 dias →" maxlength="80"></label>
+            <label class="field span-2">Botão principal do topo da landing — hoje: "Começar teste grátis de 14 dias →"<input id="prCta" placeholder="Começar teste grátis de 14 dias →" maxlength="80"></label>
             <label class="field">Botões curtos (menu e celular)<input id="prCtaShort" placeholder="Testar grátis" maxlength="30"></label>
             <label class="field">Dias grátis no destaque "dias grátis para testar"<input id="prTrialDays" type="number" min="1" max="365" placeholder="14"></label>
             <label class="field">Selos abaixo do botão (um por linha)<textarea id="prMicro" rows="3" placeholder="3 créditos grátis&#10;Sem cartão para começar&#10;Sem mensalidade"></textarea></label>
@@ -574,7 +582,7 @@
             <span class="inline-msg" id="prMsg"></span></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="aparenciaCard">
           <div class="section-heading"><div><h2>Aparência do Site</h2>
             <span class="muted">Cores e textos da landing page (e cores do sistema). Vale para todos os visitantes.</span></div>
             <a class="btn ghost" href="/" target="_blank" rel="noopener">Ver landing page ↗</a></div>
@@ -585,7 +593,7 @@
             <label class="field">Fundo escuro (rodapé/faixas)<input id="siteColorDark" type="color" value="#0f172a" /></label>
             <label class="field span-2">Título principal<input id="siteHeroTitle" placeholder="Laudos neuropsicológicos em minutos, com precisão clínica" /></label>
             <label class="field span-2">Subtítulo<textarea id="siteHeroSub" rows="2" placeholder="Correção automática de mais de 70 instrumentos…"></textarea></label>
-            <label class="field">Texto do botão principal<input id="siteCta" placeholder="Começar agora" /></label>
+            <label class="field">Botão principal do topo (o mesmo de "Site: botão de teste grátis")<input id="siteCta" placeholder="Começar teste grátis de 14 dias →" /></label>
             <label class="field">WhatsApp (só números, com DDD)<input id="siteWhats" placeholder="5511999999999" /></label>
             <label class="field">E-mail de contato<input id="siteEmail" type="email" /></label>
             <label class="field span-2">Vídeo de apresentação (link do YouTube ou Vimeo)<input id="siteVideo" placeholder="https://youtu.be/… ou /assets/video/arquivo.mp4" />

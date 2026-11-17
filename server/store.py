@@ -117,7 +117,7 @@ async def _require_admin(user: dict) -> None:
 
 
 # ---------- administração: profissionais ----------
-_PRO_FIELDS = 'id,full_name,email,professional_id,phone,city,role,status,plan,credits,trial_ends_at,created_at,updated_at,signup_ip,signup_ip_at,signup_user_agent,last_ip,last_ip_at'
+_PRO_FIELDS = 'id,full_name,email,professional_id,phone,city,role,status,plan,credits,trial_ends_at,created_at,updated_at,signup_ip,signup_ip_at,signup_user_agent,last_ip,last_ip_at,signup_device_id,signup_device_fp,last_device_id,last_device_fp'
 _PRO_EDITABLE = ('full_name', 'professional_id', 'role', 'status', 'plan', 'credits')
 
 

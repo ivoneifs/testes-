@@ -744,9 +744,14 @@ async def profile_get(request: Request, user: dict = Depends(current_user)):
     patch: dict[str, Any] = {}
     if ip and ip != p.get('last_ip'):
         patch.update(last_ip=ip, last_ip_at='now()')
+    did, fp = parse_device(request.headers.get('x-ns-device'))
+    if did and (did, fp) != (p.get('last_device_id'), p.get('last_device_fp')):
+        patch.update(last_device_id=did, last_device_fp=fp or None)
     if ip and not p.get('signup_ip') and p.get('status') == 'pending':
         # cadastro feito antes do registro de IP (ou o aviso do navegador falhou): usa o IP do 1º acesso
         patch.update(signup_ip=ip, signup_ip_at='now()', signup_user_agent=(request.headers.get('user-agent') or '')[:300])
+    if did and not p.get('signup_device_id') and p.get('status') == 'pending':
+        patch.update(signup_device_id=did, signup_device_fp=fp or None)
     if patch:
         patch = {k: (_now_iso() if v == 'now()' else v) for k, v in patch.items()}
         try:
@@ -775,14 +780,35 @@ def client_ip(request: Request) -> str:
     return re.sub(r'[^0-9a-fA-F:.]', '', ip)[:64]
 
 
-async def same_ip_accounts(pid: str, ip: str | None) -> list[dict]:
-    """Outras contas cujo IP do cadastro ou do último acesso é igual a `ip`."""
+_MATCH_COLS = ('signup_ip', 'last_ip', 'signup_device_id', 'last_device_id', 'signup_device_fp', 'last_device_fp')
+
+
+def parse_device(raw: str | None) -> tuple[str, str]:
+    """'id.fp' (cabeçalho X-NS-Device / campo device) → (id, fp) só com caracteres seguros."""
+    did, _, fp = (raw or '').partition('.')
+    clean = lambda v, n: re.sub(r'[^A-Za-z0-9-]', '', v)[:n]
+    return clean(did, 64), clean(fp, 32)
+
+
+async def matching_accounts(pid: str, ip: str | None, did: str | None = None, fp: str | None = None) -> list[dict]:
+    """Outras contas com o mesmo IP, o mesmo aparelho (código do navegador) ou a mesma impressão digital.
+    Cada linha volta com `match`: lista de 'ip', 'aparelho', 'digital'."""
     ip = re.sub(r'[^0-9a-fA-F:.]', '', ip or '')
-    if not ip:
+    conds = []
+    if ip: conds += [f'signup_ip.eq."{ip}"', f'last_ip.eq."{ip}"']
+    if did: conds += [f'signup_device_id.eq."{did}"', f'last_device_id.eq."{did}"']
+    if fp: conds += [f'signup_device_fp.eq."{fp}"', f'last_device_fp.eq."{fp}"']
+    if not conds:
         return []
     rows = await store._service_req('GET', '/profiles', params={
-        'select': 'id,full_name,email,status,role',
-        'or': f'(signup_ip.eq."{ip}",last_ip.eq."{ip}")', 'id': f'neq.{pid}', 'limit': '20'}) or []
+        'select': 'id,full_name,email,status,role,' + ','.join(_MATCH_COLS),
+        'or': '(' + ','.join(conds) + ')', 'id': f'neq.{pid}', 'limit': '20'}) or []
+    for r in rows:
+        m = []
+        if ip and ip in (r.get('signup_ip'), r.get('last_ip')): m.append('ip')
+        if did and did in (r.get('signup_device_id'), r.get('last_device_id')): m.append('aparelho')
+        if fp and fp in (r.get('signup_device_fp'), r.get('last_device_fp')): m.append('digital')
+        r['match'] = m
     return rows
 
 
@@ -791,39 +817,54 @@ def had_trial(r: dict) -> bool:
     return r.get('role') != 'admin' and r.get('status') not in ('pending', 'rejected')
 
 
-def ip_level(others: list[dict]) -> str:
-    """🟢 IP novo · 🔴 IP de conta que já teve o teste grátis · 🟡 IP de outro cadastro ainda sem teste."""
+def risk_level(others: list[dict]) -> str:
+    """green · red (mesmo IP ou aparelho de conta que já teve teste grátis) · amber (demais coincidências).
+    A impressão digital sozinha não dá vermelho: aparelhos iguais (ex.: mesmo modelo de iPhone) coincidem."""
     if not others:
-        return '🟢 *IP novo* — nenhuma outra conta usou este IP.'
-    if any(had_trial(o) for o in others):
-        return '🔴 *ALERTA VERMELHO: este IP já teve o teste grátis* (mesmo IP de conta já liberada).'
-    return '🟡 *Atenção: mesmo IP de outro cadastro* (que ainda não teve o teste grátis).'
+        return 'green'
+    if any(had_trial(o) and ({'ip', 'aparelho'} & set(o.get('match') or [])) for o in others):
+        return 'red'
+    return 'amber'
+
+
+_LEVEL_TXT = {
+    'green': '🟢 *IP e aparelho novos* — nenhuma outra conta usou.',
+    'red': '🔴 *ALERTA VERMELHO: IP/aparelho que já teve o teste grátis.*',
+    'amber': '🟡 *Atenção: coincide com outro cadastro* (sem teste grátis, ou só aparelho parecido).',
+}
+
+
+def ip_level(others: list[dict]) -> str:
+    return _LEVEL_TXT[risk_level(others)]
 
 
 def _fmt_same_ip(rows: list[dict]) -> str:
     st = {'pending': 'aguardando', 'rejected': 'recusado', 'suspended': 'suspenso (já teve teste)'}
+    lbl = {'ip': 'mesmo IP', 'aparelho': 'mesmo aparelho', 'digital': 'aparelho parecido'}
     return '\n'.join(f'• {r.get("full_name") or "—"} ({r.get("email") or "—"}) — '
                      f'{"admin" if r.get("role") == "admin" else st.get(r.get("status"), "liberado (já teve teste)")}'
+                     f' · {", ".join(lbl[m] for m in r.get("match") or [])}'
                      for r in rows[:10])
 
 
-async def _alert_same_ip(pid: str, ip: str, who: dict) -> None:
-    """Aviso imediato ao admin: cadastro novo vindo de um IP que já tem outra conta."""
+async def _alert_same_ip(pid: str, ip: str, who: dict, did: str = '', fp: str = '') -> None:
+    """Aviso imediato ao admin: cadastro novo com IP/aparelho que já tem outra conta."""
     try:
-        others = await same_ip_accounts(pid, ip)
+        others = await matching_accounts(pid, ip, did, fp)
         if not others or not notify.enabled():
             return
         await notify.notify_admin(
-            '*NeuroScore — cadastro de IP repetido*\n' + ip_level(others) + '\n\n'
+            '*NeuroScore — cadastro repetido?*\n' + ip_level(others) + '\n\n'
             f'Novo pedido: {who.get("full_name") or "—"} ({who.get("email") or "—"})\nIP: {ip}\n\n'
-            f'Já existe(m) conta(s) com este IP:\n{_fmt_same_ip(others)}\n\n'
+            f'Coincide com:\n{_fmt_same_ip(others)}\n\n'
             f'Confira antes de aprovar: {PUBLIC_URL}/app#admin')
     except Exception as exc:
-        log.warning('Alerta de IP repetido falhou: %s', exc)
+        log.warning('Alerta de cadastro repetido falhou: %s', exc)
 
 
 class SignupIp(BaseModel):
     user_id: str
+    device: str = ''
 
 
 @app.post('/api/auth/signup-ip')
@@ -844,10 +885,12 @@ async def signup_ip(req: SignupIp, request: Request):
         if (datetime.now(timezone.utc) - created).total_seconds() > 900:
             return {'ok': False}
         ip = client_ip(request)
+        did, fp = parse_device(req.device or request.headers.get('x-ns-device'))
         await store._service_req('PATCH', '/profiles', params={'id': f'eq.{r["id"]}', 'signup_ip': 'is.null'}, json={
             'signup_ip': ip, 'signup_ip_at': _now_iso(),
-            'signup_user_agent': (request.headers.get('user-agent') or '')[:300]})
-        asyncio.create_task(_alert_same_ip(r['id'], ip, r))
+            'signup_user_agent': (request.headers.get('user-agent') or '')[:300],
+            'signup_device_id': did or None, 'signup_device_fp': fp or None})
+        asyncio.create_task(_alert_same_ip(r['id'], ip, r, did, fp))
         return {'ok': True}
     except Exception as exc:
         log.warning('IP do cadastro falhou: %s', exc)
@@ -860,8 +903,9 @@ async def _notify_signup(p: dict) -> None:
         prefs = {**(p.get('prefs') or {}), '_admin_notified': True}
         await store._service_req('PATCH', '/profiles', params={'id': f'eq.{p["id"]}'}, json={'prefs': prefs})
         ip = p.get('signup_ip') or p.get('last_ip')
-        others = await same_ip_accounts(p['id'], ip)
-        alerta = ip_level(others) + '\n' + (f'Mesmo IP de:\n{_fmt_same_ip(others)}\n' if others else '') + '\n'
+        others = await matching_accounts(p['id'], ip, p.get('signup_device_id') or p.get('last_device_id'),
+                                         p.get('signup_device_fp') or p.get('last_device_fp'))
+        alerta = ip_level(others) + '\n' + (f'Coincide com:\n{_fmt_same_ip(others)}\n' if others else '') + '\n'
         await notify.notify_admin(
             '🆕 *NeuroScore — novo cadastro aguardando aprovação*\n\n'
             f'Nome: {p.get("full_name") or "—"}\nCRP: {p.get("professional_id") or "—"}\n'

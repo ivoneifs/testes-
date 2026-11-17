@@ -341,6 +341,17 @@ async def upsert_plan(user: dict, key: str, data: dict) -> dict:
     for k in ('name', 'credits', 'amount_cents', 'features', 'featured', 'active', 'sort'):
         if data.get(k) is not None:
             body[k] = data[k]
+    # colunas inteiras no banco: o formulário pode mandar 7.0 / "7"
+    for k in ('credits', 'amount_cents', 'sort'):
+        if k in body:
+            try:
+                body[k] = int(round(float(body[k])))
+            except (TypeError, ValueError):
+                raise HTTPException(400, f'Valor inválido em {k}.')
+    if body.get('credits', 1) < 1:
+        raise HTTPException(400, 'O pacote precisa ter pelo menos 1 crédito.')
+    if body.get('amount_cents', 1) < 0:
+        raise HTTPException(400, 'O preço não pode ser negativo.')
     existing = await _req('GET', '/plans', user, params={'key': f'eq.{key}', 'limit': '1'}) or []
     if existing:
         rows = await _req('PATCH', '/plans', user, params={'key': f'eq.{key}'}, json=body, write=True)

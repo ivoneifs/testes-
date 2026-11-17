@@ -393,12 +393,15 @@
       <!-- ================= PLANOS ================= -->
       <section class="view" id="view-planos" hidden>
         <div class="planos-head">
-          <p class="muted">Escolha o pacote que melhor se adapta à sua demanda clínica. Os créditos não expiram e garantem acesso total à inteligência artificial.</p>
+          <h2 id="plHeadTitle" hidden></h2>
+          <p class="muted" id="plHeadText">Escolha o pacote que melhor se adapta à sua demanda clínica. Os créditos não expiram e garantem acesso total à inteligência artificial.</p>
+          <a class="btn ghost xs" id="plEditLink" href="#admin" hidden>✏️ Editar esta página</a>
         </div>
         <div class="planos-grid" id="planosGrid"></div>
-        <div class="card planos-custom">
-          <div><h3>Precisa de um plano personalizado?</h3>
-            <p class="muted">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
+        <p class="muted small" id="plNote" hidden></p>
+        <div class="card planos-custom" id="plCustom">
+          <div><h3 id="plCustomTitle">Precisa de um plano personalizado?</h3>
+            <p class="muted" id="plCustomText">Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.</p></div>
           <a class="btn primary" id="consultorBtn" href="https://wa.me/" target="_blank" rel="noopener">Falar com Consultor</a>
         </div>
       </section>
@@ -522,6 +525,29 @@
               <tbody id="plansBody"><tr><td colspan="6" class="muted small">Carregando…</td></tr></tbody>
             </table>
           </div>
+        </div>
+
+        <div class="card" id="plPageCard">
+          <div class="section-heading"><div><h2>Página "Planos e Recargas"</h2>
+            <span class="muted">Textos que os profissionais veem na tela de compra de créditos. Os pacotes e preços ficam no card acima.</span></div>
+            <a class="btn ghost" href="#planos">Ver a página ↗</a></div>
+          <div class="form-grid">
+            <label class="field span-2">Título (opcional)<input id="plTitle" placeholder="Ex.: Recarregue seus créditos" maxlength="120"></label>
+            <label class="field span-2">Texto de abertura<textarea id="plIntro" rows="2" maxlength="600"></textarea></label>
+            <label class="field">Selo do pacote em destaque<input id="plBadge" placeholder="Mais vendido" maxlength="40"></label>
+            <label class="field">Texto do botão de compra<input id="plBuy" placeholder="Comprar agora" maxlength="40"></label>
+            <label class="field">Texto ao lado do preço<input id="plSuffix" placeholder="/ pacote" maxlength="30"></label>
+            <label class="field">Mostrar preço por crédito<select id="plPerCredit"><option value="1">Sim</option><option value="0">Não</option></select></label>
+            <label class="field span-2">Observação abaixo dos pacotes (opcional)<input id="plNoteIn" placeholder="Ex.: Pagamento por Pix ou cartão em até 12x pelo Mercado Pago." maxlength="300"></label>
+            <label class="switch-row span-2"><div><b>Caixa "plano personalizado"</b><small>Bloco no fim da página com botão de contato</small></div><input type="checkbox" class="switch" id="plCustomOn"></label>
+            <label class="field span-2">Título da caixa<input id="plCTitle" maxlength="120"></label>
+            <label class="field span-2">Texto da caixa<textarea id="plCText" rows="2" maxlength="600"></textarea></label>
+            <label class="field">Texto do botão<input id="plCBtn" placeholder="Falar com Consultor" maxlength="40"></label>
+            <label class="field">Link do botão (vazio = WhatsApp do site)<input id="plCLink" placeholder="https://wa.me/55…" maxlength="300"></label>
+          </div>
+          <div class="action-row"><button type="button" class="btn primary" id="plSaveBtn">Salvar textos</button>
+            <button type="button" class="btn ghost" id="plResetBtn">Restaurar padrão</button>
+            <span class="inline-msg" id="plMsg"></span></div>
         </div>
 
         <div class="card">

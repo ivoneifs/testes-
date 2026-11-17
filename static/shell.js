@@ -275,22 +275,79 @@
 
   // ---------------- Planos ----------------
   const brl = (cents) => (Number(cents || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  // Textos da página Planos e Recargas (editáveis no Admin; guardados em site.planos)
+  const PL_DEFAULT = {
+    title: '', intro: 'Escolha o pacote que melhor se adapta à sua demanda clínica. Os créditos não expiram e garantem acesso total à inteligência artificial.',
+    badge: 'Mais vendido', buy: 'Comprar agora', suffix: '/ pacote', per_credit: true, note: '',
+    custom_on: true, custom_title: 'Precisa de um plano personalizado?',
+    custom_text: 'Clínicas com múltiplos profissionais podem ter uma solução sob medida com faturamento mensal.',
+    custom_btn: 'Falar com Consultor', custom_link: '',
+  };
+  const plCfg = () => ({ ...PL_DEFAULT, ...((state.site || {}).planos || {}) });
+  const safeLink = (u) => /^(https?:\/\/|mailto:|#)/i.test(u || '') ? u : '';
+  function applyPlanosTexts() {
+    const c = plCfg(), site = state.site || {};
+    const t = $('#plHeadTitle'); if (t) { t.textContent = c.title; t.hidden = !c.title; }
+    if ($('#plHeadText')) $('#plHeadText').textContent = c.intro;
+    const n = $('#plNote'); if (n) { n.textContent = c.note; n.hidden = !c.note; }
+    if ($('#plCustom')) $('#plCustom').hidden = !c.custom_on;
+    if ($('#plCustomTitle')) $('#plCustomTitle').textContent = c.custom_title;
+    if ($('#plCustomText')) $('#plCustomText').textContent = c.custom_text;
+    const b = $('#consultorBtn');
+    if (b) { b.textContent = c.custom_btn; b.href = safeLink(c.custom_link) || ('https://wa.me/' + (site.whatsapp || '5574988259925')); }
+    if ($('#plEditLink')) $('#plEditLink').hidden = state.profile?.role !== 'admin';
+  }
   async function loadPlanos() {
+    applyPlanosTexts();
+    const c = plCfg();
     try {
       const { plans = [] } = await NS.api('/api/plans');
       state.plans = plans;
       const active = plans.filter(p => p.active);
       $('#planosGrid').innerHTML = active.map(p => `
         <div class="plano${p.featured ? ' plano--feat' : ''}">
-          ${p.featured ? '<span class="plano-tag">Mais vendido</span>' : ''}
+          ${p.featured && c.badge ? `<span class="plano-tag">${NS.esc(c.badge)}</span>` : ''}
           <h3>${NS.esc(p.name)}</h3>
-          <div class="plano-price">R$ ${brl(p.amount_cents)}<span>/ pacote</span></div>
-          <div class="plano-laudos">${p.credits} créditos · R$ ${brl(Math.round(p.amount_cents / (p.credits || 1)))} cada</div>
+          <div class="plano-price">R$ ${brl(p.amount_cents)}<span>${NS.esc(c.suffix)}</span></div>
+          ${c.per_credit ? `<div class="plano-laudos">${p.credits} créditos · R$ ${brl(Math.round(p.amount_cents / (p.credits || 1)))} cada</div>` : `<div class="plano-laudos">${p.credits} créditos</div>`}
           <ul>${(p.features || []).map(i => `<li>${NS.esc(i)}</li>`).join('')}</ul>
-          <button class="btn primary" data-buy="${NS.esc(p.key)}">Comprar agora</button>
+          <button class="btn primary" data-buy="${NS.esc(p.key)}">${NS.esc(c.buy || 'Comprar agora')}</button>
         </div>`).join('') || '<p class="muted">Nenhum pacote disponível.</p>';
     } catch (e) { $('#planosGrid').innerHTML = `<p class="inline-msg err">${NS.esc(e.message)}</p>`; }
   }
+  function fillPlanosForm() {
+    if (!$('#plTitle')) return;
+    const c = plCfg();
+    $('#plTitle').value = c.title; $('#plIntro').value = c.intro; $('#plBadge').value = c.badge;
+    $('#plBuy').value = c.buy; $('#plSuffix').value = c.suffix; $('#plPerCredit').value = c.per_credit ? '1' : '0';
+    $('#plNoteIn').value = c.note; $('#plCustomOn').checked = !!c.custom_on; $('#plCTitle').value = c.custom_title;
+    $('#plCText').value = c.custom_text; $('#plCBtn').value = c.custom_btn; $('#plCLink').value = c.custom_link;
+  }
+  async function savePlanosTexts(planos) {
+    const m = $('#plMsg');
+    try {
+      const { site } = await NS.api('/api/admin/site', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ planos }),
+      });
+      state.site = site; fillPlanosForm(); applyPlanosTexts();
+      m.textContent = 'Textos salvos. Já aparecem na página Planos e Recargas.'; m.className = 'inline-msg ok';
+    } catch (e) { m.textContent = e.message; m.className = 'inline-msg err'; }
+  }
+  $('#plSaveBtn')?.addEventListener('click', () => {
+    const link = $('#plCLink').value.trim();
+    if (link && !safeLink(link)) { const m = $('#plMsg'); m.textContent = 'O link precisa começar com https://'; m.className = 'inline-msg err'; return; }
+    savePlanosTexts({
+      title: $('#plTitle').value.trim(), intro: $('#plIntro').value.trim() || PL_DEFAULT.intro,
+      badge: $('#plBadge').value.trim(), buy: $('#plBuy').value.trim() || PL_DEFAULT.buy,
+      suffix: $('#plSuffix').value.trim(), per_credit: $('#plPerCredit').value === '1', note: $('#plNoteIn').value.trim(),
+      custom_on: $('#plCustomOn').checked, custom_title: $('#plCTitle').value.trim(), custom_text: $('#plCText').value.trim(),
+      custom_btn: $('#plCBtn').value.trim() || PL_DEFAULT.custom_btn, custom_link: link,
+    });
+  });
+  $('#plResetBtn')?.addEventListener('click', () => {
+    if (confirm('Voltar os textos da página Planos e Recargas ao padrão?')) savePlanosTexts({ ...PL_DEFAULT });
+  });
+  $('#plEditLink')?.addEventListener('click', () => setTimeout(() => $('#plPageCard')?.scrollIntoView({ behavior: 'smooth' }), 300));
   $('#planosGrid')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-buy]'); if (!b) return;
     b.disabled = true; const t = b.textContent; b.textContent = 'Redirecionando…';
@@ -379,7 +436,7 @@
     } catch (e) { $('#plansBody').innerHTML = `<tr><td colspan="6" class="inline-msg err">${NS.esc(e.message)}</td></tr>`; }
     try {
       const { site = {} } = await NS.api('/api/site');
-      state.site = site; fillSiteForm(site);
+      state.site = site; fillSiteForm(site); fillPlanosForm();
     } catch {}
   }
 
@@ -884,7 +941,7 @@
     if (c.accent) root.setProperty('--cta', c.accent);
     if (c.secondary) root.setProperty('--brand-2', c.secondary);
     if (c.dark) root.setProperty('--dark', c.dark);
-    if (site && site.whatsapp) { const w = $('#consultorBtn'); if (w) w.href = 'https://wa.me/' + site.whatsapp; }
+    applyPlanosTexts();
   }
   fetch('/api/site').then(r => r.json()).then(({ site }) => { state.site = site || {}; applySiteColors(state.site); }).catch(() => {});
 

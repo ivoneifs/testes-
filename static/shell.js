@@ -344,7 +344,7 @@
     add(s.openai ? 'ok' : 'bad', 'IA (laudos e OCR)', s.openai ? 'Configurada' : 'Chave não configurada');
     add(s.payments ? 'ok' : 'warn', 'Pagamentos', s.payments ? 'Mercado Pago ativo' : 'Mercado Pago não configurado');
     add(s.whatsapp ? 'ok' : 'warn', 'Avisos por WhatsApp', s.whatsapp ? 'Ativos (cadastro, senha, site fora do ar)' : 'Desligados — falta configurar o WAHA');
-    add(s.smtp ? 'ok' : '', 'E-mail (SMTP)', s.smtp ? 'Ativo' : 'Não configurado · senha via WhatsApp/Admin');
+    add(s.smtp ? 'ok' : '', 'E-mail (SMTP)', s.smtp ? 'Ativo (confirmação de cadastro e recuperação de senha)' : 'Não configurado · senha via WhatsApp/Admin');
     g.innerHTML = items.join('');
     setAdminBadge(s.pending);
   }

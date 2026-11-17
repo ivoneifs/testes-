@@ -379,7 +379,7 @@
         <a href="#precos">Preços</a>
         <a href="#faq">Dúvidas</a>
         <a href="/login.html">Entrar</a>
-        <a class="btn btn-cta" href="/login.html?cadastro=1" data-cta>Testar grátis</a>
+        <a class="btn btn-cta" href="/login.html?cadastro=1" data-cta data-cta-short>Testar grátis</a>
       </div>
     </div>
   </nav>
@@ -395,7 +395,7 @@
           <a class="btn btn-cta btn-lg" href="/login.html?cadastro=1" data-cta>Começar teste grátis de 14 dias →</a>
           <a class="btn btn-wa btn-lg" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>Falar no WhatsApp</a>
         </div>
-        <div class="micro"><span>3 créditos grátis</span><span>Sem cartão para começar</span><span>Sem mensalidade</span></div>
+        <div class="micro" id="heroMicro"><span>3 créditos grátis</span><span>Sem cartão para começar</span><span>Sem mensalidade</span></div>
       </div>
       <div class="reveal" style="position:relative">
         <div class="device">
@@ -424,7 +424,7 @@
       <div class="stat reveal"><b class="grad-text" data-count="71">71</b><span>instrumentos no catálogo</span></div>
       <div class="stat reveal"><b class="grad-text">1 clique</b><span>do teste corrigido ao laudo</span></div>
       <div class="stat reveal"><b class="grad-text">R$ 20</b><span>por crédito, sem mensalidade</span></div>
-      <div class="stat reveal"><b class="grad-text" data-count="14">14</b><span>dias grátis para testar</span></div>
+      <div class="stat reveal" id="statTrial"><b class="grad-text" data-count="14">14</b><span>dias grátis para testar</span></div>
     </div>
   </div>
 
@@ -760,11 +760,11 @@
     <div class="wrap">
       <div class="sec-head reveal">
         <span class="eyebrow"><i></i>Preços</span>
-        <h2>Comece grátis. Depois, <span class="grad-text">pague só pelo que usar</span>.</h2>
-        <p>Sem mensalidade, sem fidelidade. Créditos não expiram enquanto sua conta estiver ativa.</p>
+        <h2 id="precosTitle">Comece grátis. Depois, <span class="grad-text">pague só pelo que usar</span>.</h2>
+        <p id="precosSub">Sem mensalidade, sem fidelidade. Créditos não expiram enquanto sua conta estiver ativa.</p>
       </div>
       <div class="prices" id="prices"></div>
-      <div class="free-band reveal">🎁 Ao criar sua conta: <b>14 dias de acesso + 3 créditos grátis</b> para corrigir testes e gerar seu primeiro laudo.</div>
+      <div class="free-band reveal" id="freeBand">🎁 Ao criar sua conta: <b>14 dias de acesso + 3 créditos grátis</b> para corrigir testes e gerar seu primeiro laudo.</div>
     </div>
   </section>
 
@@ -811,7 +811,7 @@
   </footer>
 
   <a class="wa-float" data-wa href="#" aria-label="Falar no WhatsApp"><span class="tip">Fale com a gente 👋</span><svg style="color:#fff"><use href="#wa"/></svg></a>
-  <div class="m-bar"><a class="btn btn-wa" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>WhatsApp</a><a class="btn btn-cta" href="/login.html?cadastro=1" data-cta>Testar grátis</a></div>
+  <div class="m-bar"><a class="btn btn-wa" data-wa href="#"><svg class="wa-ico"><use href="#wa"/></svg>WhatsApp</a><a class="btn btn-cta" href="/login.html?cadastro=1" data-cta data-cta-short>Testar grátis</a></div>
 
   <script>
   (function () {
@@ -917,7 +917,11 @@
       { name: 'Pack 30 créditos', credits: 30, amount_cents: 60000, featured: false,
         features: ['30 créditos (1 teste ou laudo cada)', 'História de Vida por 1 crédito', 'Exportação em Word e PDF', 'Suporte prioritário + onboarding'] },
     ];
+    let PRE = {}, LAST_PLANS = null;
+    const bold = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     function renderPlans(plans) {
+      LAST_PLANS = plans;
+      const badge = PRE.badge ?? '⚡ Mais escolhido', unitTxt = PRE.unit ?? 'pagamento único', buy = PRE.buy || 'Comprar {creditos} créditos';
       const box = $('#prices');
       box.style.gridTemplateColumns = plans.length && plans.length < 3 ? `repeat(${plans.length},minmax(0,380px))` : '';
       box.style.justifyContent = 'center';
@@ -925,13 +929,13 @@
         const [reais, cents] = brl(p.amount_cents).split(',');
         const unit = p.credits ? brl(Math.round(p.amount_cents / p.credits)) : '';
         return `<div class="price reveal${p.featured ? ' featured' : ''}">
-          ${p.featured ? '<span class="badge">⚡ Mais escolhido</span>' : ''}
+          ${p.featured && badge ? `<span class="badge">${esc(badge)}</span>` : ''}
           <h3>${esc(p.name)}</h3>
           <div class="credits">${p.credits} créditos</div>
           <div class="amount"><small>R$</small><b>${reais}</b><small>,${cents}</small></div>
-          <div class="unit">${unit ? `R$ ${unit} por crédito · pagamento único` : 'pagamento único'}</div>
+          <div class="unit">${unit ? `R$ ${unit} por crédito${unitTxt ? ' · ' + esc(unitTxt) : ''}` : esc(unitTxt)}</div>
           <ul>${(p.features || []).map(f => `<li><i>✓</i>${esc(f)}</li>`).join('')}</ul>
-          <a class="btn ${p.featured ? 'btn-cta' : 'btn-glass'} btn-block" href="/login.html?next=planos">Comprar ${p.credits} créditos</a>
+          <a class="btn ${p.featured ? 'btn-cta' : 'btn-glass'} btn-block" href="/login.html?next=planos">${esc(buy.replace(/\{creditos\}/g, p.credits))}</a>
         </div>`;
       }).join('');
       observe(box);
@@ -961,6 +965,15 @@
       if (s.hero_title) $('#heroTitle').textContent = s.hero_title;
       if (s.hero_subtitle) $('#heroSub').textContent = s.hero_subtitle;
       if (s.cta_text) document.querySelectorAll('.hero [data-cta]').forEach(a => { a.textContent = s.cta_text; });
+      // Textos da seção Preços e do teste grátis (Admin → Planos e Recargas)
+      const pr = s.precos || {};
+      PRE = pr; if (LAST_PLANS) renderPlans(LAST_PLANS);
+      if (pr.title) $('#precosTitle').innerHTML = esc(pr.title) + (pr.title_hl ? ` <span class="grad-text">${esc(pr.title_hl)}</span>` : '');
+      if (pr.subtitle) $('#precosSub').textContent = pr.subtitle;
+      if (pr.free_band != null) { const f = $('#freeBand'); f.innerHTML = '🎁 ' + bold(pr.free_band.replace(/^🎁\s*/, '')); f.hidden = !pr.free_band; }
+      if (Array.isArray(pr.micro) && pr.micro.length) $('#heroMicro').innerHTML = pr.micro.map(m => `<span>${esc(m)}</span>`).join('');
+      if (pr.cta_short) document.querySelectorAll('[data-cta-short]').forEach(a => { a.textContent = pr.cta_short; });
+      if (/^\d{1,3}$/.test(String(pr.trial_days || ''))) { const b = $('#statTrial b'); b.dataset.count = pr.trial_days; b.textContent = pr.trial_days; }
       if (s.whatsapp && s.whatsapp.replace(/\D/g, '').length >= 10) { WA = s.whatsapp.replace(/\D/g, ''); if (WA.length <= 11) WA = '55' + WA; setWa(); }
       if (s.email) { const e = $('#footEmail'); e.href = 'mailto:' + s.email; e.textContent = s.email; e.hidden = false; }
     }).catch(() => {});

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/assets/styles.css" />
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="ic-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol><symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="ic-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/></symbol><symbol id="ic-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol><symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="m9 13 2 2 4-4"/></symbol><symbol id="ic-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 3v4M21 5h-4M5 17v4M7 19H3"/></symbol><symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></symbol><symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></symbol><symbol id="ic-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol><symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></symbol><symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.17 18.65A5 5 0 0 1 11 16h2a5 5 0 0 1 4.83 2.65"/></symbol><symbol id="ic-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol><symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol><symbol id="ic-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol></defs></svg>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -23,17 +24,17 @@
       </div>
 
       <nav class="nav" id="nav">
-        <a class="nav-item" data-view="dashboard" href="#dashboard"><i>▦</i><span>Dashboard</span></a>
-        <a class="nav-item" data-view="pacientes" href="#pacientes"><i>👥</i><span>Pacientes</span></a>
-        <a class="nav-item" data-view="historia" href="#historia"><i>📇</i><span>História de Vida</span></a>
-        <a class="nav-item" data-view="laudos" href="#laudos"><i>📄</i><span>Laudos</span></a>
-        <a class="nav-item" data-view="realizados" href="#realizados"><i>🗂</i><span>Testes realizados</span></a>
-        <a class="nav-item" data-view="geracao" href="#geracao"><i>🧠</i><span>Geração de Laudo</span></a>
-        <a class="nav-item" data-view="videos" href="#videos"><i>🎬</i><span>Vídeos</span></a>
-        <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
-        <a class="nav-item" data-view="config" href="#config"><i>⚙</i><span>Configurações</span></a>
-        <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span><b class="nav-badge" id="navAdminBadge" hidden></b></a>
-        <a class="nav-item" data-view="conta" href="#conta"><i>👤</i><span>Conta</span></a>
+        <a class="nav-item" data-view="dashboard" href="#dashboard"><i><svg class="ico" aria-hidden="true"><use href="#ic-dashboard"/></svg></i><span>Dashboard</span></a>
+        <a class="nav-item" data-view="pacientes" href="#pacientes"><i><svg class="ico" aria-hidden="true"><use href="#ic-users"/></svg></i><span>Pacientes</span></a>
+        <a class="nav-item" data-view="historia" href="#historia"><i><svg class="ico" aria-hidden="true"><use href="#ic-clipboard"/></svg></i><span>História de Vida</span></a>
+        <a class="nav-item" data-view="laudos" href="#laudos"><i><svg class="ico" aria-hidden="true"><use href="#ic-file"/></svg></i><span>Laudos</span></a>
+        <a class="nav-item" data-view="realizados" href="#realizados"><i><svg class="ico" aria-hidden="true"><use href="#ic-folder"/></svg></i><span>Testes realizados</span></a>
+        <a class="nav-item" data-view="geracao" href="#geracao"><i><svg class="ico" aria-hidden="true"><use href="#ic-sparkles"/></svg></i><span>Geração de Laudo</span></a>
+        <a class="nav-item" data-view="videos" href="#videos"><i><svg class="ico" aria-hidden="true"><use href="#ic-play"/></svg></i><span>Vídeos</span></a>
+        <a class="nav-item" data-view="planos" href="#planos"><i><svg class="ico" aria-hidden="true"><use href="#ic-card"/></svg></i><span>Planos</span></a>
+        <a class="nav-item" data-view="config" href="#config"><i><svg class="ico" aria-hidden="true"><use href="#ic-sliders"/></svg></i><span>Configurações</span></a>
+        <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i><svg class="ico" aria-hidden="true"><use href="#ic-shield"/></svg></i><span>Administração</span><b class="nav-badge" id="navAdminBadge" hidden></b></a>
+        <a class="nav-item" data-view="conta" href="#conta"><i><svg class="ico" aria-hidden="true"><use href="#ic-user"/></svg></i><span>Conta</span></a>
       </nav>
 
       <div class="credit-card" id="creditCard" hidden>
@@ -42,7 +43,7 @@
         <span class="cc-sub">Créditos disponíveis · teste, laudo ou História de Vida = 1</span>
         <button type="button" class="cc-btn" data-goto="planos">Comprar mais</button>
       </div>
-      <a class="nav-item nav-danger" id="logoutBtn" href="#"><i>⇥</i><span>Sair</span></a>
+      <a class="nav-item nav-danger" id="logoutBtn" href="#"><i><svg class="ico" aria-hidden="true"><use href="#ic-logout"/></svg></i><span>Sair</span></a>
 
       <div class="sidebar-foot">
         <span class="status-dot" id="apiDot"></span>
@@ -86,10 +87,10 @@
           </div>
         </div>
         <div class="kpi-grid">
-          <div class="kpi"><i class="kpi-ico">📋</i><span class="kpi-label">Avaliações salvas</span><strong id="kpiEvals">—</strong></div>
-          <div class="kpi"><i class="kpi-ico">👥</i><span class="kpi-label">Pacientes</span><strong id="kpiPatients">—</strong></div>
-          <div class="kpi"><i class="kpi-ico">⚡</i><span class="kpi-label">Créditos disponíveis</span><strong id="kpiCredits">—</strong></div>
-          <div class="kpi"><i class="kpi-ico">🧠</i><span class="kpi-label">Instrumentos</span><strong id="kpiTests">62</strong></div>
+          <div class="kpi"><i class="kpi-ico"><svg class="ico" aria-hidden="true"><use href="#ic-clipboard"/></svg></i><span class="kpi-label">Avaliações salvas</span><strong id="kpiEvals">—</strong></div>
+          <div class="kpi"><i class="kpi-ico"><svg class="ico" aria-hidden="true"><use href="#ic-users"/></svg></i><span class="kpi-label">Pacientes</span><strong id="kpiPatients">—</strong></div>
+          <div class="kpi"><i class="kpi-ico"><svg class="ico" aria-hidden="true"><use href="#ic-zap"/></svg></i><span class="kpi-label">Créditos disponíveis</span><strong id="kpiCredits">—</strong></div>
+          <div class="kpi"><i class="kpi-ico"><svg class="ico" aria-hidden="true"><use href="#ic-activity"/></svg></i><span class="kpi-label">Instrumentos</span><strong id="kpiTests">62</strong></div>
         </div>
         <div class="dash-grid">
           <div class="card"><h3>Avaliações por mês</h3><div id="dashByMonth"><p class="muted small">Carregando…</p></div></div>

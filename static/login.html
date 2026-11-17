@@ -164,6 +164,9 @@
     const DEST = '/app' + (next && /^[a-z]+$/.test(next) ? '#' + next : '');
     const msg = (t, ok) => { const m = $('#msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); };
     fetch('/api/site').then(r => r.ok ? r.json() : null).then(d => {
+      // aviso do cadastro editável no Admin (Site: botão de teste grátis e preços)
+      const note = d && d.site && d.site.precos && d.site.precos.signup_note;
+      if (note) $('#trialNote').textContent = '🎁 ' + note.replace(/^🎁\s*/, '');
       const c = (d && d.site && d.site.colors) || {};
       for (const k of ['primary', 'cta', 'brand-2']) {
         const v = c[{ 'cta': 'accent', 'brand-2': 'secondary' }[k] || k];

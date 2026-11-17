@@ -415,8 +415,16 @@ async def fulfill_payment(payment_id: str) -> dict:
     order = rows[0]
     if order['status'] == 'paid':
         return {'ok': True, 'already': True}
-    await _service_req('PATCH', '/orders', params={'id': f'eq.{order_id}'},
-                       json={'status': 'paid', 'provider_ref': str(payment_id)})
+    # o valor pago tem de cobrir o valor do pedido (evita pagar R$ 1 e levar o pacote)
+    paid_cents = round(float(pay.get('transaction_amount') or 0) * 100)
+    if paid_cents < int(order.get('amount_cents') or 0) or (pay.get('currency_id') or 'BRL') != 'BRL':
+        return {'ignored': 'valor divergente', 'paid_cents': paid_cents}
+    # transição atômica pending→paid: dois webhooks simultâneos não creditam em dobro
+    flipped = await _service_req('PATCH', '/orders',
+                                 params={'id': f'eq.{order_id}', 'status': 'neq.paid'},
+                                 json={'status': 'paid', 'provider_ref': str(payment_id)}) or []
+    if not flipped:
+        return {'ok': True, 'already': True}
     await _service_req('POST', '/rpc/apply_credits', json={
         'p_owner': order['owner'], 'p_delta': order['credits'],
         'p_reason': 'purchase', 'p_ref': str(payment_id),

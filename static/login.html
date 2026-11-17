@@ -71,6 +71,7 @@
   .consent input{width:auto!important;margin-top:3px}
   .forgot{display:block;text-align:right;font-size:13px;margin:8px 0 0;cursor:pointer;color:var(--primary);text-decoration:none;font-weight:600}
   [hidden]{display:none!important}
+  .reset-intro{font-size:14px;color:var(--muted);margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -114,6 +115,22 @@
       <a class="forgot" id="forgot" href="#">Esqueci minha senha</a>
       <button id="submitBtn" type="submit">Entrar</button>
     </form>
+
+    <div id="resetBox" hidden>
+      <p class="reset-intro">Enviaremos um código de 6 dígitos para o <b>WhatsApp do seu cadastro</b>.</p>
+      <label for="rEmail">E-mail da conta</label>
+      <input id="rEmail" type="email" autocomplete="email" placeholder="voce@clinica.com.br" />
+      <button type="button" id="rSend">Enviar código no WhatsApp</button>
+      <div id="rStep2" hidden>
+        <label for="rCode">Código recebido</label>
+        <input id="rCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
+        <label for="rPass">Nova senha</label>
+        <input id="rPass" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" />
+        <button type="button" id="rSave">Salvar nova senha</button>
+      </div>
+      <a class="forgot" id="rBack" href="#" style="text-align:center;margin-top:14px">← Voltar para o login</a>
+      <a class="forgot" id="rHelp" href="#" style="text-align:center">Não recebeu? Fale com o suporte</a>
+    </div>
 
     <div class="msg" id="msg"></div>
     <div class="trialnote" id="trialNote" hidden>🎁 Após a aprovação do administrador, sua conta começa com 14 dias de teste e 3 créditos grátis.</div>
@@ -176,12 +193,52 @@
       i.type = show ? 'text' : 'password';
       $('#pwToggle').setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
     });
-    // sem SMTP configurado a redefinição é feita pelo suporte (o admin troca a senha no painel)
-    $('#forgot').addEventListener('click', (e) => {
-      e.preventDefault();
-      const em = $('#email').value.trim();
+    // Esqueci a senha: código pelo WhatsApp (quando ativo) ou contato com o suporte
+    const supportWA = () => {
+      const em = ($('#rEmail').value || $('#email').value).trim();
       const t = 'Olá! Esqueci minha senha do NeuroScore' + (em ? ' (e-mail: ' + em + ')' : '') + '. Pode me ajudar a redefinir?';
       window.open('https://wa.me/5574988259925?text=' + encodeURIComponent(t), '_blank', 'noopener');
+    };
+    const showReset = (on) => {
+      $('#resetBox').hidden = !on; $('#form').hidden = on; $('#switch').hidden = on; $('#msg').className = 'msg';
+      document.querySelector('h1').textContent = on ? 'Recuperar senha' : 'Bem-vindo de volta';
+      $('#modeLabel').textContent = on ? 'Crie uma nova senha em 1 minuto' : 'Entre na sua conta para continuar';
+      if (on) { $('#rEmail').value = $('#email').value; $('#rStep2').hidden = true; }
+    };
+    $('#forgot').addEventListener('click', async (e) => {
+      e.preventDefault();
+      let ok = false;
+      try { ok = (await (await fetch('/api/auth/recovery')).json()).whatsapp; } catch {}
+      if (ok) showReset(true); else supportWA();
+    });
+    $('#rBack').addEventListener('click', (e) => { e.preventDefault(); showReset(false); });
+    $('#rHelp').addEventListener('click', (e) => { e.preventDefault(); supportWA(); });
+    const post = async (url, body) => {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.detail || 'Falha. Tente de novo.');
+      return j;
+    };
+    $('#rSend').addEventListener('click', async () => {
+      const email = $('#rEmail').value.trim();
+      if (!/^\S+@\S+\.\S+$/.test(email)) { msg('Digite o e-mail da sua conta.'); return; }
+      const b = $('#rSend'); b.disabled = true;
+      try {
+        const j = await post('/api/auth/reset/start', { email });
+        msg(j.sent_to ? `✅ Código enviado para o WhatsApp ${j.sent_to}. Ele vale por 15 minutos.` : '✅ ' + j.message, true);
+        $('#rStep2').hidden = false; $('#rCode').focus(); b.textContent = 'Reenviar código';
+      } catch (err) { msg(err.message); }
+      finally { setTimeout(() => { b.disabled = false; }, 30000); }
+    });
+    $('#rSave').addEventListener('click', async () => {
+      const b = $('#rSave'); b.disabled = true;
+      try {
+        await post('/api/auth/reset/confirm', { email: $('#rEmail').value.trim(), code: $('#rCode').value, password: $('#rPass').value });
+        $('#email').value = $('#rEmail').value.trim(); $('#password').value = '';
+        showReset(false);
+        msg('✅ Senha alterada! Entre com a nova senha.', true);
+      } catch (err) { msg(err.message); }
+      finally { b.disabled = false; }
     });
     if (new URLSearchParams(location.search).get('confirmado')) msg('✅ E-mail confirmado! Entre com a sua senha. Seu acesso será liberado após a aprovação do administrador.', true);
     // landing: "Testar grátis" abre direto em "Criar conta"

@@ -32,7 +32,7 @@
         <a class="nav-item" data-view="videos" href="#videos"><i>🎬</i><span>Vídeos</span></a>
         <a class="nav-item" data-view="planos" href="#planos"><i>🛒</i><span>Planos</span></a>
         <a class="nav-item" data-view="config" href="#config"><i>⚙</i><span>Configurações</span></a>
-        <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span></a>
+        <a class="nav-item" data-view="admin" id="navAdmin" href="#admin" hidden><i>🛡</i><span>Administração</span><b class="nav-badge" id="navAdminBadge" hidden></b></a>
         <a class="nav-item" data-view="conta" href="#conta"><i>👤</i><span>Conta</span></a>
       </nav>
 
@@ -488,6 +488,13 @@
 
       <!-- ================= ADMINISTRAÇÃO ================= -->
       <section class="view" id="view-admin" hidden>
+        <div class="card" id="sysCard">
+          <div class="section-heading"><div><h2>Status do sistema</h2>
+            <span class="muted">Site, banco de dados, backup diário, disco e integrações.</span></div>
+            <button type="button" class="btn ghost" id="sysRefresh">Atualizar</button></div>
+          <div class="sys-grid" id="sysGrid"><div class="muted small">Carregando…</div></div>
+        </div>
+
         <div class="card">
           <div class="section-heading">
             <div><h2>Usuários &amp; Acessos</h2><span class="muted">Acesso total do administrador mestre. Cadastros novos só entram depois que você liberar.</span>

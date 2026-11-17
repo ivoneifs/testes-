@@ -32,7 +32,7 @@ from .file_content import to_content as file_to_content, accepted as file_accept
 from . import auto_score
 from .openai_service import generate_laudo_neuro, transcribe_corrected
 from .ocr_prep import prepare_image
-from . import auth, payments, store, scales, qplataforma, laudo_modelo, vineland
+from . import auth, payments, store, scales, qplataforma, laudo_modelo, vineland, notify, recovery
 from .auth import current_user
 
 STATIC=ROOT/'static'
@@ -47,6 +47,7 @@ app=FastAPI(title='NeuroScore API',version='1.1.0',
             docs_url='/docs' if _DOCS else None, redoc_url='/redoc' if _DOCS else None,
             openapi_url='/openapi.json' if _DOCS else None)
 engine=WorkbookEngine(DB)
+PUBLIC_URL=(os.getenv('PUBLIC_URL') or 'https://neuro-testes.appsbrasil.store').rstrip('/')
 
 class ScoreRequest(BaseModel):
     test: str
@@ -739,7 +740,83 @@ async def evaluations_delete(eval_id: str, user: dict = Depends(active_user)):
 async def profile_get(user: dict = Depends(current_user)):
     # Liberado mesmo com o teste expirado: o app usa para mostrar o bloqueio e o contador.
     p = await store.get_profile(user)
+    if p.get('status') == 'pending' and not (p.get('prefs') or {}).get('_admin_notified') and notify.enabled():
+        asyncio.create_task(_notify_signup(p))
     return {**p, 'access': store.access_state(p)}
+
+
+async def _notify_signup(p: dict) -> None:
+    """Avisa o admin no WhatsApp, uma única vez, que há cadastro aguardando aprovação."""
+    try:
+        prefs = {**(p.get('prefs') or {}), '_admin_notified': True}
+        await store._service_req('PATCH', '/profiles', params={'id': f'eq.{p["id"]}'}, json={'prefs': prefs})
+        await notify.notify_admin(
+            '🆕 *NeuroScore — novo cadastro aguardando aprovação*\n\n'
+            f'Nome: {p.get("full_name") or "—"}\nCRP: {p.get("professional_id") or "—"}\n'
+            f'E-mail: {p.get("email") or "—"}\nWhatsApp: {p.get("phone") or "—"}\nCidade: {p.get("city") or "—"}\n\n'
+            f'Aprovar: {PUBLIC_URL}/app#admin')
+    except Exception as exc:  # aviso nunca quebra o login
+        log.warning('Aviso de cadastro falhou: %s', exc)
+
+
+# ---------- recuperação de senha por WhatsApp (público, com limite por IP) ----------
+_RL: dict[str, list[float]] = {}
+
+def _rate_limit(request: Request, bucket: str, limit: int, window: int = 3600) -> None:
+    ip = request.headers.get('cf-connecting-ip') or (request.client.host if request.client else '?')
+    k, now = f'{bucket}:{ip}', time.time()
+    hits = [t for t in _RL.get(k, []) if now - t < window]
+    if len(hits) >= limit:
+        raise HTTPException(429, 'Muitas tentativas. Aguarde alguns minutos e tente de novo.')
+    hits.append(now); _RL[k] = hits
+    if len(_RL) > 5000:
+        _RL.clear()
+
+class ResetStart(BaseModel):
+    email: str
+
+class ResetConfirm(BaseModel):
+    email: str
+    code: str
+    password: str
+
+@app.get('/api/auth/recovery')
+def recovery_options():
+    return {'whatsapp': recovery.available()}
+
+@app.post('/api/auth/reset/start')
+async def reset_start(req: ResetStart, request: Request):
+    _rate_limit(request, 'reset-start', 8)
+    return await recovery.start(req.email)
+
+@app.post('/api/auth/reset/confirm')
+async def reset_confirm(req: ResetConfirm, request: Request):
+    _rate_limit(request, 'reset-confirm', 20)
+    return await recovery.confirm(req.email, req.code, req.password)
+
+
+# ---------- status do sistema (card no Admin) ----------
+@app.get('/api/admin/status')
+async def admin_status(user: dict = Depends(active_user)):
+    await store._require_admin(user)
+    out: dict[str, Any] = {'app': {'ok': True, 'version': app.version},
+                           'openai': bool(os.getenv('OPENAI_API_KEY')),
+                           'payments': payments.enabled(), 'whatsapp': notify.enabled(),
+                           'recovery_whatsapp': recovery.available(), 'smtp': False}
+    try:
+        t0 = time.time()
+        rows = await store._service_req('GET', '/profiles', params={'select': 'status'}) or []
+        out['db'] = {'ok': True, 'ms': round((time.time() - t0) * 1000)}
+        out['pending'] = sum(1 for r in rows if r.get('status') == 'pending')
+        out['users'] = len(rows)
+    except Exception as exc:
+        out['db'] = {'ok': False, 'error': str(exc)[:120]}
+    try:
+        st = await store._service_req('GET', '/system_status', params={'select': 'key,value,updated_at'}) or []
+        out['host'] = {r['key']: {**(r.get('value') or {}), 'updated_at': r['updated_at']} for r in st}
+    except Exception:
+        out['host'] = {}
+    return out
 
 @app.put('/api/profile')
 async def profile_put(req: ProfileRequest, user: dict = Depends(active_user)):
@@ -1030,8 +1107,6 @@ def termos():
 @app.api_route('/app', methods=['GET', 'HEAD'])
 def index():
     return _index_html()
-
-PUBLIC_URL=(os.getenv('PUBLIC_URL') or 'https://neuro-testes.appsbrasil.store').rstrip('/')
 
 @app.get('/robots.txt')
 def robots():

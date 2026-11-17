@@ -125,6 +125,7 @@
     const first = String(p.full_name || '').trim().split(/\s+/)[0];
     $('#welcomeTitle').textContent = first ? `Olá, ${first}! Bem-vindo ao NeuroScore` : 'Bem-vindo ao NeuroScore';
     $('#navAdmin').hidden = p.role !== 'admin';
+    if (p.role === 'admin') NS.refreshAdminBadge();
     const cc = $('#creditCard');
     if (cc) {
       $('#creditBalance').textContent = fmtCred(p.credits);
@@ -315,7 +316,50 @@
   window.NS && (window.NS.goPlanos = () => showView('planos'));
 
   // ---------------- Administração ----------------
+  // ---------------- Status do sistema (Admin) ----------------
+  function ago(iso) {
+    if (!iso) return '';
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 2) return 'agora';
+    if (m < 60) return `há ${m} min`;
+    const h = Math.round(m / 60);
+    return h < 48 ? `há ${h} h` : `há ${Math.round(h / 24)} dias`;
+  }
+  async function loadStatus() {
+    const g = $('#sysGrid'); if (!g) return;
+    let s;
+    try { s = await NS.api('/api/admin/status'); }
+    catch (e) { g.innerHTML = `<div class="muted small">Não foi possível ler o status: ${NS.esc(e.message)}</div>`; return; }
+    const h = s.host || {}, items = [];
+    const add = (lvl, t, sub) => items.push(`<div class="sys-item"><span class="sys-dot ${lvl}"></span><div><b>${NS.esc(t)}</b><small>${NS.esc(sub)}</small></div></div>`);
+    const up = h.uptime;
+    add(up ? (up.ok ? 'ok' : 'bad') : 'ok', 'Site', up ? (up.ok ? `No ar · verificado ${ago(up.updated_at)}` + (up.down_since ? '' : '') : `FORA DO AR desde ${new Date(up.down_since || up.updated_at).toLocaleString('pt-BR')}`) : 'No ar');
+    add(s.db?.ok ? 'ok' : 'bad', 'Banco de dados', s.db?.ok ? `Respondendo (${s.db.ms} ms) · ${s.users} usuário(s)` : 'Sem resposta');
+    const bk = h.backup;
+    const bkAge = bk ? (Date.now() - new Date(bk.updated_at).getTime()) / 3600000 : Infinity;
+    add(!bk ? 'bad' : bkAge > 30 ? 'warn' : 'ok', 'Backup diário', bk ? `Último ${ago(bk.updated_at)} · ${bk.size || ''} · guarda ${bk.keep_days || 14} dias` : 'Nenhum backup registrado');
+    const dk = h.disk;
+    add(!dk ? '' : dk.used_pct >= 90 ? 'bad' : dk.used_pct >= 80 ? 'warn' : 'ok', 'Disco do servidor', dk ? `${dk.used_pct}% usado · ${dk.free} livres` : 'Sem dados');
+    add(s.pending ? 'warn' : 'ok', 'Cadastros pendentes', s.pending ? `${s.pending} aguardando aprovação` : 'Nenhum');
+    add(s.openai ? 'ok' : 'bad', 'IA (laudos e OCR)', s.openai ? 'Configurada' : 'Chave não configurada');
+    add(s.payments ? 'ok' : 'warn', 'Pagamentos', s.payments ? 'Mercado Pago ativo' : 'Mercado Pago não configurado');
+    add(s.whatsapp ? 'ok' : 'warn', 'Avisos por WhatsApp', s.whatsapp ? 'Ativos (cadastro, senha, site fora do ar)' : 'Desligados — falta configurar o WAHA');
+    add(s.smtp ? 'ok' : '', 'E-mail (SMTP)', s.smtp ? 'Ativo' : 'Não configurado · senha via WhatsApp/Admin');
+    g.innerHTML = items.join('');
+    setAdminBadge(s.pending);
+  }
+  function setAdminBadge(n) {
+    const b = $('#navAdminBadge'); if (!b) return;
+    b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n || '');
+    b.title = n ? `${n} cadastro(s) aguardando aprovação` : '';
+  }
+  NS.refreshAdminBadge = async () => {
+    if (state.profile?.role !== 'admin') return;
+    try { const { professionals = [] } = await NS.api('/api/admin/professionals'); setAdminBadge(professionals.filter(p => p.status === 'pending').length); } catch {}
+  };
+
   async function loadAdmin() {
+    loadStatus();
     try {
       const { professionals = [] } = await NS.api('/api/admin/professionals');
       state.pros = professionals;
@@ -407,6 +451,7 @@
         loadAdmin();
       });
   });
+  $('#sysRefresh')?.addEventListener('click', loadStatus);
   $('#proNewBtn')?.addEventListener('click', () => {
     openEdit('Novo profissional', `
       <label class="field span-2">E-mail<input id="f_email" type="email"></label>
@@ -491,6 +536,7 @@
     const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
     const pend = $('#prosPending');
     if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação`; }
+    setAdminBadge(nPend);
     $('#prosBody').innerHTML = rows.map(p => `<tr>
       <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>

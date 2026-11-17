@@ -1149,8 +1149,10 @@ a.btn,a.btn:hover{text-decoration:none}
 .card.flash{animation:cardflash 1.6s ease}
 @keyframes cardflash{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 45%,transparent)}100%{box-shadow:var(--shadow-sm)}}
 
-/* Usuários & Acessos: cadastro com IP igual ao de outra conta */
-.ip-alert { color: #b91c1c; font-weight: 700; margin-top: 2px; }
-tr.row-ip-alert > td { background: rgba(220, 38, 38, .07); }
+/* Usuários & Acessos: alerta de IP do cadastro (verde = novo · vermelho = já teve teste grátis) */
+.ip-badge { display: inline-block; margin-top: 3px; padding: 1px 8px; border-radius: 999px; font-weight: 700; }
+.ip-green { color: #166534; background: #dcfce7; }
+.ip-amber { color: #92400e; background: #fef3c7; }
+.ip-red   { color: #fff;    background: #dc2626; }
+tr.row-ip-alert > td { background: rgba(220, 38, 38, .08); }
 tr.row-ip-alert > td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
-@media (prefers-color-scheme: dark) { .ip-alert { color: #f87171; } }

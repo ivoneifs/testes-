@@ -781,14 +781,29 @@ async def same_ip_accounts(pid: str, ip: str | None) -> list[dict]:
     if not ip:
         return []
     rows = await store._service_req('GET', '/profiles', params={
-        'select': 'id,full_name,email,status',
+        'select': 'id,full_name,email,status,role',
         'or': f'(signup_ip.eq."{ip}",last_ip.eq."{ip}")', 'id': f'neq.{pid}', 'limit': '20'}) or []
     return rows
 
 
+def had_trial(r: dict) -> bool:
+    """Conta que já foi liberada (todo profissional aprovado recebe o teste grátis)."""
+    return r.get('role') != 'admin' and r.get('status') not in ('pending', 'rejected')
+
+
+def ip_level(others: list[dict]) -> str:
+    """🟢 IP novo · 🔴 IP de conta que já teve o teste grátis · 🟡 IP de outro cadastro ainda sem teste."""
+    if not others:
+        return '🟢 *IP novo* — nenhuma outra conta usou este IP.'
+    if any(had_trial(o) for o in others):
+        return '🔴 *ALERTA VERMELHO: este IP já teve o teste grátis* (mesmo IP de conta já liberada).'
+    return '🟡 *Atenção: mesmo IP de outro cadastro* (que ainda não teve o teste grátis).'
+
+
 def _fmt_same_ip(rows: list[dict]) -> str:
-    st = {'pending': 'aguardando', 'rejected': 'recusado', 'suspended': 'suspenso'}
-    return '\n'.join(f'• {r.get("full_name") or "—"} ({r.get("email") or "—"}) — {st.get(r.get("status"), "ativo")}'
+    st = {'pending': 'aguardando', 'rejected': 'recusado', 'suspended': 'suspenso (já teve teste)'}
+    return '\n'.join(f'• {r.get("full_name") or "—"} ({r.get("email") or "—"}) — '
+                     f'{"admin" if r.get("role") == "admin" else st.get(r.get("status"), "liberado (já teve teste)")}'
                      for r in rows[:10])
 
 
@@ -799,7 +814,7 @@ async def _alert_same_ip(pid: str, ip: str, who: dict) -> None:
         if not others or not notify.enabled():
             return
         await notify.notify_admin(
-            '⚠️ *NeuroScore — ALERTA: cadastro do mesmo IP*\n\n'
+            '*NeuroScore — cadastro de IP repetido*\n' + ip_level(others) + '\n\n'
             f'Novo pedido: {who.get("full_name") or "—"} ({who.get("email") or "—"})\nIP: {ip}\n\n'
             f'Já existe(m) conta(s) com este IP:\n{_fmt_same_ip(others)}\n\n'
             f'Confira antes de aprovar: {PUBLIC_URL}/app#admin')
@@ -846,9 +861,9 @@ async def _notify_signup(p: dict) -> None:
         await store._service_req('PATCH', '/profiles', params={'id': f'eq.{p["id"]}'}, json={'prefs': prefs})
         ip = p.get('signup_ip') or p.get('last_ip')
         others = await same_ip_accounts(p['id'], ip)
-        alerta = (f'⚠️ *ALERTA: mesmo IP de outra(s) conta(s):*\n{_fmt_same_ip(others)}\n\n' if others else '')
+        alerta = ip_level(others) + '\n' + (f'Mesmo IP de:\n{_fmt_same_ip(others)}\n' if others else '') + '\n'
         await notify.notify_admin(
-            ('⚠️ ' if others else '🆕 ') + '*NeuroScore — novo cadastro aguardando aprovação*\n\n'
+            '🆕 *NeuroScore — novo cadastro aguardando aprovação*\n\n'
             f'Nome: {p.get("full_name") or "—"}\nCRP: {p.get("professional_id") or "—"}\n'
             f'E-mail: {p.get("email") or "—"}\nWhatsApp: {p.get("phone") or "—"}\nCidade: {p.get("city") or "—"}\n'
             f'IP do pedido: {ip or "—"}\n\n' + alerta +

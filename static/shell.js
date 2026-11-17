@@ -643,9 +643,20 @@
     if (p.signup_ip) h += `<div class="muted small" title="${NS.esc(p.signup_user_agent || '')}">🌐 IP do pedido: ${look(p.signup_ip)}${p.signup_ip_at ? ` · ${dt(p.signup_ip_at)}` : ''}</div>`;
     if (p.last_ip && p.last_ip !== p.signup_ip) h += `<div class="muted small">↻ Último acesso: ${look(p.last_ip)}${p.last_ip_at ? ` · ${dt(p.last_ip_at)}` : ''}</div>`;
     if (!h && p.status === 'pending') h = '<div class="muted small">🌐 IP do pedido: ainda não registrado</div>';
-    const dup = sameIp(p);
-    if (dup.length) h += `<div class="small ip-alert" title="${NS.esc(dup.map(o => `${o.full_name || '—'} (${o.email || '—'})`).join('\n'))}">⚠️ Mesmo IP de: ${dup.map(o => NS.esc(o.full_name || o.email || '—')).join(', ')}</div>`;
+    const lv = ipLevel(p), dup = sameIp(p);
+    const names = dup.map(o => NS.esc(o.full_name || o.email || '—')).join(', ');
+    if (lv === 'red') h += `<div class="small ip-badge ip-red">🔴 IP que já teve teste grátis · ${names}</div>`;
+    else if (lv === 'amber') h += `<div class="small ip-badge ip-amber">🟡 Mesmo IP de outro cadastro · ${names}</div>`;
+    else if (lv === 'green') h += '<div class="small ip-badge ip-green">🟢 IP novo</div>';
     return h;
+  }
+  // já teve o teste grátis = conta profissional que já foi liberada
+  const hadTrial = (o) => o.role !== 'admin' && !['pending', 'rejected'].includes(o.status);
+  // green: IP novo · red: IP de conta que já teve o teste grátis · amber: IP de outro cadastro sem teste
+  function ipLevel(p) {
+    if (!p.signup_ip && !p.last_ip) return '';
+    const dup = sameIp(p);
+    return !dup.length ? 'green' : dup.some(hadTrial) ? 'red' : 'amber';
   }
   // outras contas com o mesmo IP (do pedido ou do último acesso)
   function sameIp(p) {
@@ -661,10 +672,10 @@
       .sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
     const nPend = (state.pros || []).filter(p => p.status === 'pending').length;
     const pend = $('#prosPending');
-    const nDup = (state.pros || []).filter(p => p.status === 'pending' && sameIp(p).length).length;
-    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação` + (nDup ? ` · ⚠️ ${nDup} com IP igual ao de outra conta` : ''); }
+    const nRed = (state.pros || []).filter(p => p.status === 'pending' && ipLevel(p) === 'red').length;
+    if (pend) { pend.hidden = !nPend; pend.textContent = `${nPend} cadastro(s) aguardando aprovação` + (nRed ? ` · 🔴 ${nRed} de IP que já teve teste grátis` : ''); }
     setAdminBadge(nPend);
-    $('#prosBody').innerHTML = rows.map(p => `<tr${sameIp(p).length ? ' class="row-ip-alert"' : ''}>
+    $('#prosBody').innerHTML = rows.map(p => `<tr${p.status === 'pending' && ipLevel(p) === 'red' ? ' class="row-ip-alert"' : ''}>
       <td>${NS.esc(p.full_name || '—')}${p.phone ? `<div class="small"><a href="https://wa.me/${p.phone.length <= 11 ? '55' + p.phone : p.phone}" target="_blank" rel="noopener">💬 ${NS.esc(p.phone)}</a></div>` : ''}${p.city ? `<div class="muted small">${NS.esc(p.city)}</div>` : ''}</td><td>${NS.esc(p.email || '—')}${ipInfo(p)}</td>
       <td>${NS.esc(p.professional_id || '—')}</td>
       <td><span class="pill${accessOf(p).cls}">${accessOf(p).label}</span></td>
@@ -685,7 +696,7 @@
     if (t.dataset.approvePro) {
       const p = state.pros.find(x => x.id === t.dataset.approvePro); if (!p) return;
       const dup = sameIp(p);
-      if (dup.length && !confirm(`⚠️ ALERTA: ${p.full_name || p.email} usa o mesmo IP de:\n${dup.map(o => `• ${o.full_name || '—'} (${o.email || '—'})`).join('\n')}\n\nPode ser a mesma pessoa criando outra conta para ganhar o teste grátis de novo. Aprovar mesmo assim?`)) return;
+      if (dup.length && !confirm(`${ipLevel(p) === 'red' ? '🔴 ALERTA VERMELHO: este IP já teve o teste grátis.' : '🟡 Atenção: mesmo IP de outro cadastro.'}\n\n${p.full_name || p.email} usa o mesmo IP de:\n${dup.map(o => `• ${o.full_name || '—'} (${o.email || '—'})`).join('\n')}\n\nPode ser a mesma pessoa criando outra conta para ganhar o teste grátis de novo. Aprovar mesmo assim?`)) return;
       t.disabled = true;
       try {
         await NS.api('/api/admin/professionals/' + p.id, {

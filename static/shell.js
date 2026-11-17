@@ -354,6 +354,7 @@
     badge: '⚡ Mais escolhido', unit: 'pagamento único', buy: 'Comprar {creditos} créditos',
     free_band: 'Ao criar sua conta: **14 dias de acesso + 3 créditos grátis** para corrigir testes e gerar seu primeiro laudo.',
     micro: ['3 créditos grátis', 'Sem cartão para começar', 'Sem mensalidade'], cta_short: 'Testar grátis', trial_days: 14,
+    signup_note: 'Após a aprovação do administrador, sua conta começa com 14 dias de teste e 3 créditos grátis.',
   };
   const PR_CTA = 'Começar teste grátis de 14 dias →';
   function fillPrecosForm() {
@@ -361,7 +362,7 @@
     const site = state.site || {}, c = { ...PR_DEFAULT, ...(site.precos || {}) };
     $('#prCta').value = site.cta_text || PR_CTA; $('#prCtaShort').value = c.cta_short; $('#prMicro').value = (c.micro || []).join('\n');
     $('#prTitle').value = c.title; $('#prTitleHl').value = c.title_hl; $('#prSub').value = c.subtitle;
-    $('#prTrialDays').value = c.trial_days; $('#prBadge').value = c.badge; $('#prUnit').value = c.unit; $('#prBuy').value = c.buy; $('#prFree').value = c.free_band;
+    $('#prTrialDays').value = c.trial_days; $('#prSignup').value = c.signup_note; $('#prBadge').value = c.badge; $('#prUnit').value = c.unit; $('#prBuy').value = c.buy; $('#prFree').value = c.free_band;
   }
   async function savePrecos(precos, cta_text) {
     const m = $('#prMsg');
@@ -377,7 +378,7 @@
     const v = (id) => $(id).value.trim();
     savePrecos({
       title: v('#prTitle'), title_hl: v('#prTitleHl'), subtitle: v('#prSub'), badge: v('#prBadge'), unit: v('#prUnit'),
-      buy: v('#prBuy') || PR_DEFAULT.buy, free_band: v('#prFree'), trial_days: parseInt(v('#prTrialDays'), 10) || 14, cta_short: v('#prCtaShort') || PR_DEFAULT.cta_short,
+      buy: v('#prBuy') || PR_DEFAULT.buy, free_band: v('#prFree'), trial_days: parseInt(v('#prTrialDays'), 10) || 14, signup_note: v('#prSignup') || PR_DEFAULT.signup_note, cta_short: v('#prCtaShort') || PR_DEFAULT.cta_short,
       micro: $('#prMicro').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 6),
     }, v('#prCta') || PR_CTA);
   });
@@ -1014,7 +1015,9 @@
     }
     if (acc.blocked === 'pending') {
       $('#blockedTitle').textContent = 'Cadastro recebido! 🎉';
-      $('#blockedText').textContent = 'Sua conta foi criada e está aguardando a liberação do administrador. Assim que for liberada, você entra com 14 dias de teste e 3 créditos grátis. Quer agilizar? Avise pelo WhatsApp.';
+      const sn = ((state.site || {}).precos || {}).signup_note;
+      $('#blockedText').textContent = 'Sua conta foi criada e está aguardando a liberação do administrador. '
+        + (sn ? sn.replace(/^🎁\s*/, '') : 'Assim que for liberada, você entra com 14 dias de teste e 3 créditos grátis.') + ' Quer agilizar? Avise pelo WhatsApp.';
       $('#blockedBuy').hidden = true;
     }
     if (acc.blocked === 'rejected') {

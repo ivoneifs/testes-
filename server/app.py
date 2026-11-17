@@ -780,10 +780,22 @@ class ResetConfirm(BaseModel):
     code: str
     password: str
 
+_WA_OK: dict[str, float] = {}
+
+async def _whatsapp_ready() -> bool:
+    """WhatsApp configurado E conectado (cache de 60 s para não consultar a cada clique)."""
+    if not recovery.available():
+        return False
+    now = time.time()
+    if now - _WA_OK.get('t', 0) > 60:
+        st = (await notify.connection_state()).get('state')
+        _WA_OK.update(t=now, ok=1.0 if st in (None, 'open') else 0.0)
+    return bool(_WA_OK.get('ok'))
+
 @app.get('/api/auth/recovery')
-def recovery_options():
+async def recovery_options():
     # e-mail: link pelo Supabase Auth (SMTP configurado no serviço de login); EMAIL_RECOVERY=0 desliga
-    return {'whatsapp': recovery.available(), 'email': os.getenv('EMAIL_RECOVERY', '1') not in ('0', 'false', 'no')}
+    return {'whatsapp': await _whatsapp_ready(), 'email': os.getenv('EMAIL_RECOVERY', '1') not in ('0', 'false', 'no')}
 
 @app.post('/api/auth/reset/start')
 async def reset_start(req: ResetStart, request: Request):
